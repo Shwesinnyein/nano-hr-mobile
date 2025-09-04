@@ -840,13 +840,17 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
   Future<void> _openAttachment(String url) async {
     try {
+      print('🔗 Opening attachment: $url');
       final Uri uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+        print('✅ Attachment opened successfully');
       } else {
+        print('❌ Could not launch URL: $url');
         _showErrorSnackBar('Could not open attachment');
       }
     } catch (e) {
+      print('❌ Error opening attachment: $e');
       _showErrorSnackBar('Error opening attachment: $e');
     }
   }

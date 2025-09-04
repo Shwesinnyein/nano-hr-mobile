@@ -5,6 +5,7 @@ import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
 import '../../../core/services/leave_service.dart';
+import '../../../core/services/firebase_storage_service.dart';
 import '../data/leave_repository.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
@@ -26,6 +27,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
   File? _selectedImage;
+  List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -522,72 +524,166 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Supporting Document (Optional)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.kOnBackground,
-          ),
+        Row(
+          children: [
+            Text(
+              'Attachments (Optional)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.kOnBackground,
+              ),
+            ),
+            const Spacer(),
+            if (_selectedImages.isEmpty) ...[
+              TextButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.add_photo_alternate, size: 16),
+                label: const Text('Single'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.kNanoGold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _pickMultipleImages,
+                icon: const Icon(Icons.photo_library, size: 16),
+                label: const Text('Multiple'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.kNanoGold,
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _pickImage,
-          child: Container(
+
+        // Show selected images
+        if (_selectedImages.isNotEmpty) ...[
+          Container(
             width: double.infinity,
-            height: 120,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppTheme.kSurface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _selectedImage != null
-                    ? AppTheme.kNanoGold
-                    : Colors.grey.withOpacity(0.3),
-                width: 2,
-                style: BorderStyle.solid,
+              border: Border.all(color: AppTheme.kNanoGold, width: 2),
+            ),
+            child: Column(
+              children: [
+                // Image previews
+                if (_selectedImages.length == 1) ...[
+                  // Single image - show full preview
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _selectedImages.first,
+                      fit: BoxFit.cover,
+                      height: 120,
+                      width: double.infinity,
+                    ),
+                  ),
+                ] else ...[
+                  // Multiple images - show grid
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
+                    itemCount: _selectedImages.length,
+                    itemBuilder: (context, index) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _selectedImages[index],
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+
+                const SizedBox(height: 12),
+
+                // File info and actions
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: AppTheme.successColor,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_selectedImages.length} file${_selectedImages.length > 1 ? 's' : ''} selected',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.successColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _pickMultipleImages,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add More'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.kNanoGold,
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _selectedImage = null;
+                        _selectedImages.clear();
+                      }),
+                      child: Icon(
+                        Icons.close,
+                        color: AppTheme.errorColor,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // No images selected - show upload area
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              width: double.infinity,
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppTheme.kSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.3),
+                  width: 2,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: 48,
+                    color: Colors.grey.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap to select image(s)',
+                    style: TextStyle(color: Colors.grey.withOpacity(0.7)),
+                  ),
+                ],
               ),
             ),
-            child: _selectedImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.cloud_upload_outlined,
-                        size: 48,
-                        color: Colors.grey.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap to upload image',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-        if (_selectedImage != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: AppTheme.successColor, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                'Image uploaded successfully',
-                style: TextStyle(fontSize: 12, color: AppTheme.successColor),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => setState(() => _selectedImage = null),
-                child: Icon(Icons.close, color: AppTheme.errorColor, size: 16),
-              ),
-            ],
           ),
         ],
       ],
@@ -696,7 +792,22 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   void _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      setState(() => _selectedImage = File(image.path));
+      setState(() {
+        _selectedImage = File(image.path);
+        _selectedImages = [File(image.path)];
+      });
+    }
+  }
+
+  void _pickMultipleImages() async {
+    final List<XFile> images = await _picker.pickMultipleMedia();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages = images.map((image) => File(image.path)).toList();
+        _selectedImage = _selectedImages.isNotEmpty
+            ? _selectedImages.first
+            : null;
+      });
     }
   }
 
@@ -749,8 +860,101 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Get leave service
+      // Get services
       final leaveService = ref.read(leaveServiceProvider);
+      final firebaseStorageService = ref.read(firebaseStorageServiceProvider);
+
+      // Show loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Creating leave request...'),
+            ],
+          ),
+        ),
+      );
+
+      // Upload attachments to Firebase Storage if exists
+      String? attachmentUrl;
+      if (_selectedImages.isNotEmpty) {
+        try {
+          // Show upload progress
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Uploading ${_selectedImages.length} file${_selectedImages.length > 1 ? 's' : ''}...',
+                  ),
+                ],
+              ),
+            ),
+          );
+
+          if (_selectedImages.length == 1) {
+            // Single file upload
+            attachmentUrl = await firebaseStorageService.uploadFile(
+              file: _selectedImages.first,
+              folder: 'leave-attachments',
+              userId: currentEmployee.id,
+              onProgress: (progress) {
+                print(
+                  '📤 Upload progress: ${progress.progress.toStringAsFixed(1)}% - ${progress.fileName}',
+                );
+                if (progress.isComplete && progress.downloadUrl != null) {
+                  print('✅ Upload completed: ${progress.downloadUrl}');
+                } else if (progress.error != null) {
+                  print('❌ Upload error: ${progress.error}');
+                }
+              },
+            );
+          } else {
+            // Multiple files upload - for now, upload first file as primary attachment
+            // In a real app, you might want to store multiple URLs in a separate field
+            final urls = await firebaseStorageService.uploadMultipleFiles(
+              files: _selectedImages,
+              folder: 'leave-attachments',
+              userId: currentEmployee.id,
+              onProgress: (progress) {
+                print(
+                  '📤 Upload progress: ${progress.progress.toStringAsFixed(1)}% - ${progress.fileName}',
+                );
+                if (progress.isComplete && progress.downloadUrl != null) {
+                  print('✅ Upload completed: ${progress.downloadUrl}');
+                } else if (progress.error != null) {
+                  print('❌ Upload error: ${progress.error}');
+                }
+              },
+            );
+            attachmentUrl = urls.isNotEmpty ? urls.first : null;
+          }
+          print('✅ Attachments uploaded: $attachmentUrl');
+        } catch (e) {
+          print('❌ Failed to upload attachments: $e');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to upload attachments: ${e.toString()}'),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+          }
+          return;
+        }
+      }
 
       // Prepare request data
       final requestData = {
@@ -759,7 +963,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'leaveTypeName': _capitalizeFirst(widget.leaveType),
         'requestType': _durationType,
         'reason': _reason.text.trim(),
-        'attachment': _selectedImage?.path,
+        'attachment':
+            attachmentUrl, // Use Firebase Storage URL instead of local path
       };
 
       // Add daily leave specific fields
