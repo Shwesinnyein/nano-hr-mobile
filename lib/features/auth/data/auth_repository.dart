@@ -1,0 +1,147 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/services/auth_service.dart';
+
+class AuthRepository {
+  final AuthService _authService;
+  static const _kLoggedInKey = 'logged_in';
+  static const _kUserId = 'user_id';
+  static const _kUserToken = 'user_token';
+
+  AuthRepository(this._authService);
+
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool(_kLoggedInKey) ?? false;
+    final token = prefs.getString(_kUserToken);
+
+    // Check if we have a valid token
+    if (isLoggedIn && token != null) {
+      return true;
+    }
+
+    // If no valid token, clear login state
+    if (!isLoggedIn || token == null) {
+      await _clearLoginState();
+    }
+
+    return false;
+  }
+
+  Future<void> login({required String email, required String password}) async {
+    try {
+      print('🔄 Attempting login with email: $email');
+
+      // Call API to authenticate
+      final response = await _authService.signInWithEmailAndPassword(
+        email,
+        password,
+      );
+
+      if (response.success && response.data != null) {
+        final userData = response.data!;
+        final userId = userData['userId'] ?? userData['id'] ?? email;
+        final token = userData['token'] ?? userData['accessToken'];
+
+        print('✅ Login successful for user: $userId');
+
+        // Store login state
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kLoggedInKey, true);
+        await prefs.setString(_kUserId, userId);
+        if (token != null) {
+          await prefs.setString(_kUserToken, token);
+        }
+
+        // Update auth service
+        _authService.setCurrentUser(userId);
+      } else {
+        throw Exception(response.message ?? 'Login failed');
+      }
+    } catch (e) {
+      print('❌ Login error: $e');
+      await _clearLoginState();
+      rethrow;
+    }
+  }
+
+  Future<void> logout() async {
+    try {
+      // Call API to logout
+      await _authService.signOut();
+    } catch (e) {
+      print('⚠️ Logout API call failed: $e');
+      // Continue with local logout even if API fails
+    } finally {
+      // Clear local login state
+      await _clearLoginState();
+    }
+  }
+
+  Future<String?> currentUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kUserId);
+  }
+
+  Future<String?> getCurrentToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kUserToken);
+  }
+
+  Future<void> _clearLoginState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kLoggedInKey, false);
+    await prefs.remove(_kUserId);
+    await prefs.remove(_kUserToken);
+    _authService.setCurrentUser(null);
+  }
+}
+
+class AuthController extends StateNotifier<AsyncValue<bool>> {
+  AuthController(this._repo) : super(const AsyncValue.loading()) {
+    check();
+  }
+  final AuthRepository _repo;
+
+  final _controller = StreamController<bool>.broadcast();
+  Stream<bool> get authStream => _controller.stream;
+
+  Future<void> check() async {
+    state = const AsyncValue.loading();
+    final loggedIn = await _repo.isLoggedIn();
+    state = AsyncValue.data(loggedIn);
+    _controller.add(loggedIn);
+  }
+
+  Future<void> login(String email, String password) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.login(email: email, password: password);
+      state = const AsyncValue.data(true);
+      _controller.add(true);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> logout() async {
+    await _repo.logout();
+    state = const AsyncValue.data(false);
+    _controller.add(false);
+  }
+
+  void setLoggedIn(bool isLoggedIn) {
+    state = AsyncValue.data(isLoggedIn);
+    _controller.add(isLoggedIn);
+  }
+}
+
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => AuthRepository(ref.watch(authServiceProvider)),
+);
+
+final authStateProvider =
+    StateNotifierProvider<AuthController, AsyncValue<bool>>(
+      (ref) => AuthController(ref.watch(authRepositoryProvider)),
+    );
