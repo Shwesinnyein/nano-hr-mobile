@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
+// import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
@@ -15,7 +15,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   File? _profileImage;
-  final ImagePicker _picker = ImagePicker();
+  // final ImagePicker _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -301,11 +301,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _pickProfileImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _profileImage = File(image.path);
-      });
-    }
+        // final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // if (image != null) {
+    //   setState(() {
+    //     _profileImage = File(image.path);
+    //   });
+    // }
+    // TODO: Implement image picking when image_picker is re-enabled
   }
 }

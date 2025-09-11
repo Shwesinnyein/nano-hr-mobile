@@ -1,135 +1,104 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../api/api_client.dart';
-import '../api/api_endpoints.dart';
-import '../api/api_response.dart';
-import '../api/network_client.dart';
-import '../../features/employee/data/employee_repository.dart';
-import 'auth_service.dart';
+import 'mock_data_service.dart';
 
 class EmployeeService {
-  final ApiClient _apiClient;
+  // Get employee profile
+  Future<Map<String, dynamic>> getEmployeeProfile(String employeeId) async {
+    try {
+      print('🔄 EmployeeService: Getting profile for employee: $employeeId');
+      
+      // Return mock employee data
+      final employee = MockDataService.mockEmployee;
+      
+      print('✅ EmployeeService: Profile retrieved successfully');
+      return {
+        'success': true,
+        'message': 'Profile retrieved successfully',
+        'data': employee,
+      };
+    } catch (e) {
+      print('❌ EmployeeService: Error getting profile: $e');
+      throw Exception('Failed to get profile: ${e.toString()}');
+    }
+  }
 
-  EmployeeService(this._apiClient);
+  // Update employee profile
+  Future<Map<String, dynamic>> updateEmployeeProfile(
+    String employeeId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      print('🔄 EmployeeService: Updating profile for employee: $employeeId');
+      
+      // Simulate update delay
+      await Future.delayed(const Duration(seconds: 1));
+      
+      print('✅ EmployeeService: Profile updated successfully');
+      return {
+        'success': true,
+        'message': 'Profile updated successfully',
+        'data': {...MockDataService.mockEmployee, ...updates},
+      };
+    } catch (e) {
+      print('❌ EmployeeService: Error updating profile: $e');
+      throw Exception('Failed to update profile: ${e.toString()}');
+    }
+  }
 
   // Get all employees
-  Future<List<Employee>> getEmployees() async {
+  Future<List<Map<String, dynamic>>> getEmployees() async {
     try {
-      print('🔄 Calling Vercel API: ${ApiEndpoints.employees}');
-      print(
-        '🔄 Full URL: https://nano-hr-api.vercel.app${ApiEndpoints.employees}',
-      );
-
-      final response = await _apiClient.get(ApiEndpoints.employees);
-      print('✅ API Response received: ${response.statusCode}');
-
-      // Handle direct list response
-      if (response.data is List) {
-        final employees = (response.data as List)
-            .map((item) => Employee.fromJson(item))
-            .toList();
-        print(
-          '✅ Got ${employees.length} employees from Vercel API (direct list)',
-        );
-        return employees;
-      }
-
-      // Handle wrapped response
-      final apiResponse = ApiResponse.fromJson(
-        response.data,
-        (data) => data as Map<String, dynamic>,
-      );
-
-      if (apiResponse.success && apiResponse.data != null) {
-        final responseData = apiResponse.data as Map<String, dynamic>;
-        final employees = (responseData['data'] as List)
-            .map((item) => Employee.fromJson(item))
-            .toList();
-        print('✅ Got ${employees.length} employees from Vercel API (wrapped)');
-        return employees;
-      } else {
-        print('❌ API Response failed: ${apiResponse.message}');
-        throw Exception(apiResponse.message);
-      }
+      print('🔄 EmployeeService: Getting all employees');
+      
+      // Return mock employee list
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      print('✅ EmployeeService: Employees retrieved successfully');
+      return [MockDataService.mockEmployee];
     } catch (e) {
-      print('❌ Dio API Error: $e');
-      print('❌ Error type: ${e.runtimeType}');
-
-      // Try platform-specific network client as fallback
-      try {
-        print('🔄 Trying platform-specific network client...');
-        final data = await NetworkClient.get(ApiEndpoints.employees);
-
-        if (data['success'] == true && data['data'] != null) {
-          final employeesData = data['data'] as List;
-          final employees = employeesData
-              .map((json) => Employee.fromJson(json))
-              .toList();
-
-          print(
-            '✅ Got ${employees.length} employees from platform network client',
-          );
-          return employees;
-        } else {
-          throw Exception(data['message'] ?? 'Unknown error');
-        }
-      } catch (networkError) {
-        print('❌ Platform Network Error: $networkError');
-        print(
-          '📝 No employee data available. Please check your API connection.',
-        );
-        return [];
-      }
+      print('❌ EmployeeService: Error getting employees: $e');
+      throw Exception('Failed to get employees: ${e.toString()}');
     }
   }
 
   // Get employee by ID
-  Future<Employee> getEmployeeById(String id) async {
+  Future<Map<String, dynamic>> getEmployeeById(String id) async {
     try {
-      final response = await _apiClient.get(ApiEndpoints.getEmployeeById(id));
-      final apiResponse = ApiResponse.fromJson(
-        response.data,
-        (data) => data as Map<String, dynamic>,
-      );
-
-      if (apiResponse.success && apiResponse.data != null) {
-        return Employee.fromJson(apiResponse.data!);
-      } else {
-        throw Exception(apiResponse.message);
-      }
+      print('🔄 EmployeeService: Getting employee by ID: $id');
+      
+      // Return mock employee data
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      print('✅ EmployeeService: Employee retrieved successfully');
+      return {
+        'success': true,
+        'message': 'Employee retrieved successfully',
+        'data': MockDataService.mockEmployee,
+      };
     } catch (e) {
-      print('❌ API Error: $e');
-      throw Exception('Employee not found');
+      print('❌ EmployeeService: Error getting employee: $e');
+      throw Exception('Failed to get employee: ${e.toString()}');
     }
   }
 
   // Search employees
-  Future<List<Employee>> searchEmployees(String query) async {
+  Future<List<Map<String, dynamic>>> searchEmployees(String query) async {
     try {
-      final response = await _apiClient.get(
-        ApiEndpoints.employees,
-        queryParameters: {'search': query},
-      );
-      final apiResponse = ApiResponse.fromJson(
-        response.data,
-        (data) => data as List<dynamic>,
-      );
-
-      if (apiResponse.success && apiResponse.data != null) {
-        return (apiResponse.data as List)
-            .map((item) => Employee.fromJson(item))
-            .toList();
-      } else {
-        throw Exception(apiResponse.message);
-      }
+      print('🔄 EmployeeService: Searching employees with query: $query');
+      
+      // Return mock search results
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      print('✅ EmployeeService: Search completed successfully');
+      return [MockDataService.mockEmployee];
     } catch (e) {
-      print('❌ API Error: $e');
-      return [];
+      print('❌ EmployeeService: Error searching employees: $e');
+      throw Exception('Failed to search employees: ${e.toString()}');
     }
   }
 }
 
 // Provider for EmployeeService
 final employeeServiceProvider = Provider<EmployeeService>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return EmployeeService(apiClient);
+  return EmployeeService();
 });

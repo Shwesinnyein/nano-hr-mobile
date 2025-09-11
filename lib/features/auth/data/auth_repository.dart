@@ -39,8 +39,8 @@ class AuthRepository {
         password,
       );
 
-      if (response.success && response.data != null) {
-        final userData = response.data!;
+      if (response['success'] == true && response['data'] != null) {
+        final userData = response['data'] as Map<String, dynamic>;
         final userId = userData['userId'] ?? userData['id'] ?? email;
         final token = userData['token'] ?? userData['accessToken'];
 
@@ -57,7 +57,7 @@ class AuthRepository {
         // Update auth service
         _authService.setCurrentUser(userId);
       } else {
-        throw Exception(response.message ?? 'Login failed');
+        throw Exception(response['message'] ?? 'Login failed');
       }
     } catch (e) {
       print('❌ Login error: $e');

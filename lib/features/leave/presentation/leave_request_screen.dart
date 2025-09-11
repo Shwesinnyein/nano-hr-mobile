@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
+// import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
-import '../../../core/services/leave_service.dart';
+import '../../../core/services/mock_data_service.dart';
 import '../data/leave_repository.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
@@ -26,7 +26,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
   File? _selectedImage;
-  final ImagePicker _picker = ImagePicker();
+  // final ImagePicker _picker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -694,10 +694,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   void _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() => _selectedImage = File(image.path));
-    }
+    // final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // if (image != null) {
+    //   setState(() => _selectedImage = File(image.path));
+    // }
+    // TODO: Implement image picking when image_picker is re-enabled
   }
 
   void _submitRequest(LeaveController ctrl) async {
@@ -749,24 +750,24 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Get leave service
-      final leaveService = ref.read(leaveServiceProvider);
+      // Generate unique ID for leave request
+      final leaveId = 'LR-${DateTime.now().millisecondsSinceEpoch}';
 
       // Prepare request data
       final requestData = {
+        'id': leaveId,
         'employeeId': currentEmployee.id,
+        'employeeName': currentEmployee.fullName,
         'leaveType': widget.leaveType,
-        'leaveTypeName': _capitalizeFirst(widget.leaveType),
-        'requestType': _durationType,
         'reason': _reason.text.trim(),
-        'attachment': _selectedImage?.path,
+        'attachments': <Map<String, dynamic>>[],
       };
 
       // Add daily leave specific fields
       if (_durationType == 'daily') {
-        requestData['fromDate'] =
+        requestData['startDate'] =
             '${_fromDate!.year}-${_fromDate!.month.toString().padLeft(2, '0')}-${_fromDate!.day.toString().padLeft(2, '0')}';
-        requestData['toDate'] =
+        requestData['endDate'] =
             '${_toDate!.year}-${_toDate!.month.toString().padLeft(2, '0')}-${_toDate!.day.toString().padLeft(2, '0')}';
       }
 
@@ -781,21 +782,27 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}';
       }
 
-      // Create leave request using the new API
-      await leaveService.createLeaveRequest(
-        employeeId: requestData['employeeId']!,
-        leaveType: requestData['leaveType']!,
-        leaveTypeName: requestData['leaveTypeName']!,
-        requestType: requestData['requestType']!,
-        reason: requestData['reason']!,
-        attachment: requestData['attachment'],
-        fromDate: requestData['fromDate'],
-        toDate: requestData['toDate'],
-        date: requestData['date'],
-        workingShift: requestData['workingShift'],
-        startTime: requestData['startTime'],
-        endTime: requestData['endTime'],
-      );
+      // Handle file upload if image is selected
+      if (_selectedImage != null) {
+        try {
+          final uploadResult = await MockDataService.uploadFile(
+            _selectedImage!.path,
+          );
+          if (uploadResult['success'] == true) {
+            (requestData['attachments'] as List<Map<String, dynamic>>).add({
+              'name': _selectedImage!.path.split('/').last,
+              'url': uploadResult['url'],
+              'type': 'image',
+            });
+          }
+        } catch (e) {
+          print('⚠️ File upload failed: $e');
+          // Continue without attachment
+        }
+      }
+
+      // Create leave request using mock service
+      await MockDataService.createLeaveRequest(requestData);
 
       if (context.mounted) {
         Navigator.pop(context);

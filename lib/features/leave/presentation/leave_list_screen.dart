@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
-import '../../../core/services/leave_service.dart';
 import '../data/leave_repository.dart';
+import '../data/leave_model.dart';
 
 class LeaveListScreen extends ConsumerStatefulWidget {
   const LeaveListScreen({super.key});
@@ -196,13 +196,13 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
     // Calculate duration based on request type
     String durationText;
-    if (request.requestType == 'hourly' &&
-        request.startTime != null &&
-        request.endTime != null) {
+    if (request.startTime != null && request.endTime != null) {
       durationText = '${request.startTime} - ${request.endTime}';
-    } else {
-      final daysDifference = request.end.difference(request.start).inDays + 1;
+    } else if (request.start != null && request.end != null) {
+      final daysDifference = request.end!.difference(request.start!).inDays + 1;
       durationText = '${daysDifference} day${daysDifference > 1 ? 's' : ''}';
+    } else {
+      durationText = 'N/A';
     }
 
     return Container(
@@ -243,8 +243,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          request.leaveTypeName ??
-                              _capitalizeFirst(request.leaveType),
+                          _capitalizeFirst(request.leaveType),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -277,7 +276,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                         Icon(statusIcon, color: statusColor, size: 12),
                         const SizedBox(width: 4),
                         Text(
-                          (request.statusName ?? request.status).toUpperCase(),
+                          request.status.toUpperCase(),
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
@@ -298,9 +297,9 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
-                    request.requestType == 'hourly' && request.date != null
-                        ? _formatDate(request.date!)
-                        : '${_formatDate(request.start)} - ${_formatDate(request.end)}',
+                    request.date != null
+                        ? request.date!
+                        : '${_formatDate(request.start!)} - ${_formatDate(request.end!)}',
                     style: TextStyle(
                       fontSize: 14,
                       color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -410,7 +409,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     Icon(Icons.schedule, size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'Created: ${_formatDate(request.createdAt!)}',
+                      'Created: ${request.createdAt}',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.kOnSurface.withOpacity(0.6),
@@ -521,8 +520,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                request.leaveTypeName ??
-                                    _capitalizeFirst(request.leaveType),
+                                _capitalizeFirst(request.leaveType),
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
@@ -542,8 +540,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
-                                  (request.statusName ?? request.status)
-                                      .toUpperCase(),
+                                  request.status.toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -573,12 +570,12 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     if (request.requestType == 'daily') ...[
                       _buildDetailRow(
                         'From Date',
-                        _formatDate(request.fromDate),
+                        request.fromDate ?? 'N/A',
                         Icons.calendar_today,
                       ),
                       _buildDetailRow(
                         'To Date',
-                        _formatDate(request.toDate),
+                        request.toDate ?? 'N/A',
                         Icons.calendar_today,
                       ),
                       if (request.totalDays != null)
@@ -592,9 +589,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     if (request.requestType == 'hourly') ...[
                       _buildDetailRow(
                         'Date',
-                        request.date != null
-                            ? _formatDate(request.date!)
-                            : 'N/A',
+                        request.date ?? 'N/A',
                         Icons.calendar_today,
                       ),
                       if (request.workingShift != null)
@@ -627,14 +622,14 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     if (request.createdAt != null)
                       _buildDetailRow(
                         'Created',
-                        _formatDate(request.createdAt!),
+                        request.createdAt,
                         Icons.schedule,
                       ),
 
                     if (request.updatedAt != null)
                       _buildDetailRow(
                         'Last Updated',
-                        _formatDate(request.updatedAt!),
+                        request.updatedAt,
                         Icons.update,
                       ),
 

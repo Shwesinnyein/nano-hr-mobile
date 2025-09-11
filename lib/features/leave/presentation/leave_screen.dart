@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
 import '../data/leave_repository.dart';
+import '../data/leave_model.dart';
 
 class LeaveScreen extends ConsumerStatefulWidget {
   const LeaveScreen({super.key});
@@ -115,7 +116,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลาพักร้อน (Annual Leave)',
         icon: Icons.beach_access,
         totalDays: 6,
-        remainingDays: balance.vacationLeave,
+        remainingDays: balance.annualLeave.toDouble(),
         color: AppTheme.primaryColor,
       ),
       LeaveTypeData(
@@ -123,7 +124,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลาป่วย(ได้รับค่าจ้าง) (Paid Sick Leave)',
         icon: Icons.health_and_safety,
         totalDays: 30,
-        remainingDays: balance.sickLeave,
+        remainingDays: balance.sickLeave.toDouble(),
         color: AppTheme.errorColor,
       ),
       LeaveTypeData(
@@ -131,7 +132,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลา(โดยไม่ได้รับค่าจ้าง) (Unpaid Leave)',
         icon: Icons.event_available,
         totalDays: 30,
-        remainingDays: balance.leaveWithoutPay,
+        remainingDays: balance.personalLeave.toDouble(),
         color: AppTheme.secondaryColor,
       ),
       LeaveTypeData(
@@ -139,7 +140,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลาคลอด (Maternity Leave)',
         icon: Icons.child_care,
         totalDays: 98,
-        remainingDays: balance.maternityLeave,
+        remainingDays: 0.0,
         color: const Color(0xFFE91E63), // Pink
       ),
       LeaveTypeData(
@@ -147,7 +148,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลากิจ(ได้รับค่าจ้าง) (Paid Personal Leave)',
         icon: Icons.family_restroom,
         totalDays: 3,
-        remainingDays: balance.leaveOfAbsencePaid,
+        remainingDays: 0.0,
         color: const Color(0xFF9C27B0), // Purple
       ),
       LeaveTypeData(
@@ -155,7 +156,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลา(เพื่อจัดงานฌาปนกิจ) (Funeral Leave)',
         icon: Icons.emergency,
         totalDays: 3,
-        remainingDays: balance.emergency,
+        remainingDays: 0.0,
         color: const Color(0xFFFF5722), // Deep Orange
       ),
       LeaveTypeData(
@@ -420,7 +421,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${request.start.day}/${request.start.month} - ${request.end.day}/${request.end.month}',
+                  '${request.start?.day ?? 'N/A'}/${request.start?.month ?? 'N/A'} - ${request.end?.day ?? 'N/A'}/${request.end?.month ?? 'N/A'}',
                   style: TextStyle(
                     fontSize: 12,
                     color: AppTheme.kOnSurface.withOpacity(0.7),

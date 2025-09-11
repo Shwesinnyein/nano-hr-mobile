@@ -106,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 height: 200,
                 width: double.infinity,
                 decoration: const BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
@@ -122,37 +122,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       // Logo
                       Container(
-                        height: 80,
-                        width: 80,
+                        height: 120,
+                        width: 120,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(25),
                           child: Image.asset(
-                            'assets/icon/nano-store-dark.png',
-                            height: 60,
-                            width: 60,
+                            'assets/icon/super1.jpg',
+                            height: 100,
+                            width: 100,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.business,
-                                size: 40,
-                                color: Colors.white,
+                                size: 60,
+                                color: Color(0xFFFD8E00),
                               );
                             },
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       const Text(
                         'NANO HR',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                          letterSpacing: 3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                       ),
                     ],

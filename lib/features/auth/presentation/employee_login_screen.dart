@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/employee_auth_service.dart';
 import '../data/auth_repository.dart';
+import '../../employee/data/employee_model.dart';
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
   const EmployeeLoginScreen({super.key});
@@ -30,43 +31,31 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   }
 
   void _handleLogin() {
-    final email = _email.text.trim();
-    final password = _password.text.trim();
-    final confirmPassword = _confirmPassword.text.trim();
+    // Just navigate to attendance - no validation needed
+    print('🔄 Login button clicked');
 
-    // Basic validation
-    if (email.isEmpty) {
-      _showErrorSnackBar('Please enter your email');
-      return;
-    }
+    // Set mock employee data
+    final employeeAuthService = ref.read(employeeAuthServiceProvider);
+    employeeAuthService.setCurrentEmployee(
+      Employee.fromJson({
+        'id': 'emp001',
+        'uid': 'emp001',
+        'fullName': 'John Doe',
+        'email': 'john.doe@company.com',
+        'position': 'Software Developer',
+        'department': 'IT',
+        'branch': 'office',
+        'phoneNumber': '+1234567890',
+        'hireDate': '2023-01-15',
+        'status': 'active',
+        'profileImageUrl': null,
+      }),
+    );
 
-    if (password.isEmpty) {
-      _showErrorSnackBar('Please enter your password');
-      return;
-    }
-
-    // Email format validation
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      _showErrorSnackBar('Please enter a valid email address');
-      return;
-    }
-
-    // Check if we're in registration mode
-    if (_showRegistration) {
-      // New employee registration flow
-      if (confirmPassword.isEmpty) {
-        _showErrorSnackBar('Please confirm your password');
-        return;
-      }
-      if (confirmPassword != password) {
-        _showErrorSnackBar('Passwords do not match');
-        return;
-      }
-      _performRegistration(email, password, confirmPassword);
-    } else {
-      // Existing employee login flow
-      _performLogin(email, password);
-    }
+    ref.read(authStateProvider.notifier).setLoggedIn(true);
+    print('✅ Auth state set to logged in');
+    context.go('/attendance');
+    print('🔄 Navigating to attendance');
   }
 
   void _performRegistration(
@@ -199,7 +188,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             children: [
               // Header with gradient
               Container(
-                height: 200,
+                height: 220,
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -218,37 +207,51 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     children: [
                       // Logo
                       Container(
-                        height: 80,
-                        width: 80,
+                        height: 120,
+                        width: 120,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(25),
                           child: Image.asset(
-                            'assets/icon/nano-store-dark.png',
-                            height: 60,
-                            width: 60,
+                            'assets/icon/super1.jpg',
+                            height: 100,
+                            width: 100,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.business,
-                                size: 40,
-                                color: Colors.white,
+                                size: 60,
+                                color: Color(0xFFFD8E00),
                               );
                             },
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       const Text(
                         'NANO HR',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                          letterSpacing: 3,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black26,
+                              offset: Offset(0, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
                       ),
                     ],
