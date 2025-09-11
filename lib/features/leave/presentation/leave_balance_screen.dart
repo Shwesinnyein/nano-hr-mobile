@@ -28,7 +28,7 @@ class LeaveBalanceScreen extends ConsumerWidget {
                 Card(
                   child: ListTile(
                     title: const Text('ลาพักร้อน (Annual)'),
-                    trailing: Text(d.balance.vacationLeave.toStringAsFixed(1)),
+                    trailing: Text(d.balance.annualLeave.toStringAsFixed(1)),
                   ),
                 ),
                 Card(
@@ -40,9 +40,7 @@ class LeaveBalanceScreen extends ConsumerWidget {
                 Card(
                   child: ListTile(
                     title: const Text('ลาโดยไม่ได้รับค่าจ้าง (Unpaid)'),
-                    trailing: Text(
-                      d.balance.leaveWithoutPay.toStringAsFixed(1),
-                    ),
+                    trailing: Text(d.balance.personalLeave.toStringAsFixed(1)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -56,7 +54,7 @@ class LeaveBalanceScreen extends ConsumerWidget {
                     child: ListTile(
                       title: Text('${r.type.toUpperCase()} — ${r.status}'),
                       subtitle: Text(
-                        '${r.start.toLocal()} → ${r.end.toLocal()}\n${r.reason}',
+                        '${r.start?.toLocal()} → ${r.end?.toLocal()}\n${r.reason}',
                       ),
                     ),
                   ),

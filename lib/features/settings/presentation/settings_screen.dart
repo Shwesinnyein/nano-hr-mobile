@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
-import '../../../core/services/auth_service.dart';
 import '../../employee/presentation/employee_list_screen.dart';
 import '../../auth/data/auth_repository.dart' as auth;
 
@@ -420,7 +420,7 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (bool value) {
                   _showNotificationToggle(context, value);
                 },
-                activeColor: AppTheme.kNanoGold,
+                activeThumbColor: AppTheme.kNanoGold,
                 activeTrackColor: AppTheme.kNanoGold.withOpacity(0.3),
                 inactiveThumbColor: Colors.grey,
                 inactiveTrackColor: Colors.grey.withOpacity(0.3),
@@ -634,6 +634,9 @@ class SettingsScreen extends ConsumerWidget {
       await ref.read(auth.authStateProvider.notifier).logout();
 
       if (context.mounted) {
+        // Navigate to login page using GoRouter
+        context.go('/login');
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Logged out successfully'),

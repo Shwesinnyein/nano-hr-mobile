@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/employee_login_screen.dart';
 import '../features/attendance/presentation/attendance_screen.dart';
 import '../features/leave/presentation/leave_balance_screen.dart';
@@ -15,17 +16,15 @@ import '../core/widgets/main_layout.dart';
 import '../features/auth/data/auth_repository.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final auth = ref.watch(authStateProvider);
-  final loggedIn = auth.value ?? false;
-
   return GoRouter(
     initialLocation: '/splash',
-    refreshListenable: _GoRouterRefreshStream(
-      ref.watch(authStateProvider.notifier).authStream,
-    ),
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const _SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const EmployeeLoginScreen()),
+      GoRoute(
+        path: '/employee-login',
+        builder: (_, __) => const EmployeeLoginScreen(),
+      ),
       GoRoute(
         path: '/attendance',
         builder: (_, __) =>
@@ -65,10 +64,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/leave/list', builder: (_, __) => const LeaveListScreen()),
     ],
     redirect: (context, state) {
-      final loggingIn = state.matchedLocation == '/login';
-      if (!loggedIn && !loggingIn) return '/login';
-      if (loggedIn && (loggingIn || state.matchedLocation == '/splash'))
-        return '/attendance';
+      // Redirect from splash to employee login
+      if (state.matchedLocation == '/splash') return '/login';
       return null;
     },
   );

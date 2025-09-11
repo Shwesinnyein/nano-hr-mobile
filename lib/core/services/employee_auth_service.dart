@@ -1,16 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dio/dio.dart';
-import '../api/api_client.dart';
-import '../api/api_endpoints.dart';
-import '../api/api_response.dart';
 import '../../features/employee/data/employee_model.dart';
-import 'auth_service.dart';
+import 'mock_data_service.dart';
 
 class EmployeeAuthService {
-  final ApiClient _apiClient;
   Employee? _currentEmployee;
 
-  EmployeeAuthService(this._apiClient);
+  EmployeeAuthService();
 
   // Get current employee
   Employee? get currentEmployee => _currentEmployee;
@@ -24,35 +19,17 @@ class EmployeeAuthService {
   }
 
   // Check if email exists in employees table
-  Future<ApiResponse<Employee>> checkEmployeeEmail(String email) async {
+  Future<Map<String, dynamic>> checkEmployeeEmail(String email) async {
     try {
       print('🔄 EmployeeAuthService: Checking email: $email');
 
-      final response = await _apiClient.post(
-        '/employee/check-email',
-        data: {'email': email},
-      );
+      // Simple mock - always return success
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      print('🔄 EmployeeAuthService: Backend response: ${response.data}');
+      final employee = Employee.fromJson(MockDataService.mockEmployee);
 
-      final responseData = response.data as Map<String, dynamic>;
-
-      if (responseData['success'] == true && responseData['employee'] != null) {
-        final employeeData = responseData['employee'] as Map<String, dynamic>;
-        final employee = Employee.fromJson(employeeData);
-
-        print('✅ EmployeeAuthService: Email found in employees table');
-        return ApiResponse<Employee>(
-          success: true,
-          message: responseData['message'] ?? 'Email found',
-          data: employee,
-        );
-      } else {
-        print('❌ EmployeeAuthService: Email not found in employees table');
-        throw Exception(
-          responseData['message'] ?? 'Email not found in employees table',
-        );
-      }
+      print('✅ EmployeeAuthService: Email found in employees table');
+      return {'success': true, 'message': 'Email found', 'data': employee};
     } catch (e) {
       print('❌ EmployeeAuthService: Error checking email: $e');
       throw Exception('Failed to check email: ${e.toString()}');
@@ -60,42 +37,22 @@ class EmployeeAuthService {
   }
 
   // Set password for employee
-  Future<ApiResponse<Employee>> setEmployeePassword(
+  Future<Map<String, dynamic>> setEmployeePassword(
     String email,
     String password,
   ) async {
     try {
       print('🔄 EmployeeAuthService: Setting password for email: $email');
 
-      final response = await _apiClient.post(
-        '/employee/register',
-        data: {
-          'email': email,
-          'password': password,
-          'confirmPassword': password,
-        },
-      );
+      // Simple mock - always return success
+      await Future.delayed(const Duration(seconds: 1));
 
-      print('🔄 EmployeeAuthService: Backend response: ${response.data}');
-
-      final responseData = response.data as Map<String, dynamic>;
-
-      if (responseData['success'] == true && responseData['employee'] != null) {
-        final employeeData = responseData['employee'] as Map<String, dynamic>;
-        final employee = Employee.fromJson(employeeData);
-
-        print('✅ EmployeeAuthService: Password set successfully');
-        return ApiResponse<Employee>(
-          success: true,
-          message: responseData['message'] ?? 'Password set successfully',
-          data: employee,
-        );
-      } else {
-        print(
-          '❌ EmployeeAuthService: Failed to set password: ${responseData['message']}',
-        );
-        throw Exception(responseData['message'] ?? 'Failed to set password');
-      }
+      print('✅ EmployeeAuthService: Password set successfully');
+      return {
+        'success': true,
+        'message': 'Password set successfully',
+        'data': null,
+      };
     } catch (e) {
       print('❌ EmployeeAuthService: Error setting password: $e');
       throw Exception('Failed to set password: ${e.toString()}');
@@ -103,42 +60,26 @@ class EmployeeAuthService {
   }
 
   // Login with email and password from employees table
-  Future<ApiResponse<Employee>> loginWithEmployeeCredentials(
+  Future<Map<String, dynamic>> loginWithEmployeeCredentials(
     String email,
     String password,
   ) async {
     try {
       print('🔄 EmployeeAuthService: Logging in with email: $email');
 
-      final response = await _apiClient.post(
-        '/employee/login',
-        data: {'email': email, 'password': password},
+      // Simple mock login - accept any email/password combination
+      await Future.delayed(
+        const Duration(seconds: 1),
+      ); // Simulate network delay
+
+      final employee = Employee.fromJson(MockDataService.mockEmployee);
+      _currentEmployee = employee;
+
+      print(
+        '✅ EmployeeAuthService: Login successful for employee: ${employee.fullName}',
       );
 
-      print('🔄 EmployeeAuthService: Backend response: ${response.data}');
-
-      final responseData = response.data as Map<String, dynamic>;
-
-      if (responseData['success'] == true && responseData['employee'] != null) {
-        final employeeData = responseData['employee'] as Map<String, dynamic>;
-        final employee = Employee.fromJson(employeeData);
-
-        _currentEmployee = employee;
-        print(
-          '✅ EmployeeAuthService: Login successful for employee: ${employee.fullName}',
-        );
-
-        return ApiResponse<Employee>(
-          success: true,
-          message: responseData['message'] ?? 'Login successful',
-          data: employee,
-        );
-      } else {
-        print(
-          '❌ EmployeeAuthService: Login failed: ${responseData['message']}',
-        );
-        throw Exception(responseData['message'] ?? 'Login failed');
-      }
+      return {'success': true, 'message': 'Login successful', 'data': employee};
     } catch (e) {
       print('❌ EmployeeAuthService: Login error: $e');
       throw Exception(e.toString());
@@ -146,7 +87,7 @@ class EmployeeAuthService {
   }
 
   // Complete registration flow: check email + set password + login
-  Future<ApiResponse<Employee>> registerAndLogin(
+  Future<Map<String, dynamic>> registerAndLogin(
     String email,
     String password,
     String confirmPassword,
@@ -162,44 +103,31 @@ class EmployeeAuthService {
       // Check if email exists in employee table
       final checkResponse = await checkEmployeeEmail(email);
 
-      if (!checkResponse.success || checkResponse.data == null) {
+      if (!checkResponse['success'] || checkResponse['data'] == null) {
         throw Exception(
           'Email not found in employee records. Please contact HR to add your email.',
         );
       }
 
-      final employee = checkResponse.data!;
-
-      // Check if employee already has a password set
-      // We need to check the backend response for hasPassword field
-      final checkResponseData = await _apiClient.post(
-        '/employee/check-email',
-        data: {'email': email},
-      );
-
-      if (checkResponseData.data['employee']['hasPassword']) {
-        throw Exception(
-          'This email already has a password set. Please use login instead.',
-        );
-      }
+      final employee = checkResponse['data'] as Employee;
 
       // Set password for the employee
       final setPasswordResponse = await setEmployeePassword(email, password);
 
-      if (!setPasswordResponse.success || setPasswordResponse.data == null) {
+      if (!setPasswordResponse['success']) {
         throw Exception('Failed to set password');
       }
 
       // Login with the new password
       final loginResponse = await loginWithEmployeeCredentials(email, password);
 
-      if (!loginResponse.success || loginResponse.data == null) {
+      if (!loginResponse['success'] || loginResponse['data'] == null) {
         throw Exception('Registration successful but login failed');
       }
 
-      _currentEmployee = loginResponse.data;
+      _currentEmployee = loginResponse['data'] as Employee;
       print(
-        '✅ EmployeeAuthService: Registration and login successful for employee: ${loginResponse.data!.fullName}',
+        '✅ EmployeeAuthService: Registration and login successful for employee: ${_currentEmployee!.fullName}',
       );
 
       return loginResponse;
@@ -223,8 +151,7 @@ class EmployeeAuthService {
 
 // Provider for EmployeeAuthService
 final employeeAuthServiceProvider = Provider<EmployeeAuthService>((ref) {
-  final apiClient = ref.watch(apiClientProvider);
-  return EmployeeAuthService(apiClient);
+  return EmployeeAuthService();
 });
 
 // Provider for current employee

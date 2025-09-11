@@ -38,11 +38,7 @@ dependencies:
   go_router: ^14.2.7
   intl: ^0.19.0
   shared_preferences: ^2.2.2
-  image_picker: ^1.0.7
-  dio: ^5.4.0
-  http: ^1.1.0
-  firebase_core: ^3.6.0
-  firebase_auth: ^5.3.1
+  # image_picker: ^1.0.7
   url_launcher: ^6.2.5
 
 
@@ -68,6 +64,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  
+  # Enable tree shaking to remove unused code
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   assets:
@@ -103,9 +102,9 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/nano-store-dark.png"
+  image_path: "assets/icon/super1.jpg"
   web:
     generate: true
-    image_path: "assets/icon/nano-store-dark.png"
+    image_path: "assets/icon/super1.jpg"
     background_color: "#ffffff"
     theme_color: "#000000"
