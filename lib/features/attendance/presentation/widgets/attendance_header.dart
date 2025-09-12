@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/date_utils.dart';
-import '../../../app/theme.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/utils/date_utils.dart';
+import '../../../../core/theme/app_theme_refactored.dart';
 
 /// Header widget for attendance screen
 class AttendanceHeader extends StatelessWidget {
   final Map<String, dynamic>? employeeProfile;
   final Map<String, dynamic>? attendanceStatus;
   final bool isLoading;
-  
+
   const AttendanceHeader({
     super.key,
     this.employeeProfile,
     this.attendanceStatus,
     this.isLoading = false,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -23,7 +23,10 @@ class AttendanceHeader extends StatelessWidget {
       padding: const EdgeInsets.all(AppConstants.largePadding),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
+          colors: [
+            AppThemeRefactored.kNanoGold,
+            AppThemeRefactored.kNanoGoldDark,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -33,7 +36,7 @@ class AttendanceHeader extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.kNanoGold.withOpacity(0.3),
+            color: AppThemeRefactored.kNanoGold.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -50,7 +53,7 @@ class AttendanceHeader extends StatelessWidget {
       ),
     );
   }
-  
+
   Widget _buildWelcomeSection() {
     if (isLoading) {
       return const Row(
@@ -70,24 +73,22 @@ class AttendanceHeader extends StatelessWidget {
         ],
       );
     }
-    
-    final employeeName = employeeProfile?['firstName'] != null && 
-                        employeeProfile?['lastName'] != null
+
+    final employeeName =
+        employeeProfile?['firstName'] != null &&
+            employeeProfile?['lastName'] != null
         ? '${employeeProfile!['firstName']} ${employeeProfile!['lastName']}'
         : employeeProfile?['nickname'] ?? 'Employee';
-    
+
     final companyName = employeeProfile?['companyName'] ?? 'NANO-STORES';
     final locationName = employeeProfile?['locationName'] ?? 'Bangkok';
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Welcome back,',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
-            fontSize: 16,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
         ),
         const SizedBox(height: 4),
         Text(
@@ -133,7 +134,7 @@ class AttendanceHeader extends StatelessWidget {
       ],
     );
   }
-  
+
   Widget _buildStatusSection() {
     if (isLoading) {
       return Container(
@@ -148,23 +149,20 @@ class AttendanceHeader extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),
             SizedBox(width: AppConstants.defaultPadding),
-            Text(
-              'Loading status...',
-              style: TextStyle(color: Colors.white),
-            ),
+            Text('Loading status...', style: TextStyle(color: Colors.white)),
           ],
         ),
       );
     }
-    
+
     final status = attendanceStatus?['status'] ?? 'not_checked_in';
     final checkInTime = attendanceStatus?['record']?['checkInAt'];
     final checkOutTime = attendanceStatus?['record']?['checkOutAt'];
-    
+
     String statusText;
     Color statusColor;
     IconData statusIcon;
-    
+
     switch (status) {
       case 'checked_in':
         statusText = AppConstants.checkedInMessage;
@@ -181,7 +179,7 @@ class AttendanceHeader extends StatelessWidget {
         statusColor = Colors.orange;
         statusIcon = Icons.access_time;
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(AppConstants.defaultPadding),
       decoration: BoxDecoration(
@@ -208,10 +206,7 @@ class AttendanceHeader extends StatelessWidget {
           if (checkInTime != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Check In: ${AppDateUtils.formatTimeOnly(
-                AppDateUtils.parseTimeWithDate(checkInTime, 
-                  AppDateUtils.getToday().toIso8601String().split('T')[0])
-              )}',
+              'Check In: ${AppDateUtils.formatTimeOnly(AppDateUtils.parseTimeWithDate(checkInTime, AppDateUtils.getToday().toIso8601String().split('T')[0]))}',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 14,
@@ -221,10 +216,7 @@ class AttendanceHeader extends StatelessWidget {
           if (checkOutTime != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Check Out: ${AppDateUtils.formatTimeOnly(
-                AppDateUtils.parseTimeWithDate(checkOutTime, 
-                  AppDateUtils.getToday().toIso8601String().split('T')[0])
-              )}',
+              'Check Out: ${AppDateUtils.formatTimeOnly(AppDateUtils.parseTimeWithDate(checkOutTime, AppDateUtils.getToday().toIso8601String().split('T')[0]))}',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 14,
