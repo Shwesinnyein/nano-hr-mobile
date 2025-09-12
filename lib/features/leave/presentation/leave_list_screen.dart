@@ -184,11 +184,9 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       case 'approved':
         statusColor = AppTheme.successColor;
         statusIcon = Icons.check_circle;
-        break;
       case 'rejected':
         statusColor = AppTheme.errorColor;
         statusIcon = Icons.cancel;
-        break;
       default:
         statusColor = AppTheme.warningColor;
         statusIcon = Icons.pending;
@@ -200,7 +198,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       durationText = '${request.startTime} - ${request.endTime}';
     } else if (request.start != null && request.end != null) {
       final daysDifference = request.end!.difference(request.start!).inDays + 1;
-      durationText = '${daysDifference} day${daysDifference > 1 ? 's' : ''}';
+      durationText = '$daysDifference day${daysDifference > 1 ? 's' : ''}';
     } else {
       durationText = 'N/A';
     }
@@ -402,7 +400,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
               ],
 
               // Created date
-              if (request.createdAt != null) ...[
+              ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -619,19 +617,17 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                         request.attachmentUrl!.isNotEmpty)
                       _buildAttachmentRow(request.attachmentUrl!),
 
-                    if (request.createdAt != null)
-                      _buildDetailRow(
-                        'Created',
-                        request.createdAt,
-                        Icons.schedule,
-                      ),
+                    _buildDetailRow(
+                      'Created',
+                      request.createdAt,
+                      Icons.schedule,
+                    ),
 
-                    if (request.updatedAt != null)
-                      _buildDetailRow(
-                        'Last Updated',
-                        request.updatedAt,
-                        Icons.update,
-                      ),
+                    _buildDetailRow(
+                      'Last Updated',
+                      request.updatedAt,
+                      Icons.update,
+                    ),
 
                     const SizedBox(height: 24),
 
@@ -735,28 +731,23 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       case 'pdf':
         attachmentIcon = Icons.picture_as_pdf;
         attachmentColor = Colors.red;
-        break;
       case 'doc':
       case 'docx':
         attachmentIcon = Icons.description;
         attachmentColor = Colors.blue;
-        break;
       case 'jpg':
       case 'jpeg':
       case 'png':
       case 'gif':
         attachmentIcon = Icons.image;
         attachmentColor = Colors.green;
-        break;
       case 'xls':
       case 'xlsx':
         attachmentIcon = Icons.table_chart;
         attachmentColor = Colors.green;
-        break;
       case 'txt':
         attachmentIcon = Icons.text_snippet;
         attachmentColor = Colors.grey;
-        break;
       default:
         attachmentIcon = Icons.attach_file;
         attachmentColor = Colors.grey;

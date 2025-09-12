@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../core/services/attendance_service.dart';
+import '../../../core/services/auth_service.dart';
 import 'attendance_model.dart';
 
 class AttendanceRepository {
@@ -8,39 +8,59 @@ class AttendanceRepository {
 
   AttendanceRepository(this._attendanceService);
 
+  // Helper method to get Thailand local time (UTC+7)
+  Map<String, String> _getThailandTime() {
+    final currentDate = DateTime.now().toUtc().add(const Duration(hours: 7));
+    return {
+      'date': currentDate.toIso8601String().split('T')[0], // YYYY-MM-DD
+      'time': currentDate
+          .toIso8601String()
+          .split('T')[1]
+          .split('.')[0], // HH:MM:SS
+      'timestamp': currentDate.toIso8601String(), // Full ISO string
+    };
+  }
+
   Future<List<Attendance>> listMyAttendance(String userId) async {
     try {
-      print(
-        '🔍 AttendanceRepository: Getting today\'s attendance for: $userId',
-      );
-
       final response = await _attendanceService.getTodayAttendance(userId);
 
-      print('🔍 AttendanceRepository: Today\'s attendance data: $response');
-
       final attendanceList = response.map((json) {
-        print('🔍 AttendanceRepository: Processing today\'s item: $json');
         final attendance = Attendance.fromJson(json);
-        print(
-          '🔍 AttendanceRepository: Created attendance: ${attendance.id} - CheckIn: ${attendance.checkInAt} - CheckOut: ${attendance.checkOutAt}',
-        );
+
+        return attendance;
+      }).toList();
+
+      return attendanceList;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Attendance>> getAttendanceList(String userId) async {
+    try {
+      print('🔍 AttendanceRepository: Getting attendance list for: $userId');
+      final response = await _attendanceService.getAttendanceList(userId);
+      print("response ssn1 $response");
+      final attendanceList = response.map((json) {
+        print('🔍 AttendanceRepository: Processing record: $json');
+        final attendance = Attendance.fromJson(json);
+        print('🔍 AttendanceRepository: Created attendance: ${attendance.id}');
         return attendance;
       }).toList();
 
       print(
-        '🔍 AttendanceRepository: Final attendance list length: ${attendanceList.length}',
+        '🔍 AttendanceRepository: Returning ${attendanceList.length} records',
       );
       return attendanceList;
     } catch (e) {
-      print('❌ AttendanceRepository: Error getting today\'s attendance: $e');
+      print('❌ AttendanceRepository: Error getting attendance list: $e');
       return [];
     }
   }
 
   Future<void> checkIn(String userId, Map<String, dynamic> employeeData) async {
     try {
-      print('🔍 AttendanceRepository: Checking in for user: $userId');
-
       final checkInData = {
         'employeeId': userId,
         'employeeName': employeeData['fullName'] ?? 'Unknown',
@@ -56,12 +76,7 @@ class AttendanceRepository {
       };
 
       final response = await _attendanceService.checkInOut(checkInData);
-
-      print(
-        '✅ AttendanceRepository: Check-in successful: ${response['message']}',
-      );
     } catch (e) {
-      print('❌ AttendanceRepository: Check-in failed: $e');
       throw Exception('Check-in failed: ${e.toString()}');
     }
   }
@@ -71,56 +86,69 @@ class AttendanceRepository {
     Map<String, dynamic> employeeData,
   ) async {
     try {
-      print('🔍 AttendanceRepository: Checking out for user: $userId');
+      final statusResponse = await _attendanceService.getTodayAttendanceStatus(
+        employeeId: userId,
+      );
+
+      if (statusResponse['success'] != true) {
+        throw Exception(
+          'No check-in record found for today. Please check in first.',
+        );
+      }
+
+      // Get the record from the status response
+      final checkInRecord = statusResponse['record'];
+      if (checkInRecord == null) {
+        throw Exception('No open check-in record found for today.');
+      }
+
+      // Get Thailand local time (UTC+7)
+      final thailandTime = _getThailandTime();
+      final dateString = thailandTime['date']!;
+      final localTimeString = thailandTime['time']!;
+      final timestamp = thailandTime['timestamp']!;
+
+      // Update the existing record with checkout information
 
       final checkOutData = {
-        'employeeId': userId,
-        'employeeName': employeeData['fullName'] ?? 'Unknown',
-        'position': employeeData['positionName'] ?? 'Employee',
-        'positionName': employeeData['positionName'] ?? 'Employee',
-        'company': employeeData['companyName'] ?? 'NANO-STORES',
-        'companyName': employeeData['companyName'] ?? 'NANO-STORES',
-        'locationName': employeeData['locationName'] ?? 'Bangkok',
-        'location': employeeData['locationName'] ?? 'Bangkok',
-        'branch': employeeData['branchName'] ?? 'Office',
-        'branchName': employeeData['branchName'] ?? 'Office',
-        'type': 'checkout',
+        'id': checkInRecord['id'], // Use existing record ID
+        'uid': checkInRecord['uid'], // Use existing UID
+        'employeeId': checkInRecord['employeeId'], // Use existing employeeId
+        'employeeName':
+            checkInRecord['employeeName'], // Use existing employeeName
+        'location': checkInRecord['location'], // Use existing location
+        'branch': checkInRecord['branch'], // Use existing branch
+        'branchName': checkInRecord['branchName'], // Use existing branchName
+        'type': 'checkout', // Change type to checked_out
+        'date': dateString, // Update date
+        'time': localTimeString, // Update time
+        'checkInAt': checkInRecord['checkInAt'], // Keep existing checkInAt
+        'checkOutAt': localTimeString, // Add checkout time
+        'timestamp': timestamp, // Update timestamp with Thailand time
+        'createdAt': checkInRecord['createdAt'], // Keep existing createdAt
+        'updatedAt': timestamp, // Update updatedAt with Thailand time
       };
 
-      final response = await _attendanceService.checkInOut(checkOutData);
-
-      print(
-        '✅ AttendanceRepository: Check-out successful: ${response['message']}',
+      final response = await _attendanceService.checkInOutWithRecordData(
+        checkOutData,
       );
     } catch (e) {
-      print('❌ AttendanceRepository: Check-out failed: $e');
       throw Exception('Check-out failed: ${e.toString()}');
     }
   }
 
   Future<List<Attendance>> getAttendanceHistory(String userId) async {
     try {
-      print('🔍 AttendanceRepository: Getting attendance history for: $userId');
-
       final response = await _attendanceService.getAttendanceHistory(userId);
 
-      print('🔍 AttendanceRepository: Attendance history data: $response');
-
       final attendanceList = response.map((json) {
-        print('🔍 AttendanceRepository: Processing history item: $json');
         final attendance = Attendance.fromJson(json);
-        print(
-          '🔍 AttendanceRepository: Created attendance: ${attendance.id} - CheckIn: ${attendance.checkInAt} - CheckOut: ${attendance.checkOutAt}',
-        );
+
         return attendance;
       }).toList();
 
-      print(
-        '🔍 AttendanceRepository: Final history list length: ${attendanceList.length}',
-      );
       return attendanceList;
     } catch (e) {
-      print('❌ AttendanceRepository: Error getting attendance history: $e');
       return [];
     }
   }
@@ -128,7 +156,7 @@ class AttendanceRepository {
 
 // Provider for AttendanceRepository
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
-  final attendanceService = AttendanceService();
+  final attendanceService = ref.watch(attendanceServiceProvider);
   return AttendanceRepository(attendanceService);
 });
 
@@ -138,14 +166,18 @@ final attendanceControllerProvider =
       ref,
     ) {
       final repository = ref.watch(attendanceRepositoryProvider);
-      return AttendanceController(repository);
+      final authService = ref.watch(authServiceProvider);
+      return AttendanceController(repository, authService, ref);
     });
 
 class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
   final AttendanceRepository _repository;
+  final AuthService _authService;
+  final Ref _ref;
   String? _openId;
 
-  AttendanceController(this._repository) : super(const AsyncValue.loading()) {
+  AttendanceController(this._repository, this._authService, this._ref)
+    : super(const AsyncValue.loading()) {
     load();
   }
 
@@ -154,72 +186,150 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
   Future<void> load() async {
     try {
       state = const AsyncValue.loading();
-      final attendance = await _repository.listMyAttendance('emp001');
+
+      // Get real employee ID from auth service
+      final employeeId = _authService.currentEmployeeId;
+
+      if (employeeId == null) {
+        state = const AsyncValue.data([]);
+        return;
+      }
+
+      final attendance = await _repository.listMyAttendance(employeeId);
       state = AsyncValue.data(attendance);
 
       // Update openId based on attendance data
       _updateOpenId(attendance);
-
-      print(
-        '✅ AttendanceController: Loaded ${attendance.length} attendance records',
-      );
     } catch (e) {
-      print('❌ AttendanceController: Error loading attendance: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
 
   Future<void> checkIn(Map<String, dynamic> employeeData) async {
     try {
-      await _repository.checkIn('emp001', employeeData);
+      final employeeId = _authService.currentEmployeeId;
+      if (employeeId == null) {
+        throw Exception('No employee ID found, user not logged in');
+      }
+
+      await _repository.checkIn(employeeId, employeeData);
       await load(); // Reload data after check-in
     } catch (e) {
-      print('❌ AttendanceController: Check-in error: $e');
       rethrow;
     }
   }
 
   Future<void> checkOut(Map<String, dynamic> employeeData) async {
     try {
-      await _repository.checkOut('emp001', employeeData);
+      final employeeId = _authService.currentEmployeeId;
+      if (employeeId == null) {
+        throw Exception('No employee ID found, user not logged in');
+      }
+
+      await _repository.checkOut(employeeId, employeeData);
       await load(); // Reload data after check-out
     } catch (e) {
-      print('❌ AttendanceController: Check-out error: $e');
       rethrow;
     }
   }
 
   Future<void> loadAttendanceHistory() async {
     try {
-      final history = await _repository.getAttendanceHistory('emp001');
-      print('✅ AttendanceController: Loaded ${history.length} history records');
+      final employeeId = _authService.currentEmployeeId;
+      if (employeeId == null) {
+        return;
+      }
+
+      final history = await _repository.getAttendanceHistory(employeeId);
+    } catch (e) {}
+  }
+
+  Future<void> loadAttendanceList() async {
+    try {
+      final employeeId = _authService.currentEmployeeId;
+      if (employeeId == null) {
+        return;
+      }
+
+      print(
+        '🔍 AttendanceController: Loading attendance list for: $employeeId',
+      );
+      final list = await _repository.getAttendanceList(employeeId);
+      print(
+        '🔍 AttendanceController: Got ${list.length} records from repository',
+      );
+      state = AsyncValue.data(list);
+      print(
+        '🔍 AttendanceController: Updated state with ${list.length} records',
+      );
     } catch (e) {
-      print('❌ AttendanceController: Error loading history: $e');
+      print('❌ AttendanceController: Error loading attendance list: $e');
+      state = AsyncValue.error(e, StackTrace.current);
     }
   }
 
   Future<void> toggleCheck() async {
     try {
-      // Mock employee data for check-in/out
+      // Get real employee data from auth service
+      final employeeId = _authService.currentEmployeeId;
+      if (employeeId == null) {
+        throw Exception('No employee ID found, user not logged in');
+      }
+
+      // Get employee profile data
+      final profileResponse = await _authService.getEmployeeProfile();
+      if (profileResponse['success'] != true) {
+        throw Exception(
+          'Failed to get employee profile: ${profileResponse['message']}',
+        );
+      }
+
+      final employeeProfile = profileResponse['employee'];
       final employeeData = {
-        'fullName': 'John Doe',
-        'positionName': 'Software Developer',
-        'companyName': 'NANO-STORES',
-        'locationName': 'Bangkok',
-        'branchName': 'Office',
+        'fullName':
+            '${employeeProfile['firstName'] ?? ''} ${employeeProfile['lastName'] ?? ''}'
+                .trim(),
+        'positionName': employeeProfile['positionName'] ?? '',
+        'companyName': employeeProfile['companyName'] ?? '',
+        'locationName': employeeProfile['locationName'] ?? '',
+        'branchName': employeeProfile['branchName'] ?? '',
       };
 
-      if (_openId == null) {
-        // No open record, check in
-        print('🔄 AttendanceController: Checking in...');
-        await checkIn(employeeData);
+      // Check current status using status API
+      final attendanceService = _ref.read(attendanceServiceProvider);
+      final statusResponse = await attendanceService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
+
+      if (statusResponse['success'] == true) {
+        final status = statusResponse['status'];
+
+        if (status == 'checked_in') {
+          // User is checked in, so check out
+
+          await checkOut(employeeData);
+        } else if (status == 'checked_out') {
+          // User is already checked out
+          throw Exception('You have already checked out today');
+        } else {
+          // User is not checked in, so check in
+
+          await checkIn(employeeData);
+        }
       } else {
-        // Has open record, check out
-        print('🔄 AttendanceController: Checking out...');
-        await checkOut(employeeData);
+        // Status API failed, fall back to local data logic
+
+        if (_openId == null) {
+          // No open record, check in
+
+          await checkIn(employeeData);
+        } else {
+          // Has open record, check out
+
+          await checkOut(employeeData);
+        }
       }
     } catch (e) {
-      print('❌ AttendanceController: Toggle check error: $e');
       rethrow;
     }
   }
@@ -227,17 +337,13 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
   void _updateOpenId(List<Attendance> attendance) {
     if (attendance.isNotEmpty) {
       final todayAttendance = attendance.first;
-      if (todayAttendance.checkInAt != null &&
-          todayAttendance.checkOutAt == null) {
+      if (todayAttendance.checkOutAt == null) {
         _openId = todayAttendance.id;
-        print('🔍 AttendanceController: Open ID set to: $_openId');
       } else {
         _openId = null;
-        print('🔍 AttendanceController: No open attendance record');
       }
     } else {
       _openId = null;
-      print('🔍 AttendanceController: No attendance records');
     }
   }
 }

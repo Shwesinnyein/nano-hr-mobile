@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
-import '../../../core/services/employee_auth_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../../employee/data/employee_model.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -15,27 +15,120 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   File? _profileImage;
+  Employee? _employeeProfile;
+  bool _isLoading = true;
+
   // final ImagePicker _picker = ImagePicker();
 
   @override
-  Widget build(BuildContext context) {
-    final currentEmployee = ref.watch(currentEmployeeProvider);
+  void initState() {
+    super.initState();
+    _loadEmployeeProfile();
+  }
 
-    if (currentEmployee == null) {
+  Future<void> _loadEmployeeProfile() async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final authService = ref.read(authServiceProvider);
+      final response = await authService.getEmployeeProfile();
+
+      if (response['success'] == true) {
+        final employeeData = response['employee'] as Map<String, dynamic>;
+        setState(() {
+          _employeeProfile = Employee.fromJson(employeeData);
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('Error loading employee profile: $e');
+    }
+  }
+
+  Widget build(BuildContext context) {
+    if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.kBackground,
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Loading profile...',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_employeeProfile == null) {
+      return Scaffold(
+        backgroundColor: AppTheme.kBackground,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person_off, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'No profile data available',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _loadEmployeeProfile,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.kNanoGold,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
+      appBar: AppBar(
+        backgroundColor: AppTheme.kNanoGold,
+        foregroundColor: Colors.white,
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            onPressed: _loadEmployeeProfile,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Profile',
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildProfileHeader(currentEmployee),
+            _buildProfileHeader(_employeeProfile!),
             const SizedBox(height: 24),
-            _buildPersonalInformation(currentEmployee),
+            _buildPersonalInformation(_employeeProfile!),
             const SizedBox(height: 24),
           ],
         ),
@@ -174,19 +267,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Map<String, String> _getPersonalInfoMap(Employee employee) {
     return {
-      'Full Name': employee.fullName,
-      'Employee ID': employee.id,
+      'Full Name': employee.firstName + ' ' + employee.lastName,
+      'Employee ID': employee.uid ?? '',
       'Email': employee.email,
-      'Phone': employee.primaryNumber ?? 'Not provided',
-      'Company': employee.companyName ?? 'NANO-STORES',
-      'Location': employee.locationName ?? 'Not specified',
-      'Branch': employee.branchName ?? 'Not specified',
+      'Phone': employee.primaryNumber ?? '-',
+      'Company': employee.companyName ?? '-',
+      'Location': employee.locationName ?? '-',
+      'Branch': employee.branchName ?? '-',
       'Position': employee.positionName ?? 'Employee',
-      'Role': employee.roleName ?? employee.role ?? 'Employee',
+
       'Status': employee.status ?? 'Active',
-      'Date of Birth': employee.dateOfBirth ?? 'Not provided',
-      'Gender': employee.gender ?? 'Not specified',
-      'Marital Status': employee.maritalStatus ?? 'Not specified',
+      'Date of Birth': employee.dateOfBirth ?? '-',
+      'Gender': employee.gender ?? '-',
+      'Marital Status': employee.maritalStatus ?? '-',
       'Join Date': employee.joinDate != null
           ? DateTime.parse(
               employee.joinDate!,
@@ -301,7 +394,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _pickProfileImage() async {
-        // final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    // final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     // if (image != null) {
     //   setState(() {
     //     _profileImage = File(image.path);

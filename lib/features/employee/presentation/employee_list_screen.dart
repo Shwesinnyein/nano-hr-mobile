@@ -412,15 +412,12 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       case 'active':
         statusColor = AppTheme.successColor;
         statusText = 'Active';
-        break;
       case 'inactive':
         statusColor = AppTheme.errorColor;
         statusText = 'Inactive';
-        break;
       case 'pending':
         statusColor = AppTheme.warningColor;
         statusText = 'Pending';
-        break;
       default:
         statusColor = Colors.grey;
         statusText = status ?? 'Unknown';

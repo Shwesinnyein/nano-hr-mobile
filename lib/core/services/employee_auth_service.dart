@@ -21,17 +21,12 @@ class EmployeeAuthService {
   // Check if email exists in employees table
   Future<Map<String, dynamic>> checkEmployeeEmail(String email) async {
     try {
-      print('🔄 EmployeeAuthService: Checking email: $email');
-
-      // Simple mock - always return success
       await Future.delayed(const Duration(milliseconds: 500));
 
       final employee = Employee.fromJson(MockDataService.mockEmployee);
 
-      print('✅ EmployeeAuthService: Email found in employees table');
       return {'success': true, 'message': 'Email found', 'data': employee};
     } catch (e) {
-      print('❌ EmployeeAuthService: Error checking email: $e');
       throw Exception('Failed to check email: ${e.toString()}');
     }
   }
@@ -42,19 +37,14 @@ class EmployeeAuthService {
     String password,
   ) async {
     try {
-      print('🔄 EmployeeAuthService: Setting password for email: $email');
-
-      // Simple mock - always return success
       await Future.delayed(const Duration(seconds: 1));
 
-      print('✅ EmployeeAuthService: Password set successfully');
       return {
         'success': true,
         'message': 'Password set successfully',
         'data': null,
       };
     } catch (e) {
-      print('❌ EmployeeAuthService: Error setting password: $e');
       throw Exception('Failed to set password: ${e.toString()}');
     }
   }
@@ -65,9 +55,6 @@ class EmployeeAuthService {
     String password,
   ) async {
     try {
-      print('🔄 EmployeeAuthService: Logging in with email: $email');
-
-      // Simple mock login - accept any email/password combination
       await Future.delayed(
         const Duration(seconds: 1),
       ); // Simulate network delay
@@ -75,13 +62,8 @@ class EmployeeAuthService {
       final employee = Employee.fromJson(MockDataService.mockEmployee);
       _currentEmployee = employee;
 
-      print(
-        '✅ EmployeeAuthService: Login successful for employee: ${employee.fullName}',
-      );
-
       return {'success': true, 'message': 'Login successful', 'data': employee};
     } catch (e) {
-      print('❌ EmployeeAuthService: Login error: $e');
       throw Exception(e.toString());
     }
   }
@@ -98,9 +80,6 @@ class EmployeeAuthService {
         throw Exception('Passwords do not match');
       }
 
-      print('🔄 EmployeeAuthService: Starting registration for email: $email');
-
-      // Check if email exists in employee table
       final checkResponse = await checkEmployeeEmail(email);
 
       if (!checkResponse['success'] || checkResponse['data'] == null) {
@@ -126,13 +105,9 @@ class EmployeeAuthService {
       }
 
       _currentEmployee = loginResponse['data'] as Employee;
-      print(
-        '✅ EmployeeAuthService: Registration and login successful for employee: ${_currentEmployee!.fullName}',
-      );
 
       return loginResponse;
     } catch (e) {
-      print('❌ EmployeeAuthService: Registration error: $e');
       throw Exception(e.toString());
     }
   }
@@ -141,9 +116,7 @@ class EmployeeAuthService {
   Future<void> logout() async {
     try {
       _currentEmployee = null;
-      print('✅ EmployeeAuthService: Logout successful');
     } catch (e) {
-      print('❌ EmployeeAuthService: Logout error: $e');
       throw Exception('Logout failed: ${e.toString()}');
     }
   }

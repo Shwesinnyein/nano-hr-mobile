@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/employee_login_screen.dart';
 import '../features/attendance/presentation/attendance_screen.dart';
 import '../features/leave/presentation/leave_balance_screen.dart';
@@ -13,7 +12,6 @@ import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../core/widgets/main_layout.dart';
-import '../features/auth/data/auth_repository.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(

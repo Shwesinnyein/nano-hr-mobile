@@ -3,11 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nano_hr_mobile/features/attendance/data/attendance_model.dart';
 import '../data/attendance_repository.dart';
-import '../../../core/widgets/async_value_widget.dart';
-import '../../../core/services/employee_auth_service.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/api_service.dart';
 import '../../../app/theme.dart';
 import 'package:intl/intl.dart';
-import '../../employee/data/employee_model.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -18,6 +17,9 @@ class AttendanceScreen extends ConsumerStatefulWidget {
 
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   bool _showDetails = false;
+  Map<String, dynamic>? _employeeProfile;
+  Map<String, dynamic>? _attendanceStatus;
+  bool _isLoadingStatus = false;
 
   String fmt(DateTime dt) => DateFormat('HH:mm').format(dt.toLocal());
   String fmtDate(DateTime dt) =>
@@ -25,29 +27,257 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String fmtFull(DateTime dt) =>
       DateFormat('MMM dd, yyyy HH:mm').format(dt.toLocal());
 
+  // Helper method to get button text and state based on attendance status
+  // Helper method to get button text and state based on attendance status
+  Map<String, dynamic> _getButtonState(List<Attendance> entries) {
+    final todayEntries = entries.where((entry) {
+      final entryDate = DateTime(
+        entry.checkInAt.year,
+        entry.checkInAt.month,
+        entry.checkInAt.day,
+      );
+      final today = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      return entryDate.isAtSameMomentAs(today);
+    }).toList();
+
+    // Determine status from attendance data
+    final hasCheckedIn = todayEntries.isNotEmpty;
+    final hasCheckedOut =
+        todayEntries.isNotEmpty && todayEntries.last.checkOutAt != null;
+
+    // Use API status data if available, otherwise fall back to attendance data
+    String? apiStatus = _attendanceStatus?['status'];
+    bool isCheckedInFromAPI = apiStatus == 'checked_in';
+    bool isCheckedOutFromAPI = apiStatus == 'checked_out';
+
+    final finalHasCheckedIn = _attendanceStatus != null
+        ? isCheckedInFromAPI
+        : hasCheckedIn;
+    final finalHasCheckedOut = _attendanceStatus != null
+        ? isCheckedOutFromAPI
+        : hasCheckedOut;
+
+    final bool canCheckIn = !finalHasCheckedIn;
+    final bool canCheckOut = finalHasCheckedIn && !finalHasCheckedOut;
+
+    String buttonText;
+    IconData buttonIcon;
+    List<Color> buttonColors;
+    bool isEnabled;
+
+    if (canCheckIn) {
+      buttonText = 'Check In';
+      buttonIcon = Icons.login;
+      buttonColors = [AppTheme.kNanoGold, AppTheme.kNanoGoldDark];
+      isEnabled = true;
+    } else if (canCheckOut) {
+      buttonText = 'Check Out';
+      buttonIcon = Icons.logout;
+      buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
+      isEnabled = true;
+    } else {
+      // Already checked out for today
+      buttonText = 'Already Checked Out';
+      buttonIcon = Icons.check_circle;
+      buttonColors = [Colors.grey, Colors.grey.shade600];
+      isEnabled = false;
+    }
+
+    return {
+      'text': buttonText,
+      'icon': buttonIcon,
+      'colors': buttonColors,
+      'enabled': isEnabled,
+    };
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmployeeProfile();
+  }
+
+  Future<void> _loadEmployeeProfile() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+
+      final response = await authService.getEmployeeProfile();
+
+      if (response['success'] == true) {
+        setState(() {
+          _employeeProfile = response['employee'];
+        });
+
+        await _loadAttendanceStatus();
+      } else {
+        await _loadAttendanceStatusWithEmployeeId(
+          authService.currentEmployeeId,
+        );
+      }
+    } catch (e) {
+      final authService = ref.read(authServiceProvider);
+      await _loadAttendanceStatusWithEmployeeId(authService.currentEmployeeId);
+    }
+  }
+
+  Future<void> _loadAttendanceStatus() async {
+    try {
+      if (_employeeProfile == null) return;
+
+      setState(() {
+        _isLoadingStatus = true;
+      });
+
+      final apiService = ref.read(apiServiceProvider);
+      final employeeId = _employeeProfile!['uid'];
+
+      final response = await apiService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _attendanceStatus = response;
+          _isLoadingStatus = false;
+        });
+
+        final record = response['record'];
+        if (record != null) {}
+      } else {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingStatus = false;
+      });
+    }
+  }
+
+  Future<void> _loadAttendanceStatusWithEmployeeId(String? employeeId) async {
+    if (employeeId == null) {
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoadingStatus = true;
+      });
+
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _attendanceStatus = response;
+          _isLoadingStatus = false;
+        });
+
+        final record = response['record'];
+        if (record != null) {}
+      } else {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingStatus = false;
+      });
+    }
+  }
+
+  // Method to refresh attendance status after check-in/out
+  Future<void> _refreshAttendanceStatus() async {
+    if (_employeeProfile != null) {
+      await _loadAttendanceStatus();
+    } else {
+      final authService = ref.read(authServiceProvider);
+      await _loadAttendanceStatusWithEmployeeId(authService.currentEmployeeId);
+    }
+  }
+
+  // Load attendance history directly from API
+  Future<List<Attendance>> _loadAttendanceHistory(WidgetRef ref) async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final employeeId = authService.currentEmployeeId;
+
+      if (employeeId == null) {
+        print('❌ No employee ID for history');
+        return [];
+      }
+
+      print('🔍 Loading attendance history for: $employeeId');
+      final apiService = ref.read(apiServiceProvider);
+      final response = await apiService.getAttendanceList(
+        employeeId: employeeId,
+      );
+
+      print('🔍 History API response: $response');
+
+      if (response['success'] == true) {
+        // Handle nested data structure
+        final outerData = response['data'] as Map<String, dynamic>;
+        if (outerData['success'] == true) {
+          final data = outerData['data'] as List<dynamic>;
+          final records = data.cast<Map<String, dynamic>>();
+
+          print('🔍 Parsed ${records.length} records from API');
+
+          // Convert to Attendance objects
+          final attendanceList = records.map((json) {
+            return Attendance.fromJson(json);
+          }).toList();
+
+          print('🔍 Created ${attendanceList.length} Attendance objects');
+          return attendanceList;
+        }
+      }
+
+      print('❌ Failed to load history: ${response['message']}');
+      return [];
+    } catch (e) {
+      print('❌ Error loading attendance history: $e');
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final employeeAuthService = ref.watch(employeeAuthServiceProvider);
-    final currentEmployee = employeeAuthService.currentEmployee;
+    final authService = ref.watch(authServiceProvider);
 
-    if (currentEmployee == null) {
+    if (!authService.isAuthenticated) {
       return Container(
         color: AppTheme.kBackground,
         child: const Center(child: Text('Please login first')),
       );
     }
 
-    // Use UID for API calls, fallback to ID if UID is not available
-    final employeeId = currentEmployee.uid ?? currentEmployee.id;
-    print(
-      '🔍 AttendanceScreen: Using employee ID: $employeeId (UID: ${currentEmployee.uid}, ID: ${currentEmployee.id})',
-    );
+    if (_employeeProfile == null || _isLoadingStatus) {
+      return Container(
+        color: AppTheme.kBackground,
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+          ),
+        ),
+      );
+    }
+
+    // Use employee ID from profile
+    final employeeId = _employeeProfile!['id'] ?? _employeeProfile!['uid'];
 
     final controller = ref.read(attendanceControllerProvider.notifier);
     final state = ref.watch(attendanceControllerProvider);
 
-    // Debug: Print the current state
-    print('🔍 AttendanceScreen: Current state: $state');
     if (state.hasError) {
       print('❌ AttendanceScreen: Error detected: ${state.error}');
     }
@@ -58,7 +288,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         child: Column(
           children: [
             // Header with today's date and status
-            _buildHeader(context, ref, state, currentEmployee),
+            _buildHeader(context, ref, state),
             const SizedBox(height: 20),
             // Check In/Out Button
             _buildCheckInOutButton(context, ref, controller, state),
@@ -80,7 +310,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     BuildContext context,
     WidgetRef ref,
     AsyncValue<List<Attendance>> state,
-    Employee currentEmployee,
   ) {
     return Container(
       width: double.infinity,
@@ -117,9 +346,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                   ),
                   child: ClipOval(
-                    child: currentEmployee.profileImage != null
+                    child: _employeeProfile?['profileImage'] != null
                         ? Image.network(
-                            currentEmployee.profileImage!,
+                            _employeeProfile!['profileImage'],
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
@@ -168,7 +397,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                     ),
                     Text(
-                      'Shwe Sin Nyein',
+                      _employeeProfile?['firstName'] +
+                              ' ' +
+                              _employeeProfile?['lastName'] ??
+                          'N/A',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -253,7 +485,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${currentEmployee.companyName ?? 'NANO-STORES'} - ${currentEmployee.locationName ?? 'Office'}',
+                  '${_employeeProfile?['companyName'] ?? 'NANO-STORES'} - ${_employeeProfile?['locationName'] ?? 'Office'}',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 14,
@@ -272,7 +504,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   Widget _buildStatusCard(AsyncValue<List<Attendance>> state) {
-    print('🔍 UI Status Card: State: $state');
     if (state is AsyncLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Colors.white),
@@ -296,9 +527,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: state.when(
         data: (entries) {
-          print('🔍 UI Status Card: Total entries: ${entries.length}');
-          print('🔍 UI Status Card: Entries: $entries');
-
           final todayEntries = entries.where((entry) {
             final entryDate = DateTime(
               entry.checkInAt.year,
@@ -313,27 +541,40 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             return entryDate.isAtSameMomentAs(today);
           }).toList();
 
-          print('🔍 UI Status Card: Today entries: ${todayEntries.length}');
-          if (todayEntries.isNotEmpty) {
-            print(
-              '🔍 UI Status Card: Latest entry: ${todayEntries.last.checkInAt}',
-            );
-            print(
-              '🔍 UI Status Card: Check out time: ${todayEntries.last.checkOutAt}',
-            );
-            print(
-              '🔍 UI Status Card: Formatted check-in time: ${fmt(todayEntries.last.checkInAt)}',
-            );
-            if (todayEntries.last.checkOutAt != null) {
-              print(
-                '🔍 UI Status Card: Formatted check-out time: ${fmt(todayEntries.last.checkOutAt!)}',
-              );
-            }
+          String? apiStatus = _attendanceStatus?['status'];
+          bool isCheckedInFromAPI = apiStatus == 'checked_in';
+          bool isCheckedOutFromAPI = apiStatus == 'checked_out';
+
+          bool hasApiRecord =
+              _attendanceStatus != null && _attendanceStatus!['record'] != null;
+
+          final finalHasCheckedIn = hasApiRecord
+              ? isCheckedInFromAPI
+              : todayEntries.isNotEmpty;
+          final finalHasCheckedOut = hasApiRecord
+              ? isCheckedOutFromAPI
+              : (todayEntries.isNotEmpty &&
+                    todayEntries.last.checkOutAt != null);
+
+          String? checkInTime;
+          String? checkOutTime;
+
+          if (_attendanceStatus != null &&
+              _attendanceStatus!['record'] != null) {
+            final record = _attendanceStatus!['record'];
+            checkInTime = record['checkInAt']?.toString();
+            checkOutTime = record['checkOutAt']?.toString();
           }
 
-          final hasCheckedIn = todayEntries.isNotEmpty;
-          final hasCheckedOut =
-              todayEntries.isNotEmpty && todayEntries.last.checkOutAt != null;
+          // Fallback to attendance data times if API times not available
+          if (checkInTime == null && todayEntries.isNotEmpty) {
+            checkInTime = fmt(todayEntries.last.checkInAt);
+          }
+          if (checkOutTime == null &&
+              todayEntries.isNotEmpty &&
+              todayEntries.last.checkOutAt != null) {
+            checkOutTime = fmt(todayEntries.last.checkOutAt!);
+          }
 
           return Column(
             children: [
@@ -346,9 +587,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  hasCheckedIn && !hasCheckedOut
+                  finalHasCheckedIn && !finalHasCheckedOut
                       ? Icons.login
-                      : hasCheckedIn && hasCheckedOut
+                      : finalHasCheckedIn && finalHasCheckedOut
                       ? Icons.logout
                       : Icons.access_time,
                   color: Colors.white,
@@ -358,10 +599,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               const SizedBox(height: 16),
               // Status text
               Text(
-                hasCheckedIn && !hasCheckedOut
-                    ? 'Checked In'
-                    : hasCheckedIn && hasCheckedOut
+                checkInTime != null && checkOutTime != null
                     ? 'Checked Out'
+                    : checkInTime != null
+                    ? 'Checked In'
                     : 'Not Checked In',
                 style: const TextStyle(
                   color: Colors.white,
@@ -370,19 +611,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Time display
-              if (hasCheckedIn) ...[
+              // Time display from API response
+              if (checkInTime != null) ...[
                 Text(
-                  'Check In: ${fmt(todayEntries.last.checkInAt)}',
+                  'Check In: $checkInTime',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 14,
                   ),
                 ),
-                if (hasCheckedOut) ...[
+                if (checkOutTime != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Check Out: ${fmt(todayEntries.last.checkOutAt!)}',
+                    'Check Out: $checkOutTime',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -442,33 +683,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: state.when(
         data: (entries) {
-          final todayEntries = entries.where((entry) {
-            final entryDate = DateTime(
-              entry.checkInAt.year,
-              entry.checkInAt.month,
-              entry.checkInAt.day,
-            );
-            final today = DateTime(
-              DateTime.now().year,
-              DateTime.now().month,
-              DateTime.now().day,
-            );
-            return entryDate.isAtSameMomentAs(today);
-          }).toList();
-
-          final hasCheckedIn = todayEntries.isNotEmpty;
-          final hasCheckedOut =
-              todayEntries.isNotEmpty && todayEntries.last.checkOutAt != null;
+          // Get button state from helper method
+          final buttonState = _getButtonState(entries);
 
           return Container(
             width: double.infinity,
             height: 60,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: hasCheckedIn && !hasCheckedOut
-                    ? [AppTheme.kNanoGoldDark, AppTheme.kNanoGold]
-                    : [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
-              ),
+              gradient: LinearGradient(colors: buttonState['colors']),
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
@@ -479,7 +701,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ],
             ),
             child: ElevatedButton(
-              onPressed: () => _handleCheckInOut(context, ref, controller),
+              onPressed: buttonState['enabled']
+                  ? () => _handleCheckInOut(context, ref, controller)
+                  : null, // Disable button if already checked out
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
@@ -490,14 +714,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    hasCheckedIn && !hasCheckedOut ? Icons.logout : Icons.login,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                  Icon(buttonState['icon'], color: Colors.white, size: 24),
                   const SizedBox(width: 12),
                   Text(
-                    hasCheckedIn && !hasCheckedOut ? 'Check Out' : 'Check In',
+                    buttonState['text'],
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -552,6 +772,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   ) async {
     try {
       await controller.toggleCheck();
+
+      // Refresh attendance status after successful action
+      await _refreshAttendanceStatus();
 
       // Show success message
       if (context.mounted) {
@@ -666,32 +889,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: Column(
         children: [
-          // Header
-          // Container(
-          //   padding: const EdgeInsets.all(20),
-          //   decoration: BoxDecoration(
-          //     color: AppTheme.kNanoGoldLight.withOpacity(0.3),
-          //     borderRadius: const BorderRadius.only(
-          //       topLeft: Radius.circular(20),
-          //       topRight: Radius.circular(20),
-          //     ),
-          //   ),
-          //   child: Row(
-          //     children: [
-          //       Icon(Icons.history, color: AppTheme.kNanoGold, size: 24),
-          //       const SizedBox(width: 12),
-          //       Text(
-          //         'Recent Attendance',
-          //         style: TextStyle(
-          //           color: AppTheme.kNanoGold,
-          //           fontSize: 18,
-          //           fontWeight: FontWeight.bold,
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-          // List
           Expanded(
             child: state.when(
               data: (entries) {
@@ -871,15 +1068,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Consumer(
-        builder: (context, ref, child) {
-          // Load attendance history when modal opens
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref
-                .read(attendanceControllerProvider.notifier)
-                .loadAttendanceHistory();
-          });
-
+      builder: (context) => FutureBuilder<List<Attendance>>(
+        future: _loadAttendanceHistory(ref),
+        builder: (context, snapshot) {
           return Container(
             height: MediaQuery.of(context).size.height * 0.8,
             decoration: const BoxDecoration(
@@ -929,113 +1120,153 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ),
                 ),
                 // Content
-                Expanded(
-                  child: state.when(
-                    data: (entries) {
-                      if (entries.isEmpty) {
-                        return const Center(
-                          child: Text('No attendance records'),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: entries.length,
-                        itemBuilder: (context, index) {
-                          final entry = entries[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: entry.checkOutAt == null
-                                    ? AppTheme.kNanoGold.withOpacity(0.2)
-                                    : Colors.green.withOpacity(0.2),
-                                child: Icon(
-                                  entry.checkOutAt == null
-                                      ? Icons.login
-                                      : Icons.logout,
-                                  color: entry.checkOutAt == null
-                                      ? AppTheme.kNanoGold
-                                      : Colors.green,
-                                ),
-                              ),
-                              title: Text(fmtFull(entry.checkInAt)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (entry.checkOutAt != null)
-                                    Text(
-                                      'Check Out: ${fmtFull(entry.checkOutAt!)}',
-                                    ),
-                                  Text('Location: ${entry.location}'),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (error, stackTrace) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Error loading attendance',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 32,
-                              ),
-                              child: Text(
-                                error.toString(),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                                maxLines: 3,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Consumer(
-                              builder: (context, ref, child) {
-                                return ElevatedButton.icon(
-                                  onPressed: () => _refreshAttendance(ref),
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Retry'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.kNanoGold,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                Expanded(child: _buildHistoryContent(snapshot)),
               ],
             ),
           );
         },
       ),
+    );
+  }
+
+  Widget _buildHistoryContent(AsyncSnapshot<List<Attendance>> snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Loading attendance history...',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (snapshot.hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            const Text(
+              'Error loading attendance',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              snapshot.error.toString(),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final entries = snapshot.data ?? [];
+    print('🔍 Attendance History: Total entries: ${entries.length}');
+
+    for (int i = 0; i < entries.length; i++) {
+      print('🔍 Entry $i: ${entries[i].toJson()}');
+    }
+
+    if (entries.isEmpty) {
+      return const Center(child: Text('No attendance records'));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      color: AppTheme.kNanoGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Date: ${_formatDateHeader(entry.date)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // Check In time
+                if (entry.checkInAt != null) ...[
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.login,
+                        color: AppTheme.kNanoGold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Check In: ${_formatTimeOnly(entry.checkInAt)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                // Check Out time
+                if (entry.checkOutAt != null) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.logout, color: Colors.green, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Check Out: ${_formatTimeOnly(entry.checkOutAt)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                // Location
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.grey, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Location: ${entry.location}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1054,4 +1285,20 @@ String fmt(DateTime? date) {
 String fmtFull(DateTime? date) {
   if (date == null) return 'N/A';
   return DateFormat('MMM dd, yyyy HH:mm').format(date);
+}
+
+String _formatDateHeader(String dateString) {
+  try {
+    // Parse the date string (assuming format YYYY-MM-DD)
+    final date = DateTime.parse(dateString);
+    return DateFormat('dd/MM/yyyy').format(date);
+  } catch (e) {
+    // If parsing fails, return the original string
+    return dateString;
+  }
+}
+
+String _formatTimeOnly(DateTime? dateTime) {
+  if (dateTime == null) return 'N/A';
+  return DateFormat('HH:mm:ss').format(dateTime);
 }

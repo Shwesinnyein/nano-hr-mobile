@@ -83,7 +83,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   }
 
   Widget _buildViewLeaveListButton(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () => _navigateToLeaveList(context),
@@ -378,11 +378,9 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       case 'approved':
         statusColor = AppTheme.successColor;
         statusIcon = Icons.check_circle;
-        break;
       case 'rejected':
         statusColor = AppTheme.errorColor;
         statusIcon = Icons.cancel;
-        break;
       default:
         statusColor = AppTheme.warningColor;
         statusIcon = Icons.pending;
