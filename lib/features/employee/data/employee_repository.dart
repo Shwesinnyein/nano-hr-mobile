@@ -157,8 +157,16 @@ class EmployeeRepository {
 
   EmployeeRepository(this._employeeService);
 
-  Future<List<Employee>> getEmployees() async {
-    final response = await _employeeService.getEmployees();
+  Future<List<Employee>> getEmployees({
+    int page = 1,
+    int limit = 50,
+    String? search,
+  }) async {
+    final response = await _employeeService.getEmployees(
+      page: page,
+      limit: limit,
+      search: search,
+    );
     return response.map((json) => Employee.fromJson(json)).toList();
   }
 
