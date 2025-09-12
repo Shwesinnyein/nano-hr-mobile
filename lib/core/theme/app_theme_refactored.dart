@@ -10,7 +10,7 @@ class AppThemeRefactored {
   static const Color _primaryGoldDark = Color(0xFFB8941F);
   static const Color _primaryWhite = Color(0xFFFFFFFF);
   static const Color _primaryBlack = Color(0xFF000000);
-  
+
   // Neutral Colors
   static const Color _neutral50 = Color(0xFFFAFAFA);
   static const Color _neutral100 = Color(0xFFF5F5F5);
@@ -83,11 +83,9 @@ class AppThemeRefactored {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(8),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -107,14 +105,15 @@ class AppThemeRefactored {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _error),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: _neutral800,
         contentTextStyle: const TextStyle(color: _primaryWhite),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -173,11 +172,9 @@ class AppThemeRefactored {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(8),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -197,14 +194,15 @@ class AppThemeRefactored {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _error),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: _neutral700,
         contentTextStyle: const TextStyle(color: _primaryWhite),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         behavior: SnackBarBehavior.floating,
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../core/widgets/loading_widget.dart';
-import '../../../app/theme.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/widgets/loading_widget.dart';
+import '../../../../core/theme/app_theme_refactored.dart';
 
 /// Check-in/out button widget
 class AttendanceButton extends StatelessWidget {
@@ -31,7 +31,8 @@ class AttendanceButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
         boxShadow: [
           BoxShadow(
-            color: (backgroundColor ?? AppTheme.kNanoGold).withOpacity(0.3),
+            color: (backgroundColor ?? AppThemeRefactored.kNanoGold)
+                .withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -40,7 +41,7 @@ class AttendanceButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isEnabled && !isLoading ? onPressed : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? AppTheme.kNanoGold,
+          backgroundColor: backgroundColor ?? AppThemeRefactored.kNanoGold,
           foregroundColor: textColor ?? Colors.white,
           disabledBackgroundColor: Colors.grey.shade300,
           disabledForegroundColor: Colors.grey.shade600,
@@ -96,12 +97,13 @@ class StatusCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppConstants.smallPadding),
                 decoration: BoxDecoration(
-                  color: (iconColor ?? AppTheme.kNanoGold).withOpacity(0.1),
+                  color: (iconColor ?? AppThemeRefactored.kNanoGold)
+                      .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
-                  color: iconColor ?? AppTheme.kNanoGold,
+                  color: iconColor ?? AppThemeRefactored.kNanoGold,
                   size: 24,
                 ),
               ),
@@ -124,7 +126,7 @@ class StatusCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.kOnSurface,
+                        color: AppThemeRefactored.kOnSurface,
                       ),
                     ),
                   ],
