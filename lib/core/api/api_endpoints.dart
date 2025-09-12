@@ -14,6 +14,7 @@ class ApiEndpoints {
   // Employee endpoints
   static const String employeeProfile = '/employee/profile';
   static const String updateProfile = '/employee/update-profile';
+  static const String employeeList = '/employee/list';
 
   // Leave endpoints
   static const String createLeaveRequest = '/leave/create-request';

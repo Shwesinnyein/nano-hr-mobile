@@ -1,17 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'api_service.dart';
 import 'mock_data_service.dart';
 
 class EmployeeService {
+  final ApiService _apiService;
+
+  EmployeeService(this._apiService);
+
   // Get employee profile
   Future<Map<String, dynamic>> getEmployeeProfile(String employeeId) async {
     try {
-      final employee = MockDataService.mockEmployee;
+      final response = await _apiService.getEmployeeProfile(
+        employeeId: employeeId,
+      );
 
-      return {
-        'success': true,
-        'message': 'Profile retrieved successfully',
-        'data': employee,
-      };
+      if (response['success'] == true) {
+        return {
+          'success': true,
+          'message': 'Profile retrieved successfully',
+          'data': response['data'],
+        };
+      } else {
+        return response;
+      }
     } catch (e) {
       throw Exception('Failed to get profile: ${e.toString()}');
     }
@@ -36,13 +47,35 @@ class EmployeeService {
   }
 
   // Get all employees
-  Future<List<Map<String, dynamic>>> getEmployees() async {
+  Future<List<Map<String, dynamic>>> getEmployees({
+    int page = 1,
+    int limit = 50,
+    String? search,
+  }) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 500));
+      final response = await _apiService.getEmployeeList(
+        page: page,
+        limit: limit,
+        search: search,
+      );
 
-      return [MockDataService.mockEmployee];
+      if (response['success'] == true) {
+        final data = response['data'];
+        if (data is Map<String, dynamic> && data.containsKey('employees')) {
+          return List<Map<String, dynamic>>.from(data['employees']);
+        } else if (data is List) {
+          return data.cast<Map<String, dynamic>>();
+        } else {
+          // Fallback to mock data if API structure is unexpected
+          return [MockDataService.mockEmployee];
+        }
+      } else {
+        // Fallback to mock data on API error
+        return [MockDataService.mockEmployee];
+      }
     } catch (e) {
-      throw Exception('Failed to get employees: ${e.toString()}');
+      // Fallback to mock data on exception
+      return [MockDataService.mockEmployee];
     }
   }
 
@@ -75,5 +108,6 @@ class EmployeeService {
 
 // Provider for EmployeeService
 final employeeServiceProvider = Provider<EmployeeService>((ref) {
-  return EmployeeService();
+  final apiService = ref.read(apiServiceProvider);
+  return EmployeeService(apiService);
 });

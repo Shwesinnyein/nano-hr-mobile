@@ -29,10 +29,18 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     super.dispose();
   }
 
-  Future<void> _loadEmployees() async {
+  Future<void> _loadEmployees({String? searchQuery}) async {
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
       final employeeRepository = ref.read(employeeRepositoryProvider);
-      final employees = await employeeRepository.getEmployees();
+      final employees = await employeeRepository.getEmployees(
+        search: searchQuery,
+        limit: 100, // Load more employees
+      );
+
       setState(() {
         _employees = employees;
         _filteredEmployees = employees;
@@ -54,28 +62,14 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   }
 
   void _filterEmployees(String query) {
-    setState(() {
-      if (query.isEmpty) {
+    if (query.isEmpty) {
+      setState(() {
         _filteredEmployees = _employees;
-      } else {
-        _filteredEmployees = _employees.where((employee) {
-          return (employee.firstName?.toLowerCase().contains(
-                    query.toLowerCase(),
-                  ) ??
-                  false) ||
-              (employee.lastName?.toLowerCase().contains(query.toLowerCase()) ??
-                  false) ||
-              (employee.email?.toLowerCase().contains(query.toLowerCase()) ??
-                  false) ||
-              (employee.position?.toLowerCase().contains(query.toLowerCase()) ??
-                  false) ||
-              (employee.department?.toLowerCase().contains(
-                    query.toLowerCase(),
-                  ) ??
-                  false);
-        }).toList();
-      }
-    });
+      });
+    } else {
+      // Use API search for better results
+      _loadEmployees(searchQuery: query);
+    }
   }
 
   Future<void> _refresh() async {
@@ -101,6 +95,12 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           icon: Icon(Icons.arrow_back, color: AppTheme.kOnBackground),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppTheme.kOnBackground),
+            onPressed: _refresh,
+          ),
+        ],
       ),
       body: Column(
         children: [
