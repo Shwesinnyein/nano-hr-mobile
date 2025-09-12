@@ -13,14 +13,12 @@ class AttendanceService {
       final response = await _apiService.getAttendanceList(
         employeeId: employeeId,
       );
-      print("response ssn3 $response");
       if (response['success'] == true) {
         // Handle nested data structure
         final outerData = response['data'] as Map<String, dynamic>;
         if (outerData['success'] == true) {
           final data = outerData['data'] as List<dynamic>;
           final result = data.cast<Map<String, dynamic>>();
-          print("response ssn4 parsed data: $result");
           return result;
         } else {
           throw Exception(

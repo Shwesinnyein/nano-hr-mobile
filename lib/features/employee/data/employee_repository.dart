@@ -157,15 +157,10 @@ class EmployeeRepository {
 
   EmployeeRepository(this._employeeService);
 
-  Future<List<Employee>> getEmployees({
-    int page = 1,
-    int limit = 50,
-    String? search,
-  }) async {
+  Future<List<Employee>> getEmployees({int page = 1, int limit = 50}) async {
     final response = await _employeeService.getEmployees(
       page: page,
       limit: limit,
-      search: search,
     );
     return response.map((json) => Employee.fromJson(json)).toList();
   }
@@ -173,11 +168,6 @@ class EmployeeRepository {
   Future<Employee> getEmployeeById(String id) async {
     final response = await _employeeService.getEmployeeById(id);
     return Employee.fromJson(response['data']);
-  }
-
-  Future<List<Employee>> searchEmployees(String query) async {
-    final response = await _employeeService.searchEmployees(query);
-    return response.map((json) => Employee.fromJson(json)).toList();
   }
 }
 

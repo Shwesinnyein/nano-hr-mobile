@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
@@ -16,6 +17,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   List<Employee> _employees = [];
   List<Employee> _filteredEmployees = [];
   bool _isLoading = true;
+  Timer? _searchTimer;
 
   @override
   void initState() {
@@ -26,10 +28,11 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadEmployees({String? searchQuery}) async {
+  Future<void> _loadEmployees() async {
     try {
       setState(() {
         _isLoading = true;
@@ -37,7 +40,6 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
 
       final employeeRepository = ref.read(employeeRepositoryProvider);
       final employees = await employeeRepository.getEmployees(
-        search: searchQuery,
         limit: 100, // Load more employees
       );
 
@@ -62,14 +64,37 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   }
 
   void _filterEmployees(String query) {
+    _searchTimer?.cancel();
+
     if (query.isEmpty) {
       setState(() {
         _filteredEmployees = _employees;
       });
-    } else {
-      // Use API search for better results
-      _loadEmployees(searchQuery: query);
+      return;
     }
+
+    // Debounce search to avoid excessive filtering
+    _searchTimer = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
+    });
+  }
+
+  void _performSearch(String query) {
+    final searchLower = query.toLowerCase();
+
+    final filtered = _employees.where((employee) {
+      return employee.name.toLowerCase().contains(searchLower) ||
+          employee.firstName?.toLowerCase().contains(searchLower) == true ||
+          employee.lastName?.toLowerCase().contains(searchLower) == true ||
+          employee.email?.toLowerCase().contains(searchLower) == true ||
+          employee.positionName?.toLowerCase().contains(searchLower) == true ||
+          employee.companyName.toLowerCase().contains(searchLower) ||
+          employee.locationName.toLowerCase().contains(searchLower);
+    }).toList();
+
+    setState(() {
+      _filteredEmployees = filtered;
+    });
   }
 
   Future<void> _refresh() async {
@@ -412,12 +437,13 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       case 'active':
         statusColor = AppTheme.successColor;
         statusText = 'Active';
-      case 'inactive':
+      case 'resigned  ':
         statusColor = AppTheme.errorColor;
         statusText = 'Inactive';
-      case 'pending':
+      case ' ':
         statusColor = AppTheme.warningColor;
         statusText = 'Pending';
+
       default:
         statusColor = Colors.grey;
         statusText = status ?? 'Unknown';
