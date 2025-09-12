@@ -50,7 +50,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      print('Error loading employee profile: $e');
     }
   }
 

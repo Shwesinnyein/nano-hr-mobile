@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
-import '../../../core/services/employee_auth_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
 
@@ -16,14 +16,14 @@ class LeaveListScreen extends ConsumerStatefulWidget {
 class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   @override
   Widget build(BuildContext context) {
-    final employeeAuthService = ref.watch(employeeAuthServiceProvider);
-    final currentEmployee = employeeAuthService.currentEmployee;
+    final authService = ref.watch(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
 
-    if (currentEmployee == null) {
+    if (currentEmployeeId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final employeeId = currentEmployee.id;
+    final employeeId = currentEmployeeId;
     final leaveAsync = ref.watch(employeeLeaveListProvider(employeeId));
 
     return Scaffold(
@@ -840,6 +840,5 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   void _showErrorSnackBar(String message) {
     // This would need to be called from a context that has ScaffoldMessenger
     // For now, we'll just print the error
-    print('Error: $message');
   }
 }

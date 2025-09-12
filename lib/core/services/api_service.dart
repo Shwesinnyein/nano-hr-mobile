@@ -9,8 +9,8 @@ class ApiService {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -18,12 +18,18 @@ class ApiService {
       ),
     );
 
-    // Add logging interceptor for debugging
+    // Add minimal logging interceptor
     _dio.interceptors.add(
       LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (obj) => print('🌐 API: $obj'),
+        requestBody: false,
+        responseBody: false,
+        logPrint: (obj) {
+          // Only log errors and important info
+          if (obj.toString().contains('Error') ||
+              obj.toString().contains('Exception')) {
+            print('🌐 API: $obj');
+          }
+        },
       ),
     );
   }
@@ -35,8 +41,6 @@ class ApiService {
     required String confirmPassword,
   }) async {
     try {
-      print('🔄 API: Calling register user endpoint');
-
       final response = await _dio.post(
         ApiEndpoints.registerUser,
         data: {
@@ -45,10 +49,6 @@ class ApiService {
           'confirmPassword': confirmPassword,
         },
       );
-
-      print('✅ API: Register user response received');
-      print('📊 API: Status Code: ${response.statusCode}');
-      print('📊 API: Response Data: ${response.data}');
 
       if (response.statusCode == 200) {
         return {
@@ -63,9 +63,6 @@ class ApiService {
         };
       }
     } on DioException catch (e) {
-      print('❌ API: Register user error: ${e.message}');
-      print('❌ API: Response: ${e.response?.data}');
-
       if (e.response != null) {
         return {
           'success': false,
@@ -76,7 +73,6 @@ class ApiService {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      print('❌ API: Register user general error: $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -249,7 +245,6 @@ class ApiService {
         '${ApiEndpoints.attendanceList}/$employeeId',
       );
       if (response.statusCode == 200) {
-        print("response ssn $response");
         return {
           'success': true,
           'data': response.data,

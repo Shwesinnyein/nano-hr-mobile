@@ -98,156 +98,112 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _loadEmployeeProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
   }
 
-  Future<void> _loadEmployeeProfile() async {
-    try {
-      final authService = ref.read(authServiceProvider);
-
-      final response = await authService.getEmployeeProfile();
-
-      if (response['success'] == true) {
-        setState(() {
-          _employeeProfile = response['employee'];
-        });
-
-        await _loadAttendanceStatus();
-      } else {
-        await _loadAttendanceStatusWithEmployeeId(
-          authService.currentEmployeeId,
-        );
-      }
-    } catch (e) {
-      final authService = ref.read(authServiceProvider);
-      await _loadAttendanceStatusWithEmployeeId(authService.currentEmployeeId);
-    }
-  }
-
-  Future<void> _loadAttendanceStatus() async {
-    try {
-      if (_employeeProfile == null) return;
-
-      setState(() {
-        _isLoadingStatus = true;
-      });
-
-      final apiService = ref.read(apiServiceProvider);
-      final employeeId = _employeeProfile!['uid'];
-
-      final response = await apiService.getTodayAttendanceStatus(
-        employeeId: employeeId,
-      );
-
-      if (response['success'] == true) {
-        setState(() {
-          _attendanceStatus = response;
-          _isLoadingStatus = false;
-        });
-
-        final record = response['record'];
-        if (record != null) {}
-      } else {
-        setState(() {
-          _isLoadingStatus = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isLoadingStatus = false;
-      });
-    }
-  }
-
-  Future<void> _loadAttendanceStatusWithEmployeeId(String? employeeId) async {
-    if (employeeId == null) {
-      return;
-    }
+  Future<void> _loadInitialData() async {
+    if (_employeeProfile != null && _attendanceStatus != null) return;
 
     try {
       setState(() {
         _isLoadingStatus = true;
       });
 
+      final authService = ref.read(authServiceProvider);
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.getTodayAttendanceStatus(
-        employeeId: employeeId,
-      );
+      final employeeId = authService.currentEmployeeId;
 
-      if (response['success'] == true) {
+      if (employeeId == null) {
         setState(() {
-          _attendanceStatus = response;
           _isLoadingStatus = false;
         });
+        return;
+      }
 
-        final record = response['record'];
-        if (record != null) {}
-      } else {
+      final results = await Future.wait([
+        authService.getEmployeeProfile(),
+        apiService.getTodayAttendanceStatus(employeeId: employeeId),
+      ]);
+
+      final profileResponse = results[0] as Map<String, dynamic>;
+      final statusResponse = results[1] as Map<String, dynamic>;
+
+      if (mounted) {
         setState(() {
+          if (profileResponse['success'] == true) {
+            _employeeProfile = profileResponse['employee'];
+          }
+          if (statusResponse['success'] == true) {
+            _attendanceStatus = statusResponse;
+          }
           _isLoadingStatus = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _isLoadingStatus = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
     }
   }
 
   // Method to refresh attendance status after check-in/out
   Future<void> _refreshAttendanceStatus() async {
-    if (_employeeProfile != null) {
-      await _loadAttendanceStatus();
-    } else {
+    try {
       final authService = ref.read(authServiceProvider);
-      await _loadAttendanceStatusWithEmployeeId(authService.currentEmployeeId);
+      final apiService = ref.read(apiServiceProvider);
+      final employeeId = authService.currentEmployeeId;
+
+      if (employeeId == null) return;
+
+      final response = await apiService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          _attendanceStatus = response;
+        });
+      }
+    } catch (e) {
+      // Handle error silently for refresh
     }
   }
 
-  // Load attendance history directly from API
   Future<List<Attendance>> _loadAttendanceHistory(WidgetRef ref) async {
     try {
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
 
-      if (employeeId == null) {
-        print('❌ No employee ID for history');
-        return [];
-      }
+      if (employeeId == null) return [];
 
-      print('🔍 Loading attendance history for: $employeeId');
       final apiService = ref.read(apiServiceProvider);
       final response = await apiService.getAttendanceList(
         employeeId: employeeId,
       );
 
-      print('🔍 History API response: $response');
-
       if (response['success'] == true) {
-        // Handle nested data structure
         final outerData = response['data'] as Map<String, dynamic>;
         if (outerData['success'] == true) {
           final data = outerData['data'] as List<dynamic>;
-          final records = data.cast<Map<String, dynamic>>();
-
-          print('🔍 Parsed ${records.length} records from API');
-
-          // Convert to Attendance objects
-          final attendanceList = records.map((json) {
-            return Attendance.fromJson(json);
-          }).toList();
-
-          print('🔍 Created ${attendanceList.length} Attendance objects');
-          return attendanceList;
+          return data
+              .take(50)
+              .map((json) => Attendance.fromJson(json))
+              .toList();
         }
       }
-
-      print('❌ Failed to load history: ${response['message']}');
       return [];
     } catch (e) {
-      print('❌ Error loading attendance history: $e');
       return [];
     }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   @override
@@ -272,15 +228,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       );
     }
 
-    // Use employee ID from profile
-    final employeeId = _employeeProfile!['id'] ?? _employeeProfile!['uid'];
-
     final controller = ref.read(attendanceControllerProvider.notifier);
     final state = ref.watch(attendanceControllerProvider);
 
-    if (state.hasError) {
-      print('❌ AttendanceScreen: Error detected: ${state.error}');
-    }
+    if (state.hasError) {}
 
     return Container(
       color: AppTheme.kBackground,
@@ -290,12 +241,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             // Header with today's date and status
             _buildHeader(context, ref, state),
             const SizedBox(height: 20),
-            // Check In/Out Button
             _buildCheckInOutButton(context, ref, controller, state),
             const SizedBox(height: 20),
-            // View Details Button
             _buildViewDetailsButton(context, ref, state),
-            // Recent Attendance List (only show if details are visible)
             if (_showDetails) ...[
               const SizedBox(height: 20),
               _buildAttendanceList(ref, state),
@@ -352,6 +300,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
+                            cacheWidth: 100,
+                            cacheHeight: 100,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                color: Colors.white.withOpacity(0.2),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              );
+                            },
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 color: Colors.white.withOpacity(0.2),
@@ -368,6 +329,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                             width: 50,
                             height: 50,
                             fit: BoxFit.cover,
+                            cacheWidth: 100,
+                            cacheHeight: 100,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 color: Colors.white.withOpacity(0.2),
@@ -912,6 +875,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   padding: const EdgeInsets.all(16),
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemCount: entries.length,
+                  cacheExtent: 200,
                   itemBuilder: (context, i) {
                     final a = entries[i];
                     return Container(
@@ -1175,11 +1139,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
 
     final entries = snapshot.data ?? [];
-    print('🔍 Attendance History: Total entries: ${entries.length}');
-
-    for (int i = 0; i < entries.length; i++) {
-      print('🔍 Entry $i: ${entries[i].toJson()}');
-    }
 
     if (entries.isEmpty) {
       return const Center(child: Text('No attendance records'));

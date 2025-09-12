@@ -8,7 +8,6 @@ class AttendanceRepository {
 
   AttendanceRepository(this._attendanceService);
 
-  // Helper method to get Thailand local time (UTC+7)
   Map<String, String> _getThailandTime() {
     final currentDate = DateTime.now().toUtc().add(const Duration(hours: 7));
     return {
@@ -39,22 +38,14 @@ class AttendanceRepository {
 
   Future<List<Attendance>> getAttendanceList(String userId) async {
     try {
-      print('🔍 AttendanceRepository: Getting attendance list for: $userId');
       final response = await _attendanceService.getAttendanceList(userId);
-      print("response ssn1 $response");
       final attendanceList = response.map((json) {
-        print('🔍 AttendanceRepository: Processing record: $json');
         final attendance = Attendance.fromJson(json);
-        print('🔍 AttendanceRepository: Created attendance: ${attendance.id}');
         return attendance;
       }).toList();
 
-      print(
-        '🔍 AttendanceRepository: Returning ${attendanceList.length} records',
-      );
       return attendanceList;
     } catch (e) {
-      print('❌ AttendanceRepository: Error getting attendance list: $e');
       return [];
     }
   }
@@ -75,7 +66,7 @@ class AttendanceRepository {
         'type': 'checkin',
       };
 
-      final response = await _attendanceService.checkInOut(checkInData);
+      await _attendanceService.checkInOut(checkInData);
     } catch (e) {
       throw Exception('Check-in failed: ${e.toString()}');
     }
@@ -129,9 +120,7 @@ class AttendanceRepository {
         'updatedAt': timestamp, // Update updatedAt with Thailand time
       };
 
-      final response = await _attendanceService.checkInOutWithRecordData(
-        checkOutData,
-      );
+      await _attendanceService.checkInOutWithRecordData(checkOutData);
     } catch (e) {
       throw Exception('Check-out failed: ${e.toString()}');
     }
@@ -240,7 +229,7 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         return;
       }
 
-      final history = await _repository.getAttendanceHistory(employeeId);
+      await _repository.getAttendanceHistory(employeeId);
     } catch (e) {}
   }
 
@@ -251,19 +240,9 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         return;
       }
 
-      print(
-        '🔍 AttendanceController: Loading attendance list for: $employeeId',
-      );
       final list = await _repository.getAttendanceList(employeeId);
-      print(
-        '🔍 AttendanceController: Got ${list.length} records from repository',
-      );
       state = AsyncValue.data(list);
-      print(
-        '🔍 AttendanceController: Updated state with ${list.length} records',
-      );
     } catch (e) {
-      print('❌ AttendanceController: Error loading attendance list: $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }

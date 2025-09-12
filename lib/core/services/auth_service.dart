@@ -34,6 +34,7 @@ class AuthService {
     String password,
   ) async {
     try {
+      // Call login API directly - backend handles email validation
       final response = await _apiService.loginUser(
         email: email,
         password: password,

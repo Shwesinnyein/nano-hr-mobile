@@ -14,9 +14,7 @@ class AppThemeRefactored {
   // Neutral Colors
   static const Color _neutral50 = Color(0xFFFAFAFA);
   static const Color _neutral100 = Color(0xFFF5F5F5);
-  static const Color _neutral200 = Color(0xFFEEEEEE);
   static const Color _neutral300 = Color(0xFFE0E0E0);
-  static const Color _neutral400 = Color(0xFFBDBDBD);
   static const Color _neutral500 = Color(0xFF9E9E9E);
   static const Color _neutral600 = Color(0xFF757575);
   static const Color _neutral700 = Color(0xFF616161);
@@ -24,10 +22,7 @@ class AppThemeRefactored {
   static const Color _neutral900 = Color(0xFF212121);
 
   // Semantic Colors
-  static const Color _success = Color(0xFF4CAF50);
-  static const Color _warning = Color(0xFFFF9800);
   static const Color _error = Color(0xFFF44336);
-  static const Color _info = Color(0xFF2196F3);
 
   // Theme Data
   static ThemeData get lightTheme {

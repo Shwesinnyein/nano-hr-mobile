@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
-import '../../../core/services/employee_auth_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
 
@@ -16,14 +16,14 @@ class LeaveScreen extends ConsumerStatefulWidget {
 class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   @override
   Widget build(BuildContext context) {
-    final employeeAuthService = ref.watch(employeeAuthServiceProvider);
-    final currentEmployee = employeeAuthService.currentEmployee;
+    final authService = ref.watch(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
 
-    if (currentEmployee == null) {
+    if (currentEmployeeId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final userId = currentEmployee.id;
+    final userId = currentEmployeeId;
     final leaveAsync = ref.watch(leaveControllerProvider(userId));
 
     return Scaffold(

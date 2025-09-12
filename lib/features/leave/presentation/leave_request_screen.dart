@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
-import '../../../core/services/employee_auth_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/mock_data_service.dart';
 import '../data/leave_repository.dart';
 
@@ -30,14 +30,14 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final employeeAuthService = ref.watch(employeeAuthServiceProvider);
-    final currentEmployee = employeeAuthService.currentEmployee;
+    final authService = ref.watch(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
 
-    if (currentEmployee == null) {
+    if (currentEmployeeId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final userId = currentEmployee.id;
+    final userId = currentEmployeeId;
     final ctrl = ref.read(leaveControllerProvider(userId).notifier);
 
     return Scaffold(
@@ -739,11 +739,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
 
     try {
-      // Get current employee
-      final employeeAuthService = ref.read(employeeAuthServiceProvider);
-      final currentEmployee = employeeAuthService.currentEmployee;
+      // Get current employee ID
+      final authService = ref.read(authServiceProvider);
+      final currentEmployeeId = authService.currentEmployeeId;
 
-      if (currentEmployee == null) {
+      if (currentEmployeeId == null) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Employee not found')));
@@ -756,8 +756,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       // Prepare request data
       final requestData = {
         'id': leaveId,
-        'employeeId': currentEmployee.id,
-        'employeeName': currentEmployee.fullName,
+        'employeeId': currentEmployeeId,
+        'employeeName': 'Employee', // TODO: Get actual employee name
         'leaveType': widget.leaveType,
         'reason': _reason.text.trim(),
         'attachments': <Map<String, dynamic>>[],
@@ -796,7 +796,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             });
           }
         } catch (e) {
-          print('⚠️ File upload failed: $e');
           // Continue without attachment
         }
       }
