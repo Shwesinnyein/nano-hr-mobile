@@ -468,8 +468,9 @@ class EmployeeDetailScreen extends StatelessWidget {
               title: const Text('Send Message'),
               onTap: () {
                 Navigator.pop(context);
-                if (employee.email != null)
+                if (employee.email != null) {
                   _launchEmail(context, employee.email!);
+                }
               },
             ),
             ListTile(

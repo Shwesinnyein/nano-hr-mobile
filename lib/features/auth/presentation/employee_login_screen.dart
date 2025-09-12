@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
-import '../../../core/services/employee_auth_service.dart';
-import '../data/auth_repository.dart';
+import '../../../core/services/auth_service.dart';
 import '../../employee/data/employee_model.dart';
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
@@ -31,31 +30,17 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   }
 
   void _handleLogin() {
-    // Just navigate to attendance - no validation needed
-    print('🔄 Login button clicked');
-
-    // Set mock employee data
-    final employeeAuthService = ref.read(employeeAuthServiceProvider);
-    employeeAuthService.setCurrentEmployee(
-      Employee.fromJson({
-        'id': 'emp001',
-        'uid': 'emp001',
-        'fullName': 'John Doe',
-        'email': 'john.doe@company.com',
-        'position': 'Software Developer',
-        'department': 'IT',
-        'branch': 'office',
-        'phoneNumber': '+1234567890',
-        'hireDate': '2023-01-15',
-        'status': 'active',
-        'profileImageUrl': null,
-      }),
-    );
-
-    ref.read(authStateProvider.notifier).setLoggedIn(true);
-    print('✅ Auth state set to logged in');
-    context.go('/attendance');
-    print('🔄 Navigating to attendance');
+    if (_showRegistration) {
+      // Registration flow
+      if (_password.text != _confirmPassword.text) {
+        _showErrorSnackBar('Passwords do not match');
+        return;
+      }
+      _performRegistration(_email.text, _password.text, _confirmPassword.text);
+    } else {
+      // Login flow
+      _performLogin(_email.text, _password.text);
+    }
   }
 
   void _performRegistration(
@@ -64,73 +49,79 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     String confirmPassword,
   ) async {
     try {
-      final authService = ref.read(employeeAuthServiceProvider);
+      final authService = ref.read(authServiceProvider);
 
       // Show loading
       _showLoadingSnackBar('Setting up your account...');
 
-      // Register and login
-      await authService.registerAndLogin(email, password, confirmPassword);
+      // Register using API
+      final result = await authService.registerUser(
+        email,
+        password,
+        confirmPassword,
+      );
 
-      // Update auth state directly
-      ref.read(authStateProvider.notifier).setLoggedIn(true);
+      if (result['success'] == true) {
+        // Update auth state directly
+        ref
+            .read(authServiceProvider)
+            .setCurrentUser('user-${DateTime.now().millisecondsSinceEpoch}');
 
-      // Success - show message first, then navigate
-      if (mounted) {
-        _showSuccessSnackBar('Registration successful! Welcome to NANO HR!');
-        // Add delay to ensure user sees the success message before navigation
-        await Future.delayed(const Duration(milliseconds: 1500));
+        // Success - show message first, then navigate
         if (mounted) {
-          context.go('/attendance');
+          _showSuccessSnackBar('Registration successful! Welcome to NANO HR!');
+          // Add delay to ensure user sees the success message before navigation
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (mounted) {
+            context.go('/attendance');
+          }
         }
+      } else {
+        _showErrorSnackBar(result['message'] ?? 'Registration failed');
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Registration failed';
-        if (e.toString().contains('not found')) {
-          errorMessage = 'Email not found in employees database';
-        } else if (e.toString().contains('do not match')) {
-          errorMessage = 'Passwords do not match';
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Network error. Please check your connection.';
-        }
-        _showErrorSnackBar(errorMessage);
+        // Show API error message directly
+        _showErrorSnackBar(e.toString());
       }
     }
   }
 
   void _performLogin(String email, String password) async {
     try {
-      final authService = ref.read(employeeAuthServiceProvider);
+      final authService = ref.read(authServiceProvider);
 
       // Show loading
       _showLoadingSnackBar('Authenticating...');
 
-      // Login
-      await authService.loginWithEmployeeCredentials(email, password);
+      // Login using API
+      final result = await authService.signInWithEmailAndPassword(
+        email,
+        password,
+      );
 
-      ref.read(authStateProvider.notifier).setLoggedIn(true);
+      if (result['success'] == true) {
+        ref
+            .read(authServiceProvider)
+            .setCurrentUser('user-${DateTime.now().millisecondsSinceEpoch}');
 
-      // Success - show message first, then navigate
-      if (mounted) {
-        _showSuccessSnackBar('Login successful!');
-        // Add delay to ensure user sees the success message before navigation
-        await Future.delayed(const Duration(milliseconds: 1500));
+        // Success - show message first, then navigate
         if (mounted) {
-          context.go('/attendance');
+          _showSuccessSnackBar('Login successful!');
+          // Add delay to ensure user sees the success message before navigation
+          await Future.delayed(const Duration(milliseconds: 1500));
+          if (mounted) {
+            context.go('/attendance');
+          }
         }
+      } else {
+        // Show API error message directly
+        _showErrorSnackBar(result['message'] ?? 'Login failed');
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Login failed';
-        if (e.toString().contains('No employee found')) {
-          errorMessage = 'No employee found with this email address';
-        } else if (e.toString().contains('Invalid password')) {
-          errorMessage = 'Invalid password';
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Network error. Please check your connection.';
-        }
-        _showErrorSnackBar(errorMessage);
+        // Show API error message directly
+        _showErrorSnackBar(e.toString());
       }
     }
   }

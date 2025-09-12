@@ -1,16 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'api_service.dart';
 
 class AuthService {
   String? _currentUserId;
+  String? _currentEmployeeId;
+  final ApiService _apiService;
 
-  AuthService();
+  AuthService(this._apiService);
 
   // Get current user
   String? get currentUserId => _currentUserId;
+  String? get currentEmployeeId => _currentEmployeeId;
 
   // Set current user (for internal use)
   void setCurrentUser(String? userId) {
     _currentUserId = userId;
+  }
+
+  // Set current employee ID
+  void setCurrentEmployeeId(String? employeeId) {
+    _currentEmployeeId = employeeId;
   }
 
   // Check if user is authenticated
@@ -19,64 +28,97 @@ class AuthService {
   // Auth state stream
   Stream<String?> get authStateChanges => Stream.value(_currentUserId);
 
-  // Sign in with email and password using Firebase
+  // Sign in with email and password using API
   Future<Map<String, dynamic>> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
     try {
-      print('🔄 AuthService: Signing in with email: $email');
+      final response = await _apiService.loginUser(
+        email: email,
+        password: password,
+      );
 
-      // Simple mock login - accept any email/password combination
-      await Future.delayed(const Duration(seconds: 1));
+      if (response['success'] == true) {
+        final employeeData = response['employee'];
+        _currentUserId = employeeData['authId'] ?? employeeData['id'] ?? email;
+        _currentEmployeeId = employeeData['id'] ?? employeeData['uid'];
 
-      _currentUserId = 'mock-user-id';
-      print('✅ AuthService: Sign in successful');
-      return {
-        'success': true,
-        'message': 'Sign in successful',
-        'data': {'userId': _currentUserId},
-      };
+        return {
+          'success': true,
+          'message': response['message'] ?? 'Login successful',
+          'data': employeeData,
+        };
+      } else {
+        // Return API error response directly
+        return response;
+      }
     } catch (e) {
-      print('❌ AuthService: Sign in error: $e');
       throw Exception('Sign in failed: ${e.toString()}');
     }
   }
 
-  // Sign up with email and password using Firebase
-  Future<Map<String, dynamic>> signUpWithEmailAndPassword(
+  // Register user with email and password
+  Future<Map<String, dynamic>> registerUser(
     String email,
     String password,
+    String confirmPassword,
   ) async {
     try {
-      print('🔄 AuthService: Signing up with email: $email');
+      final response = await _apiService.registerUser(
+        email: email,
+        password: password,
+        confirmPassword: confirmPassword,
+      );
 
-      // Simple mock signup - accept any email/password combination
-      await Future.delayed(const Duration(seconds: 1));
+      if (response['success'] == true) {
+        final userData = response['data'];
+        _currentUserId = userData['userId'] ?? userData['id'] ?? email;
 
-      _currentUserId = 'mock-user-id';
-      print('✅ AuthService: Sign up successful');
-      return {
-        'success': true,
-        'message': 'Sign up successful',
-        'data': {'userId': _currentUserId},
-      };
+        return {
+          'success': true,
+          'message': response['message'] ?? 'Registration successful',
+          'data': userData,
+        };
+      } else {
+        // Return API error response directly
+        return response;
+      }
     } catch (e) {
-      print('❌ AuthService: Sign up error: $e');
-      throw Exception('Sign up failed: ${e.toString()}');
+      throw Exception('Registration failed: ${e.toString()}');
+    }
+  }
+
+  // Get employee profile
+  Future<Map<String, dynamic>> getEmployeeProfile() async {
+    try {
+      if (_currentEmployeeId == null) {
+        return {
+          'success': false,
+          'message': 'No employee ID found. Please login first.',
+        };
+      }
+
+      final response = await _apiService.getEmployeeProfile(
+        employeeId: _currentEmployeeId!,
+      );
+
+      if (response['success'] == true) {
+        return response;
+      } else {
+        return response;
+      }
+    } catch (e) {
+      throw Exception('Failed to get employee profile: ${e.toString()}');
     }
   }
 
   // Sign out
   Future<void> signOut() async {
     try {
-      print('🔄 AuthService: Signing out');
-
       _currentUserId = null;
-
-      print('✅ AuthService: Sign out successful');
+      _currentEmployeeId = null;
     } catch (e) {
-      print('❌ AuthService: Sign out error: $e');
       throw Exception('Sign out failed: ${e.toString()}');
     }
   }
@@ -84,7 +126,8 @@ class AuthService {
 
 // Provider for AuthService
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService();
+  final apiService = ref.watch(apiServiceProvider);
+  return AuthService(apiService);
 });
 
 // Provider for current user ID
