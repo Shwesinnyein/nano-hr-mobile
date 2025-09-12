@@ -50,20 +50,17 @@ class EmployeeService {
   Future<List<Map<String, dynamic>>> getEmployees({
     int page = 1,
     int limit = 50,
-    String? search,
   }) async {
     try {
       final response = await _apiService.getEmployeeList(
         page: page,
         limit: limit,
-        search: search,
       );
 
       if (response['success'] == true) {
         final data = response['data'];
-        if (data is Map<String, dynamic> && data.containsKey('employees')) {
-          return List<Map<String, dynamic>>.from(data['employees']);
-        } else if (data is List) {
+
+        if (data is List) {
           return data.cast<Map<String, dynamic>>();
         } else {
           // Fallback to mock data if API structure is unexpected
@@ -91,17 +88,6 @@ class EmployeeService {
       };
     } catch (e) {
       throw Exception('Failed to get employee: ${e.toString()}');
-    }
-  }
-
-  // Search employees
-  Future<List<Map<String, dynamic>>> searchEmployees(String query) async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      return [MockDataService.mockEmployee];
-    } catch (e) {
-      throw Exception('Failed to search employees: ${e.toString()}');
     }
   }
 }

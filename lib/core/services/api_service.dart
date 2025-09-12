@@ -143,6 +143,39 @@ class ApiService {
     }
   }
 
+  // Get employee list
+  Future<Map<String, dynamic>> getEmployeeList({
+    int page = 1,
+    int limit = 50,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{'page': page, 'limit': limit};
+
+      final response = await _dio.get(
+        ApiEndpoints.employeeList,
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        // Return the API response directly since it already has the expected structure
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get employee list: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   // Get today's attendance status
   Future<Map<String, dynamic>> getTodayAttendanceStatus({
     required String employeeId,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
-import '../../employee/data/employee_model.dart';
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
   const EmployeeLoginScreen({super.key});

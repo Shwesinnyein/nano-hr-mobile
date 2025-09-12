@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:nano_hr_mobile/features/attendance/data/attendance_model.dart';
 import '../data/attendance_repository.dart';
 import '../../../core/services/auth_service.dart';
@@ -8,8 +7,6 @@ import '../../../core/services/api_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/error_handler.dart';
-import '../../../core/widgets/loading_widget.dart';
-import '../../../core/widgets/error_widget.dart';
 import '../../../app/theme.dart';
 import 'widgets/attendance_header.dart';
 import 'widgets/attendance_button.dart';
@@ -20,10 +17,12 @@ class AttendanceScreenRefactored extends ConsumerStatefulWidget {
   const AttendanceScreenRefactored({super.key});
 
   @override
-  ConsumerState<AttendanceScreenRefactored> createState() => _AttendanceScreenRefactoredState();
+  ConsumerState<AttendanceScreenRefactored> createState() =>
+      _AttendanceScreenRefactoredState();
 }
 
-class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRefactored> {
+class _AttendanceScreenRefactoredState
+    extends ConsumerState<AttendanceScreenRefactored> {
   Map<String, dynamic>? _employeeProfile;
   Map<String, dynamic>? _attendanceStatus;
   bool _isLoadingStatus = false;
@@ -72,14 +71,16 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
     try {
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
-      
+
       if (employeeId == null) {
         _showErrorSnackBar('No employee ID found');
         return;
       }
 
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.getTodayAttendanceStatus(employeeId: employeeId);
+      final response = await apiService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
 
       if (response['success'] == true) {
         setState(() {
@@ -108,18 +109,20 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
     try {
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
-      
+
       if (employeeId == null) {
         _showErrorSnackBar('No employee ID found');
         return;
       }
 
-      final attendanceController = ref.read(attendanceControllerProvider.notifier);
+      final attendanceController = ref.read(
+        attendanceControllerProvider.notifier,
+      );
       await attendanceController.toggleCheck();
-      
+
       // Refresh status after action
       await _loadAttendanceStatus();
-      
+
       _showSuccessSnackBar('Attendance updated successfully');
     } catch (e) {
       _showErrorSnackBar(ErrorHandler.handleException(e));
@@ -134,7 +137,7 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
   void _showAttendanceHistory() {
     final authService = ref.read(authServiceProvider);
     final employeeId = authService.currentEmployeeId;
-    
+
     if (employeeId == null) {
       _showErrorSnackBar('No employee ID found');
       return;
@@ -147,9 +150,8 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AttendanceHistoryModal(
-        historyFuture: historyFuture,
-      ),
+      builder: (context) =>
+          AttendanceHistoryModal(historyFuture: historyFuture),
     );
   }
 
@@ -157,18 +159,20 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
   Future<List<Attendance>> _loadAttendanceHistory(String employeeId) async {
     try {
       final apiService = ref.read(apiServiceProvider);
-      final response = await apiService.getAttendanceList(employeeId: employeeId);
-      
+      final response = await apiService.getAttendanceList(
+        employeeId: employeeId,
+      );
+
       if (response['success'] == true) {
         final outerData = response['data'] as Map<String, dynamic>;
         if (outerData['success'] == true) {
           final data = outerData['data'] as List<dynamic>;
           final records = data.cast<Map<String, dynamic>>();
-          
+
           return records.map((json) => Attendance.fromJson(json)).toList();
         }
       }
-      
+
       throw Exception('Failed to load attendance history');
     } catch (e) {
       throw Exception(ErrorHandler.handleException(e));
@@ -180,7 +184,8 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
     final status = _attendanceStatus?['status'] ?? 'not_checked_in';
     final canCheckIn = _attendanceStatus?['canCheckIn'] ?? false;
     final canCheckOut = _attendanceStatus?['canCheckOut'] ?? false;
-    final buttonText = _attendanceStatus?['buttonText'] ?? AppConstants.checkInButton;
+    final buttonText =
+        _attendanceStatus?['buttonText'] ?? AppConstants.checkInButton;
 
     String displayText;
     bool isEnabled;
@@ -250,7 +255,7 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
               attendanceStatus: _attendanceStatus,
               isLoading: _isLoadingProfile || _isLoadingStatus,
             ),
-            
+
             // Main Content
             Expanded(
               child: Padding(
@@ -259,14 +264,14 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
                   children: [
                     // Check-in/out Button
                     _buildActionButton(),
-                    
+
                     const SizedBox(height: AppConstants.largePadding),
-                    
+
                     // Status Cards
                     _buildStatusCards(),
-                    
+
                     const Spacer(),
-                    
+
                     // History Button
                     _buildHistoryButton(),
                   ],
@@ -281,7 +286,7 @@ class _AttendanceScreenRefactoredState extends ConsumerState<AttendanceScreenRef
 
   Widget _buildActionButton() {
     final buttonConfig = _getButtonConfig();
-    
+
     return AttendanceButton(
       buttonText: buttonConfig['text'],
       onPressed: buttonConfig['enabled'] ? _handleAttendanceAction : null,
