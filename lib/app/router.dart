@@ -11,6 +11,7 @@ import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../core/widgets/main_layout.dart';
+import '../core/services/auth_service.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -63,6 +64,28 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       // Redirect from splash to employee login
       if (state.matchedLocation == '/splash') return '/login';
+
+      // Check authentication for protected routes
+      final authService = ref.read(authServiceProvider);
+      final isAuthenticated = authService.isAuthenticated;
+
+      // List of protected routes that require authentication
+      final protectedRoutes = [
+        '/attendance',
+        '/leave',
+        '/notifications',
+        '/profile',
+        '/settings',
+      ];
+      final isProtectedRoute = protectedRoutes.any(
+        (route) => state.matchedLocation.startsWith(route),
+      );
+
+      // If trying to access protected route without authentication, redirect to login
+      if (isProtectedRoute && !isAuthenticated) {
+        return '/login';
+      }
+
       return null;
     },
   );

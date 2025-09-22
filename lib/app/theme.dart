@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFFFD8E00); // Orange
+  static const Color primaryColor = Color(0xFFC19A6B); // New theme color
   static const Color secondaryColor = Color(0xFF10B981); // Green
   static const Color errorColor = Color(0xFFEF4444); // Red
   static const Color warningColor = Color(0xFFF59E0B); // Amber
   static const Color successColor = Color(0xFF10B981); // Green
-  static const Color kSkyBlue = Color(0xFFFD8E00); // Orange
-  static const Color kSkyBlueDark = Color(0xFFFD8E00); // Darker Orange
-  static const Color kSkyBlueLight = Color(0xFFFDE4B3); // Light Orange
+  static const Color kSkyBlue = Color(0xFFC19A6B); // New theme color
+  static const Color kSkyBlueDark = Color(0xFFA67C4A); // Darker version
+  static const Color kSkyBlueLight = Color(0xFFE6D4B8); // Light version
 
   static const Color kCamelNude = Color(0xFFC19A6B);
   static const Color kWarmBeige = Color(0xFFC7A27B);
@@ -21,9 +21,11 @@ class AppTheme {
   static const Color kOnBackground = Color(0xFF2C2C2C);
   static const Color kOnSurface = Color(0xFF2C2C2C);
   static const Color kNanoBlack = Color(0xFF121212);
-  static const Color kNanoGoldLight = Color(0xFFFDE4B3); // Light Orange
-  static const Color kNanoGold = Color(0xFFFD8E00); // Orange
-  static const Color kNanoGoldDark = Color(0xFFFD8E00); // Darker Orange
+  static const Color kNanoGoldLight = Color(
+    0xFFE6D4B8,
+  ); // Light version of new color
+  static const Color kNanoGold = Color(0xFFC19A6B); // New theme color
+  static const Color kNanoGoldDark = Color(0xFFA67C4A); // Darker version
   static const Color kNanoWhite = Color(0xFFFFFFFF);
 
   // Professional color palette

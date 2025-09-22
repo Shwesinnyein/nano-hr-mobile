@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/skeleton_loading.dart';
+import '../../../core/widgets/error_state_widget.dart';
+import '../../../core/widgets/animated_fade_in.dart';
 import '../../../core/services/auth_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
@@ -46,21 +49,74 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       ),
       body: leaveAsync.when(
         data: (leaveRequests) => _buildLeaveList(leaveRequests),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
-              const SizedBox(height: 16),
-              Text(
-                'Error loading leave data',
-                style: TextStyle(fontSize: 18, color: AppTheme.kOnBackground),
-              ),
-            ],
-          ),
+        loading: () => _buildSkeletonLoading(),
+        error: (error, stack) => ErrorStateWidget(
+          message: 'Failed to load leave requests. Please try again.',
+          actionText: 'Retry',
+          onAction: () => ref.invalidate(employeeLeaveListProvider(employeeId)),
         ),
       ),
+    );
+  }
+
+  Widget _buildSkeletonLoading() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 6, // Show 6 skeleton items
+      itemBuilder: (context, index) {
+        return AnimatedFadeIn(
+          delay: Duration(milliseconds: index * 100),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const SkeletonLoading(
+                      width: 40,
+                      height: 40,
+                      borderRadius: BorderRadius.all(Radius.circular(20)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SkeletonLoading(height: 16, width: 120),
+                          const SizedBox(height: 4),
+                          const SkeletonLoading(height: 14, width: 80),
+                        ],
+                      ),
+                    ),
+                    const SkeletonLoading(
+                      width: 60,
+                      height: 24,
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const SkeletonLoading(height: 14, width: double.infinity),
+                const SizedBox(height: 8),
+                const SkeletonLoading(height: 14, width: 200),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -77,9 +133,12 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
             itemCount: allRequests.length,
             itemBuilder: (context, index) {
               final request = allRequests[index];
-              return GestureDetector(
-                onTap: () => _showLeaveDetailsDialog(context, request),
-                child: _buildLeaveRequestCard(request),
+              return AnimatedFadeIn(
+                delay: Duration(milliseconds: index * 50),
+                child: GestureDetector(
+                  onTap: () => _showLeaveDetailsDialog(context, request),
+                  child: _buildLeaveRequestCard(request),
+                ),
               );
             },
           ),

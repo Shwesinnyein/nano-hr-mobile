@@ -8,6 +8,7 @@ class AuthRepository {
   static const _kLoggedInKey = 'logged_in';
   static const _kUserId = 'user_id';
   static const _kUserToken = 'user_token';
+  static const _kEmployeeId = 'employee_id';
 
   AuthRepository(this._authService);
 
@@ -15,9 +16,17 @@ class AuthRepository {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool(_kLoggedInKey) ?? false;
     final token = prefs.getString(_kUserToken);
+    final userId = prefs.getString(_kUserId);
+    final employeeId = prefs.getString(_kEmployeeId);
 
-    // Check if we have a valid token
-    if (isLoggedIn && token != null) {
+    // Check if we have a valid token, user ID, and employee ID
+    if (isLoggedIn && token != null && userId != null && employeeId != null) {
+      // Restore auth service state
+      _authService.setCurrentUser(userId);
+      _authService.setCurrentEmployeeId(employeeId);
+
+      print('✅ Restored user ID: $userId');
+      print('✅ Restored employee ID: $employeeId');
       return true;
     }
 
@@ -41,21 +50,25 @@ class AuthRepository {
 
       if (response['success'] == true && response['data'] != null) {
         final userData = response['data'] as Map<String, dynamic>;
-        final userId = userData['userId'] ?? userData['id'] ?? email;
+        final userId = userData['authId'] ?? userData['id'] ?? email;
+        final employeeId = userData['id'] ?? userData['uid'];
         final token = userData['token'] ?? userData['accessToken'];
 
         print('✅ Login successful for user: $userId');
+        print('✅ Employee ID: $employeeId');
 
         // Store login state
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_kLoggedInKey, true);
         await prefs.setString(_kUserId, userId);
+        await prefs.setString(_kEmployeeId, employeeId);
         if (token != null) {
           await prefs.setString(_kUserToken, token);
         }
 
-        // Update auth service
+        // Update auth service with both user ID and employee ID
         _authService.setCurrentUser(userId);
+        _authService.setCurrentEmployeeId(employeeId);
       } else {
         throw Exception(response['message'] ?? 'Login failed');
       }
@@ -94,7 +107,9 @@ class AuthRepository {
     await prefs.setBool(_kLoggedInKey, false);
     await prefs.remove(_kUserId);
     await prefs.remove(_kUserToken);
+    await prefs.remove(_kEmployeeId);
     _authService.setCurrentUser(null);
+    _authService.setCurrentEmployeeId(null);
   }
 }
 

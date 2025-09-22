@@ -104,9 +104,9 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/super1.jpg"
+  image_path: "assets/icon/nano-store-dark.png"
   web:
     generate: true
-    image_path: "assets/icon/super1.jpg"
+    image_path: "assets/icon/nano-store-dark.png"
     background_color: "#ffffff"
-    theme_color: "#000000"
+    theme_color: "#C19A6B"

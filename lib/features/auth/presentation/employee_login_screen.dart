@@ -69,11 +69,16 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         // Success - show message first, then navigate
         if (mounted) {
           _showSuccessSnackBar('Registration successful! Welcome to NANO HR!');
-          // Add delay to ensure user sees the success message before navigation
-          await Future.delayed(const Duration(milliseconds: 1500));
+          _showRegistration = false;
+          // await Future.delayed(const Duration(milliseconds: 1500));
           if (mounted) {
-            context.go('/attendance');
+            context.go('/employee-login');
           }
+          // Add delay to ensure user sees the success message before navigation
+          // await Future.delayed(const Duration(milliseconds: 1500));
+          // if (mounted) {
+          //   context.go('/attendance');
+          // }
         }
       } else {
         _showErrorSnackBar(result['message'] ?? 'Registration failed');
@@ -100,9 +105,8 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       );
 
       if (result['success'] == true) {
-        ref
-            .read(authServiceProvider)
-            .setCurrentUser('user-${DateTime.now().millisecondsSinceEpoch}');
+        // The auth service already sets the user ID and employee ID correctly
+        // No need to override it with a dummy ID
 
         // Success - show message first, then navigate
         if (mounted) {
@@ -178,7 +182,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             children: [
               // Header with gradient
               Container(
-                height: 220,
+                height: 250,
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -197,49 +201,59 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     children: [
                       // Logo
                       Container(
-                        height: 120,
-                        width: 120,
+                        height: 130,
+                        width: 130,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(30),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                            BoxShadow(
+                              color: AppTheme.kNanoGold.withOpacity(0.3),
                               blurRadius: 15,
-                              offset: const Offset(0, 5),
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(25),
+                          borderRadius: BorderRadius.circular(30),
                           child: Image.asset(
-                            'assets/icon/super1.jpg',
-                            height: 100,
-                            width: 100,
+                            'assets/icon/nano-store-dark.png',
+                            height: 110,
+                            width: 110,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.business,
-                                size: 60,
-                                color: Color(0xFFFD8E00),
+                                size: 70,
+                                color: AppTheme.kNanoGold,
                               );
                             },
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'NANO HR',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 32,
+                          fontSize: 36,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 3,
+                          letterSpacing: 4,
                           shadows: [
+                            const Shadow(
+                              color: Colors.black38,
+                              offset: Offset(0, 3),
+                              blurRadius: 6,
+                            ),
                             Shadow(
-                              color: Colors.black26,
-                              offset: Offset(0, 2),
-                              blurRadius: 4,
+                              color: AppTheme.kNanoGold.withOpacity(0.5),
+                              offset: const Offset(0, 1),
+                              blurRadius: 3,
                             ),
                           ],
                         ),

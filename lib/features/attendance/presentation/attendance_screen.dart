@@ -6,6 +6,9 @@ import '../data/attendance_repository.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/api_service.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/skeleton_loading.dart';
+import '../../../core/widgets/error_state_widget.dart';
+import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
@@ -239,14 +242,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         child: Column(
           children: [
             // Header with today's date and status
-            _buildHeader(context, ref, state),
+            AnimatedFadeIn(
+              delay: const Duration(milliseconds: 100),
+              child: _buildHeader(context, ref, state),
+            ),
             const SizedBox(height: 20),
-            _buildCheckInOutButton(context, ref, controller, state),
+            AnimatedFadeIn(
+              delay: const Duration(milliseconds: 200),
+              child: _buildCheckInOutButton(context, ref, controller, state),
+            ),
             const SizedBox(height: 20),
-            _buildViewDetailsButton(context, ref, state),
+            AnimatedFadeIn(
+              delay: const Duration(milliseconds: 300),
+              child: _buildViewDetailsButton(context, ref, state),
+            ),
             if (_showDetails) ...[
               const SizedBox(height: 20),
-              _buildAttendanceList(ref, state),
+              AnimatedSlideIn(
+                delay: const Duration(milliseconds: 400),
+                child: _buildAttendanceList(ref, state),
+              ),
             ],
           ],
         ),
@@ -837,7 +852,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     AsyncValue<List<Attendance>> state,
   ) {
     return Container(
-      height: 300, // Fixed height to prevent overflow
+      height: 300,
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -853,168 +868,138 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       child: Column(
         children: [
           Expanded(
-            child: state.when(
-              data: (entries) {
-                if (entries.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.access_time, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No attendance records',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemCount: entries.length,
-                  cacheExtent: 200,
-                  itemBuilder: (context, i) {
-                    final a = entries[i];
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.kBackground,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.kNanoGold.withOpacity(0.1),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(attendanceControllerProvider);
+                await _refreshAttendanceStatus();
+              },
+              color: AppTheme.kNanoGold,
+              child: state.when(
+                data: (entries) {
+                  if (entries.isEmpty) {
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Status icon
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: a.checkOutAt == null
-                                  ? AppTheme.kNanoGold.withOpacity(0.2)
-                                  : Colors.green.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              a.checkOutAt == null ? Icons.login : Icons.logout,
-                              color: a.checkOutAt == null
-                                  ? AppTheme.kNanoGold
-                                  : Colors.green,
-                              size: 20,
-                            ),
+                          Icon(Icons.access_time, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No attendance records',
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
                           ),
-                          const SizedBox(width: 16),
-                          // Details
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  fmtDate(a.checkInAt),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'In: ${fmt(a.checkInAt)}',
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                if (a.checkOutAt != null) ...[
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemCount: entries.length,
+                    cacheExtent: 200,
+                    itemBuilder: (context, i) {
+                      final a = entries[i];
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.kBackground,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.kNanoGold.withOpacity(0.1),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Status icon
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: a.checkOutAt == null
+                                    ? AppTheme.kNanoGold.withOpacity(0.2)
+                                    : Colors.green.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                a.checkOutAt == null
+                                    ? Icons.login
+                                    : Icons.logout,
+                                color: a.checkOutAt == null
+                                    ? AppTheme.kNanoGold
+                                    : Colors.green,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            // Details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    'Out: ${fmt(a.checkOutAt!)}',
+                                    fmtDate(a.checkInAt),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'In: ${fmt(a.checkInAt)}',
                                     style: const TextStyle(
                                       color: Colors.grey,
                                       fontSize: 14,
                                     ),
                                   ),
+                                  if (a.checkOutAt != null) ...[
+                                    Text(
+                                      'Out: ${fmt(a.checkOutAt!)}',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
                                 ],
+                              ),
+                            ),
+                            // Location
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  color: AppTheme.kNanoGold,
+                                  size: 16,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  a.location,
+                                  style: TextStyle(
+                                    color: AppTheme.kNanoGold,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          // Location
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Icon(
-                                Icons.location_on,
-                                color: AppTheme.kNanoGold,
-                                size: 16,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                a.location,
-                                style: TextStyle(
-                                  color: AppTheme.kNanoGold,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const SizedBox.shrink(),
-              error: (error, stackTrace) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Error loading attendance',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.red,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        error.toString(),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                          ],
                         ),
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Consumer(
-                      builder: (context, ref, child) {
-                        return ElevatedButton.icon(
-                          onPressed: () => _refreshAttendance(ref),
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.kNanoGold,
-                            foregroundColor: Colors.white,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(
+                  child: Column(
+                    children: [SkeletonCard(), SkeletonCard(), SkeletonCard()],
+                  ),
+                ),
+                error: (error, stackTrace) => ErrorStateWidget(
+                  message:
+                      'Failed to load attendance records. Please check your connection and try again.',
+                  actionText: 'Retry',
+                  onAction: () => _refreshAttendance(ref),
                 ),
               ),
             ),

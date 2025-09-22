@@ -23,7 +23,8 @@ class AuthService {
   }
 
   // Check if user is authenticated
-  bool get isAuthenticated => _currentUserId != null;
+  bool get isAuthenticated =>
+      _currentUserId != null && _currentEmployeeId != null;
 
   // Auth state stream
   Stream<String?> get authStateChanges => Stream.value(_currentUserId);
@@ -111,6 +112,16 @@ class AuthService {
       }
     } catch (e) {
       throw Exception('Failed to get employee profile: ${e.toString()}');
+    }
+  }
+
+  // Restore authentication state from SharedPreferences
+  Future<void> restoreAuthState() async {
+    try {
+      // This will be called by the auth repository when checking login state
+      // The actual restoration is handled in the auth repository
+    } catch (e) {
+      print('❌ Failed to restore auth state: $e');
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 // import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
@@ -33,7 +34,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
 
       final authService = ref.read(authServiceProvider);
+
+      // Debug: Check if employee ID exists
+      print('🔍 Profile Debug: Employee ID: ${authService.currentEmployeeId}');
+      print('🔍 Profile Debug: User ID: ${authService.currentUserId}');
+
+      // Check if user is authenticated
+      if (!authService.isAuthenticated ||
+          authService.currentEmployeeId == null) {
+        print('❌ User not authenticated or no employee ID');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
       final response = await authService.getEmployeeProfile();
+
+      // Debug: Print the response
+      print('🔍 Profile Debug: API Response: $response');
 
       if (response['success'] == true) {
         final employeeData = response['employee'] as Map<String, dynamic>;
@@ -41,12 +60,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _employeeProfile = Employee.fromJson(employeeData);
           _isLoading = false;
         });
+        print('✅ Profile loaded successfully');
       } else {
+        print('❌ Profile loading failed: ${response['message']}');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('❌ Profile loading error: $e');
       setState(() {
         _isLoading = false;
       });
@@ -76,33 +98,69 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     if (_employeeProfile == null) {
+      final authService = ref.read(authServiceProvider);
+      final isNotAuthenticated =
+          !authService.isAuthenticated || authService.currentEmployeeId == null;
+
       return Scaffold(
         backgroundColor: AppTheme.kBackground,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person_off, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text(
-                'No profile data available',
-                style: TextStyle(
-                  fontSize: 18,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isNotAuthenticated ? Icons.login : Icons.person_off,
+                  size: 64,
                   color: Colors.grey,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadEmployeeProfile,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.kNanoGold,
-                  foregroundColor: Colors.white,
+                const SizedBox(height: 16),
+                Text(
+                  isNotAuthenticated
+                      ? 'Please Login First'
+                      : 'No profile data available',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  isNotAuthenticated
+                      ? 'You need to login to view your profile information.'
+                      : 'Please make sure you are logged in and try again.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                if (!isNotAuthenticated) ...[
+                  ElevatedButton.icon(
+                    onPressed: _loadEmployeeProfile,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.kNanoGold,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Navigate to login using GoRouter
+                    context.go('/login');
+                  },
+                  icon: const Icon(Icons.login),
+                  label: Text(isNotAuthenticated ? 'Login Now' : 'Go to Login'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.kNanoGold,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );

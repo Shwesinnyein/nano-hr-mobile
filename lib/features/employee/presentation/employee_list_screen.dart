@@ -2,6 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
+import '../../../core/widgets/skeleton_loading.dart';
+import '../../../core/widgets/error_state_widget.dart';
+import '../../../core/widgets/animated_fade_in.dart';
 import '../data/employee_repository.dart';
 import 'employee_detail_screen.dart';
 
@@ -55,8 +58,13 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading employees: ${e.toString()}'),
+            content: Text('Failed to load employees. Please try again.'),
             backgroundColor: AppTheme.errorColor,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _loadEmployees(),
+            ),
           ),
         );
       }
@@ -133,7 +141,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           _buildEmployeeCount(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? _buildSkeletonLoading()
                 : _filteredEmployees.isEmpty
                 ? _buildEmptyState()
                 : _buildEmployeeList(),
@@ -194,35 +202,66 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.people_outline,
-            size: 80,
-            color: Colors.grey.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _searchController.text.isNotEmpty
-                ? 'No employees found'
-                : 'No employees available',
-            style: TextStyle(fontSize: 18, color: Colors.grey.withOpacity(0.7)),
-          ),
-          if (_searchController.text.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your search terms',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.withOpacity(0.5),
-              ),
+  Widget _buildSkeletonLoading() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 8, // Show 8 skeleton items
+      itemBuilder: (context, index) {
+        return AnimatedFadeIn(
+          delay: Duration(milliseconds: index * 100),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ],
-      ),
+            child: Row(
+              children: [
+                const SkeletonLoading(
+                  width: 50,
+                  height: 50,
+                  borderRadius: BorderRadius.all(Radius.circular(25)),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SkeletonLoading(height: 16, width: 150),
+                      const SizedBox(height: 8),
+                      const SkeletonLoading(height: 14, width: 100),
+                      const SizedBox(height: 4),
+                      const SkeletonLoading(height: 14, width: 80),
+                    ],
+                  ),
+                ),
+                const SkeletonLoading(
+                  width: 60,
+                  height: 24,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return EmptyStateWidget(
+      message: _searchController.text.isNotEmpty
+          ? 'No employees found. Try adjusting your search terms.'
+          : 'No employees available.',
+      icon: Icons.people_outline,
     );
   }
 
@@ -234,7 +273,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         itemCount: _filteredEmployees.length,
         itemBuilder: (context, index) {
           final employee = _filteredEmployees[index];
-          return _buildEmployeeCard(employee);
+          return AnimatedFadeIn(
+            delay: Duration(milliseconds: index * 50),
+            child: _buildEmployeeCard(employee),
+          );
         },
       ),
     );
