@@ -17,9 +17,10 @@ class ApiEndpoints {
   static const String employeeList = '/employee/list';
 
   // Leave endpoints
-  static const String createLeaveRequest = '/leave/create-request';
-  static const String leaveRequests = '/leave/requests';
+  static const String createLeaveRequest = '/leave/create';
+  static const String leaveRequests = '/leave/employee';
   static const String leaveBalance = '/leave/balance';
+  static const String leaveSettings = '/leave/settings';
 
   // File upload endpoints
   static const String uploadFile = '/upload/file';

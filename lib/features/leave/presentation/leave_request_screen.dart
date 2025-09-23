@@ -4,8 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/mock_data_service.dart';
+import '../../../core/services/leave_service.dart';
 import '../data/leave_repository.dart';
+import '../data/leave_model.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
@@ -506,6 +507,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           child: TextField(
             controller: _reason,
             maxLines: 4,
+            onChanged: (value) =>
+                setState(() {}), // Trigger rebuild when text changes
             decoration: InputDecoration(
               hintText: 'Please provide a reason for your leave request...',
               border: InputBorder.none,
@@ -739,11 +742,19 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
 
     try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
       // Get current employee ID
       final authService = ref.read(authServiceProvider);
       final currentEmployeeId = authService.currentEmployeeId;
 
       if (currentEmployeeId == null) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Employee not found')));
@@ -753,39 +764,47 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       // Generate unique ID for leave request
       final leaveId = 'LR-${DateTime.now().millisecondsSinceEpoch}';
 
-      // Prepare request data
+      // Prepare request data according to API specification
       final requestData = {
-        'id': leaveId,
         'employeeId': currentEmployeeId,
-        'employeeName': 'Employee', // TODO: Get actual employee name
-        'leaveType': widget.leaveType,
+        'leaveType': _getLeaveTypeId(widget.leaveType), // Map leave type to ID
+        'leaveTypeName': _getLeaveTypeName(
+          widget.leaveType,
+        ), // Add leave type name
+        'requestType': _durationType, // Use 'daily' or 'hourly'
         'reason': _reason.text.trim(),
-        'attachments': <Map<String, dynamic>>[],
+        'isHalfDay': false,
+        'halfDayType': 'morning', // Default value
+        'attachments':
+            <Map<String, dynamic>>[], // Initialize empty attachments list
       };
 
       // Add daily leave specific fields
       if (_durationType == 'daily') {
-        requestData['startDate'] =
+        requestData['fromDate'] =
             '${_fromDate!.year}-${_fromDate!.month.toString().padLeft(2, '0')}-${_fromDate!.day.toString().padLeft(2, '0')}';
-        requestData['endDate'] =
+        requestData['toDate'] =
             '${_toDate!.year}-${_toDate!.month.toString().padLeft(2, '0')}-${_toDate!.day.toString().padLeft(2, '0')}';
       }
 
-      // Add hourly leave specific fields
+      // Add hourly leave specific fields (treat as half day)
       if (_durationType == 'hourly') {
-        requestData['date'] =
-            '${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}';
-        requestData['workingShift'] = _workingShift;
-        requestData['startTime'] =
-            '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}';
-        requestData['endTime'] =
-            '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}';
+        final selectedDate = _selectedDate!;
+        requestData['fromDate'] =
+            '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+        requestData['toDate'] =
+            '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+        requestData['isHalfDay'] = true;
+        requestData['halfDayType'] = _startTime!.hour < 12
+            ? 'morning'
+            : 'afternoon';
       }
 
       // Handle file upload if image is selected
       if (_selectedImage != null) {
         try {
-          final uploadResult = await MockDataService.uploadFile(
+          final leaveService = LeaveService();
+          final uploadResult = await leaveService.uploadFile(
             _selectedImage!.path,
           );
           if (uploadResult['success'] == true) {
@@ -796,15 +815,20 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             });
           }
         } catch (e) {
+          print('⚠️ File upload failed: $e');
           // Continue without attachment
         }
       }
 
-      // Create leave request using mock service
-      await MockDataService.createLeaveRequest(requestData);
+      // Submit leave request using real API with the correct format
+      final repository = ref.read(leaveRepositoryProvider);
+      await repository.submitRequest(requestData);
+
+      // Close loading dialog
+      Navigator.pop(context);
 
       if (context.mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context); // Close the form
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -815,6 +839,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         );
       }
     } catch (e) {
+      // Close loading dialog
+      Navigator.pop(context);
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -829,6 +856,70 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   String _capitalizeFirst(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);
+  }
+
+  String _getLeaveTypeId(String type) {
+    // Map leave types to their actual IDs from the leave settings API
+    switch (type.toLowerCase()) {
+      case 'vacation':
+      case 'annual':
+        return 'c1cdc61e-80ba-4142-9845-2b1561d1bb98'; // Sick Leave (using as general leave)
+      case 'sick':
+        return 'c1cdc61e-80ba-4142-9845-2b1561d1bb98'; // Sick Leave
+      case 'personal':
+      case 'casual':
+        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
+      case 'maternity':
+        return 'f568f575-32c9-406e-883b-59cd991fb1d3'; // Maternity leave
+      case 'paternity':
+        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
+      case 'emergency':
+        return '95d7cfc5-ed62-4d69-b53f-b91fa9b941f7'; // Leave (without pay)
+      case 'study':
+        return '95d7cfc5-ed62-4d69-b53f-b91fa9b941f7'; // Leave (without pay)
+      case 'compensatory':
+        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
+      case 'funeral':
+        return 'a2680d55-4964-47b8-9585-c3b1795ceafa'; // Leave (for funeral arrangements)
+      case 'marriage':
+        return 'acd2e4a5-d52d-4ff5-8490-aa59c2bfc5f0'; // Marriage leave
+      case 'sterilization':
+        return '43d27e1a-267b-41af-95eb-f438fdaf29cb'; // Leave (for sterilization)
+      default:
+        return '90a98a14-4664-42cf-be47-437111dbd186'; // Default to Leave of absence (paid)
+    }
+  }
+
+  String _getLeaveTypeName(String type) {
+    // Map leave types to their display names
+    switch (type.toLowerCase()) {
+      case 'vacation':
+      case 'annual':
+        return 'Sick Leave'; // Using sick leave as general leave
+      case 'sick':
+        return 'Sick Leave';
+      case 'personal':
+      case 'casual':
+        return 'Leave of absence (paid)';
+      case 'maternity':
+        return 'Maternity leave';
+      case 'paternity':
+        return 'Leave of absence (paid)';
+      case 'emergency':
+        return 'Leave (without pay)';
+      case 'study':
+        return 'Leave (without pay)';
+      case 'compensatory':
+        return 'Leave of absence (paid)';
+      case 'funeral':
+        return 'Leave (for funeral arrangements)';
+      case 'marriage':
+        return 'Marriage leave';
+      case 'sterilization':
+        return 'Leave (for sterilization)';
+      default:
+        return 'Leave of absence (paid)';
+    }
   }
 
   IconData _getLeaveTypeIcon(String type) {

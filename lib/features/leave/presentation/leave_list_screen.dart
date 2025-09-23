@@ -17,6 +17,37 @@ class LeaveListScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh the leave list data when screen is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshData();
+    });
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    final authService = ref.read(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
+    if (currentEmployeeId != null) {
+      // Force refresh and show loading state
+      ref.invalidate(employeeLeaveListProvider(currentEmployeeId));
+    }
+
+    // Add a small delay to ensure loading state is visible
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    setState(() {
+      _isRefreshing = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = ref.watch(authServiceProvider);
@@ -46,16 +77,199 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           icon: Icon(Icons.arrow_back, color: AppTheme.kOnBackground),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppTheme.kOnBackground),
+            onPressed: _refreshData,
+          ),
+        ],
       ),
-      body: leaveAsync.when(
-        data: (leaveRequests) => _buildLeaveList(leaveRequests),
-        loading: () => _buildSkeletonLoading(),
-        error: (error, stack) => ErrorStateWidget(
-          message: 'Failed to load leave requests. Please try again.',
-          actionText: 'Retry',
-          onAction: () => ref.invalidate(employeeLeaveListProvider(employeeId)),
+      body: _isRefreshing
+          ? _buildSkeletonLoading()
+          : leaveAsync.when(
+              data: (leaveRequests) => RefreshIndicator(
+                onRefresh: _refreshData,
+                child: _buildLeaveList(leaveRequests),
+              ),
+              loading: () => _buildSkeletonLoading(),
+              error: (error, stack) => ErrorStateWidget(
+                message: 'Failed to load leave requests. Please try again.',
+                actionText: 'Retry',
+                onAction: _refreshData,
+              ),
+            ),
+    );
+  }
+
+  Widget _buildSettingsSkeleton() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SkeletonLoading(height: 20, width: 150),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const SkeletonLoading(height: 16, width: 100),
+              const SizedBox(width: 8),
+              const SkeletonLoading(height: 16, width: 80),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const SkeletonLoading(height: 16, width: 120),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaveSettingsCard(LeaveSettingsResponse settings) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.kNanoGold.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.settings, color: AppTheme.kNanoWhite, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Leave Settings',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.kNanoWhite,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            settings.message,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.kNanoWhite.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSettingsItem('Available', settings.count, Icons.list),
+              _buildSettingsItem(
+                'Eligible',
+                settings.employeeEligible ? 'Yes' : 'No',
+                Icons.check_circle,
+              ),
+              _buildSettingsItem(
+                'Months',
+                '${settings.monthsWithCompany}/${settings.requiredMonths}',
+                Icons.calendar_month,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Available Leave Types:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.kNanoWhite,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: settings.data
+                .take(4)
+                .map(
+                  (setting) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.kNanoWhite.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      setting.displayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.kNanoWhite,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          if (settings.data.length > 4) ...[
+            const SizedBox(height: 8),
+            Text(
+              '+${settings.data.length - 4} more types',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.kNanoWhite.withOpacity(0.8),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsItem(String label, dynamic value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.kNanoWhite, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value.toString(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.kNanoWhite,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.kNanoWhite.withOpacity(0.8),
+          ),
+        ),
+      ],
     );
   }
 
@@ -121,28 +335,68 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   }
 
   Widget _buildLeaveList(List<LeaveRequest> requests) {
-    // Use real API data
-    final allRequests = requests;
+    print(
+      '🔍 LeaveListScreen: Building leave list with ${requests.length} requests',
+    );
+    for (int i = 0; i < requests.length; i++) {
+      print(
+        '🔍 LeaveListScreen: Request $i: ${requests[i].leaveType} - ${requests[i].reason}',
+      );
+    }
 
     return Column(
       children: [
-        _buildSummaryCard(allRequests),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: allRequests.length,
-            itemBuilder: (context, index) {
-              final request = allRequests[index];
-              return AnimatedFadeIn(
-                delay: Duration(milliseconds: index * 50),
-                child: GestureDetector(
-                  onTap: () => _showLeaveDetailsDialog(context, request),
-                  child: _buildLeaveRequestCard(request),
+        // Show message when no leave requests are available
+        if (requests.isEmpty)
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'No Leave Requests',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              );
-            },
+                const SizedBox(height: 8),
+                Text(
+                  'You haven\'t submitted any leave requests yet.',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
-        ),
+        // Show leave requests if available
+        if (requests.isNotEmpty) ...[
+          _buildSummaryCard(requests),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: requests.length,
+              itemBuilder: (context, index) {
+                final request = requests[index];
+                return AnimatedFadeIn(
+                  delay: Duration(milliseconds: index * 50),
+                  child: GestureDetector(
+                    onTap: () => _showLeaveDetailsDialog(context, request),
+                    child: _buildLeaveRequestCard(request),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -255,8 +509,10 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     String durationText;
     if (request.startTime != null && request.endTime != null) {
       durationText = '${request.startTime} - ${request.endTime}';
-    } else if (request.start != null && request.end != null) {
-      final daysDifference = request.end!.difference(request.start!).inDays + 1;
+    } else if (request.startDate != null && request.endDate != null) {
+      final startDate = DateTime.parse(request.startDate!);
+      final endDate = DateTime.parse(request.endDate!);
+      final daysDifference = endDate.difference(startDate).inDays + 1;
       durationText = '$daysDifference day${daysDifference > 1 ? 's' : ''}';
     } else {
       durationText = 'N/A';
@@ -348,33 +604,122 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
               const SizedBox(height: 12),
 
-              // Date information
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    request.date != null
-                        ? request.date!
-                        : '${_formatDate(request.start!)} - ${_formatDate(request.end!)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.kOnSurface.withOpacity(0.8),
-                    ),
+              // Date/Time information based on leave type
+              if (request.requestType == 'daily') ...[
+                // Daily leave: Show From Date - To Date
+                if (request.startDate != null && request.endDate != null) ...[
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'From: ${_formatDate(DateTime.parse(request.startDate!))}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.event, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'To: ${_formatDate(DateTime.parse(request.endDate!))}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (request.fromDate != null &&
+                    request.toDate != null) ...[
+                  // Fallback to fromDate/toDate if startDate/endDate not available
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'From: ${_formatDate(DateTime.parse(request.fromDate!))}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.event, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'To: ${_formatDate(DateTime.parse(request.toDate!))}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Date information not available',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-
-              // Working shift for hourly leave
-              if (request.requestType == 'hourly' &&
-                  request.workingShift != null) ...[
-                const SizedBox(height: 8),
+              ] else if (request.requestType == 'hourly' &&
+                  request.date != null) ...[
+                // Hourly leave: Show Date and Start Time - End Time
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey),
+                    Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'Shift: ${request.workingShift}',
+                      'Date: ${_formatDate(DateTime.parse(request.date!))}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.kOnSurface.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+                if (request.startTime != null && request.endTime != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Time: ${request.startTime} - ${request.endTime}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ] else ...[
+                // Fallback for other cases
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                    const SizedBox(width: 8),
+                    Text(
+                      'N/A',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnSurface.withOpacity(0.8),

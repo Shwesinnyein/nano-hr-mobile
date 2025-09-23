@@ -7,19 +7,26 @@ class LeaveRepository {
 
   LeaveRepository(this._leaveService);
 
-  Future<LeaveBalance> getLeaveBalance() async {
+  Future<LeaveBalance> getLeaveBalance(String employeeId) async {
     try {
-      // Return mock leave balance
-      return LeaveBalance(
-        annualLeave: 12,
-        sickLeave: 5,
-        personalLeave: 3,
-        usedAnnualLeave: 2,
-        usedSickLeave: 1,
-        usedPersonalLeave: 0,
-      );
+      final response = await _leaveService.getLeaveBalance(employeeId);
+
+      if (response['success'] == true) {
+        return LeaveBalance.fromJson(response['data']);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to get leave balance');
+      }
     } catch (e) {
       throw Exception('Failed to get leave balance: ${e.toString()}');
+    }
+  }
+
+  Future<LeaveSettingsResponse> getLeaveSettings(String employeeId) async {
+    try {
+      final response = await _leaveService.getLeaveSettings(employeeId);
+      return LeaveSettingsResponse.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to get leave settings: ${e.toString()}');
     }
   }
 
@@ -33,19 +40,32 @@ class LeaveRepository {
     }
   }
 
-  Future<LeaveRequest> submitRequest(LeaveRequest request) async {
+  Future<LeaveRequest> submitRequest(Map<String, dynamic> requestData) async {
     try {
-      final requestData = request.toJson();
-      final response = await _leaveService.createLeaveRequest(requestData);
+      print('📝 Leave Repository: Submitting request with data: $requestData');
 
-      if (response['success'] == true) {
-        return LeaveRequest.fromJson(response['data']);
+      final response = await _leaveService.createLeaveRequest(requestData);
+      print('📝 Leave Repository: Received response: $response');
+
+      // Check if response is a Map
+      if (response is Map<String, dynamic>) {
+        if (response['success'] == true) {
+          final leaveRequest = LeaveRequest.fromJson(response['leaveRequest']);
+          print('✅ Leave Repository: Request submitted successfully');
+          return leaveRequest;
+        } else {
+          final errorMessage =
+              response['message'] ?? 'Failed to submit leave request';
+          print('❌ Leave Repository: API error: $errorMessage');
+          throw Exception(errorMessage);
+        }
       } else {
-        throw Exception(
-          response['message'] ?? 'Failed to submit leave request',
-        );
+        // Handle case where API endpoint doesn't exist
+        print('❌ Leave Repository: API endpoint not available');
+        throw Exception('Leave request API endpoint not available');
       }
     } catch (e) {
+      print('❌ Leave Repository: Exception: ${e.toString()}');
       throw Exception('Failed to submit leave request: ${e.toString()}');
     }
   }
@@ -75,7 +95,7 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
     try {
       state = const AsyncValue.loading();
 
-      final balance = await _repository.getLeaveBalance();
+      final balance = await _repository.getLeaveBalance(_employeeId);
       final requests = await _repository.getLeaveRequests(_employeeId);
 
       state = AsyncValue.data(LeaveVm(balance, requests));
@@ -84,9 +104,9 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
     }
   }
 
-  Future<void> submitRequest(LeaveRequest request) async {
+  Future<void> submitRequest(Map<String, dynamic> requestData) async {
     try {
-      await _repository.submitRequest(request);
+      await _repository.submitRequest(requestData);
       await load(); // Reload data after submission
     } catch (e) {
       rethrow;
@@ -109,4 +129,14 @@ final employeeLeaveListProvider =
     FutureProvider.family<List<LeaveRequest>, String>((ref, employeeId) async {
       final repository = ref.watch(leaveRepositoryProvider);
       return await repository.getLeaveRequests(employeeId);
+    });
+
+// Provider for leave settings
+final leaveSettingsProvider =
+    FutureProvider.family<LeaveSettingsResponse, String>((
+      ref,
+      employeeId,
+    ) async {
+      final repository = ref.watch(leaveRepositoryProvider);
+      return await repository.getLeaveSettings(employeeId);
     });

@@ -140,7 +140,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลาคลอด (Maternity Leave)',
         icon: Icons.child_care,
         totalDays: 98,
-        remainingDays: 0.0,
+        remainingDays: 98.0, // Available days
         color: const Color(0xFFE91E63), // Pink
       ),
       LeaveTypeData(
@@ -148,7 +148,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลากิจ(ได้รับค่าจ้าง) (Paid Personal Leave)',
         icon: Icons.family_restroom,
         totalDays: 3,
-        remainingDays: 0.0,
+        remainingDays: 3.0, // Available days
         color: const Color(0xFF9C27B0), // Purple
       ),
       LeaveTypeData(
@@ -156,7 +156,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         name: 'ลา(เพื่อจัดงานฌาปนกิจ) (Funeral Leave)',
         icon: Icons.emergency,
         totalDays: 3,
-        remainingDays: 0.0,
+        remainingDays: 3.0, // Available days
         color: const Color(0xFFFF5722), // Deep Orange
       ),
       LeaveTypeData(

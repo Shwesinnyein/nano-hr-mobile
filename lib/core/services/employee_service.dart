@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_service.dart';
-import 'mock_data_service.dart';
 
 class EmployeeService {
   final ApiService _apiService;
@@ -34,12 +33,10 @@ class EmployeeService {
     Map<String, dynamic> updates,
   ) async {
     try {
-      await Future.delayed(const Duration(seconds: 1));
-
+      // Since updateEmployeeProfile API doesn't exist, return error
       return {
-        'success': true,
-        'message': 'Profile updated successfully',
-        'data': {...MockDataService.mockEmployee, ...updates},
+        'success': false,
+        'message': 'Update profile API endpoint not available',
       };
     } catch (e) {
       throw Exception('Failed to update profile: ${e.toString()}');
@@ -63,29 +60,33 @@ class EmployeeService {
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
         } else {
-          // Fallback to mock data if API structure is unexpected
-          return [MockDataService.mockEmployee];
+          // Return empty list if API structure is unexpected
+          return [];
         }
       } else {
-        // Fallback to mock data on API error
-        return [MockDataService.mockEmployee];
+        // Return empty list on API error
+        return [];
       }
     } catch (e) {
-      // Fallback to mock data on exception
-      return [MockDataService.mockEmployee];
+      // Return empty list on exception
+      return [];
     }
   }
 
   // Get employee by ID
   Future<Map<String, dynamic>> getEmployeeById(String id) async {
     try {
-      await Future.delayed(const Duration(milliseconds: 300));
+      final response = await _apiService.getEmployeeProfile(employeeId: id);
 
-      return {
-        'success': true,
-        'message': 'Employee retrieved successfully',
-        'data': MockDataService.mockEmployee,
-      };
+      if (response['success'] == true) {
+        return {
+          'success': true,
+          'message': 'Employee retrieved successfully',
+          'data': response['data'],
+        };
+      } else {
+        return response;
+      }
     } catch (e) {
       throw Exception('Failed to get employee: ${e.toString()}');
     }
