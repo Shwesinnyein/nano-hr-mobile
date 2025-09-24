@@ -75,6 +75,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
@@ -324,7 +325,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Map<String, String> _getPersonalInfoMap(Employee employee) {
     return {
-      'Full Name': employee.firstName + ' ' + employee.lastName,
+      'Full Name': '${employee.firstName} ${employee.lastName}',
       'Employee ID': employee.uid ?? '',
       'Email': employee.email,
       'Phone': employee.primaryNumber ?? '-',

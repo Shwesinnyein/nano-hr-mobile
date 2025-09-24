@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../api/api_endpoints.dart';
 
@@ -165,32 +166,72 @@ class LeaveService {
     }
   }
 
-  // Upload file
-  Future<Map<String, dynamic>> uploadFile(String filePath) async {
+  // Upload leave request with attachments
+  Future<Map<String, dynamic>> createLeaveRequestWithAttachments(
+    Map<String, dynamic> data,
+    List<File> attachments,
+  ) async {
     try {
-      print('🌐 Leave API: Uploading file: $filePath');
+      print(
+        '🌐 Leave API: Creating leave request with ${attachments.length} attachments',
+      );
 
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(filePath),
+      // Create multipart form data
+      final formData = FormData();
+
+      // Add form fields
+      data.forEach((key, value) {
+        if (value != null) {
+          formData.fields.add(MapEntry(key, value.toString()));
+        }
       });
 
-      final response = await _dio.post(ApiEndpoints.uploadFile, data: formData);
+      // Add attachment files
+      for (int i = 0; i < attachments.length; i++) {
+        final file = attachments[i];
+        if (await file.exists()) {
+          formData.files.add(
+            MapEntry(
+              'attachments', // Field name as per your backend
+              await MultipartFile.fromFile(file.path, filename: 'photo_$i.jpg'),
+            ),
+          );
+          print('🌐 Leave API: Added file ${i + 1}: ${file.path}');
+        } else {
+          print('❌ Leave API: File does not exist: ${file.path}');
+        }
+      }
+
+      print(
+        '🌐 Leave API: Sending POST request to: ${ApiEndpoints.createLeaveRequest}',
+      );
+      final response = await _dio.post(
+        ApiEndpoints.createLeaveRequest,
+        data: formData,
+      );
+
+      print('🌐 Leave API: Response status: ${response.statusCode}');
+      print('🌐 Leave API: Response data: ${response.data}');
 
       if (response.statusCode == 200) {
-        print('✅ Leave API: File uploaded successfully');
+        print(
+          '✅ Leave API: Leave request with attachments created successfully',
+        );
         return response.data;
       } else {
         print(
-          '❌ Leave API: Failed to upload file - Status: ${response.statusCode}',
+          '❌ Leave API: Failed to create request - Status: ${response.statusCode}',
         );
         return {
           'success': false,
-          'message': 'Failed to upload file: ${response.statusCode}',
+          'message': 'Failed to create leave request: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
       print('❌ Leave API: DioException - ${e.message}');
+      print('❌ Leave API: DioException type: ${e.type}');
       if (e.response != null) {
+        print('❌ Leave API: Error response: ${e.response!.data}');
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};

@@ -213,14 +213,63 @@ class LeaveRequest {
       reason: json['reason'] ?? '',
       status: json['status'] ?? 'pending',
       totalDays: json['totalDays'],
-      attachments: json['attachment'] != null
-          ? [
-              {'url': json['attachment'], 'type': 'file'},
-            ]
-          : List<Map<String, dynamic>>.from(json['attachments'] ?? []),
+      attachments: _parseAttachments(json),
       createdAt: json['createdAt'] ?? '',
       updatedAt: json['updatedAt'] ?? '',
     );
+  }
+
+  static List<Map<String, dynamic>> _parseAttachments(
+    Map<String, dynamic> json,
+  ) {
+    try {
+      // Handle different attachment formats from backend
+      final attachment = json['attachment'];
+
+      if (attachment == null) {
+        return [];
+      }
+
+      // If attachment is a Map (new format with files array)
+      if (attachment is Map<String, dynamic>) {
+        final files = attachment['files'] as List<dynamic>?;
+        if (files != null) {
+          return files.map((file) {
+            if (file is Map<String, dynamic>) {
+              return Map<String, dynamic>.from(file);
+            } else {
+              return {'url': file.toString(), 'type': 'file'};
+            }
+          }).toList();
+        }
+
+        // If attachment is a Map but no files array, treat as single file
+        return [Map<String, dynamic>.from(attachment)];
+      }
+
+      // If attachment is a String (old format)
+      if (attachment is String) {
+        return [
+          {'url': attachment, 'type': 'file'},
+        ];
+      }
+
+      // If attachment is a List
+      if (attachment is List) {
+        return attachment.map((item) {
+          if (item is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(item);
+          } else {
+            return {'url': item.toString(), 'type': 'file'};
+          }
+        }).toList();
+      }
+
+      return [];
+    } catch (e) {
+      print('Error parsing attachments: $e');
+      return [];
+    }
   }
 
   Map<String, dynamic> toJson() {

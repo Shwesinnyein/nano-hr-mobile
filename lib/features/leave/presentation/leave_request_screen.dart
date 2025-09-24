@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:image_picker/image_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/file_utils.dart';
 import '../../../core/services/leave_service.dart';
+import '../../../core/models/attachment_model.dart';
 import '../data/leave_repository.dart';
-import '../data/leave_model.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
@@ -26,8 +27,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
-  File? _selectedImage;
-  // final ImagePicker _picker = ImagePicker();
+  List<AttachmentModel> _attachments = [];
 
   @override
   Widget build(BuildContext context) {
@@ -525,75 +525,180 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Supporting Document (Optional)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: _pickImage,
-          child: Container(
-            width: double.infinity,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppTheme.kSurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _selectedImage != null
-                    ? AppTheme.kNanoGold
-                    : Colors.grey.withOpacity(0.3),
-                width: 2,
-                style: BorderStyle.solid,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Supporting Image (Optional)',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.kOnBackground,
               ),
             ),
-            child: _selectedImage != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.cloud_upload_outlined,
-                        size: 48,
-                        color: Colors.grey.withOpacity(0.5),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tap to upload image',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.withOpacity(0.7),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+            Text(
+              '${_attachments.length}/1',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
         ),
-        if (_selectedImage != null) ...[
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: AppTheme.successColor, size: 16),
-              const SizedBox(width: 4),
-              Text(
-                'Image uploaded successfully',
-                style: TextStyle(fontSize: 12, color: AppTheme.successColor),
+        const SizedBox(height: 12),
+
+        // Image upload buttons
+        Row(
+          children: [
+            Expanded(
+              child: _buildUploadButton(
+                icon: Icons.camera_alt,
+                label: 'Take Photo',
+                onTap: () => _pickImage(ImageSource.camera),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => setState(() => _selectedImage = null),
-                child: Icon(Icons.close, color: AppTheme.errorColor, size: 16),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildUploadButton(
+                icon: Icons.photo_library,
+                label: 'Gallery',
+                onTap: () => _pickImage(ImageSource.gallery),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+
+        // Attachments list
+        if (_attachments.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          ..._attachments.map((attachment) => _buildAttachmentItem(attachment)),
         ],
       ],
+    );
+  }
+
+  Widget _buildUploadButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: _attachments.length >= 1 ? null : onTap,
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: _attachments.length >= 1
+              ? Colors.grey[100]
+              : AppTheme.kSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _attachments.length >= 1
+                ? Colors.grey.withOpacity(0.3)
+                : AppTheme.kNanoGold.withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: _attachments.length >= 1
+                  ? Colors.grey[400]
+                  : AppTheme.kNanoGold,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: _attachments.length >= 1
+                    ? Colors.grey[400]
+                    : AppTheme.kNanoGold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentItem(AttachmentModel attachment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.kSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          // Image preview or file icon
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            ),
+            child:
+                attachment.localPath.isNotEmpty &&
+                    attachment.fileType.toLowerCase().contains('image')
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(attachment.localPath),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[100],
+                          child: Icon(
+                            Icons.image,
+                            color: Colors.grey[400],
+                            size: 24,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
+                    color: Colors.grey[100],
+                    child: Center(
+                      child: Text(
+                        attachment.fileIcon,
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  attachment.fileName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.kOnSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  attachment.formattedSize,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _removeAttachment(attachment.id),
+            icon: Icon(Icons.close, color: AppTheme.errorColor, size: 20),
+          ),
+        ],
+      ),
     );
   }
 
@@ -696,12 +801,79 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
   }
 
-  void _pickImage() async {
-    // final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    // if (image != null) {
-    //   setState(() => _selectedImage = File(image.path));
-    // }
-    // TODO: Implement image picking when image_picker is re-enabled
+  void _pickImage(ImageSource source) async {
+    try {
+      print(
+        '📸 Picking image from: ${source == ImageSource.camera ? 'camera' : 'gallery'}',
+      );
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(source: source);
+      print('📸 Picked file: ${pickedFile?.path}');
+
+      if (pickedFile != null) {
+        final File file = File(pickedFile.path);
+        print('📸 File exists: ${file.existsSync()}');
+        await _addAttachment(file);
+      } else {
+        print('📸 No file selected');
+      }
+    } catch (e) {
+      print('📸 Error picking image: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+    }
+  }
+
+  Future<void> _addAttachment(File file) async {
+    try {
+      // Check file size (max 10MB)
+      final double fileSizeMB = FileUtils.getFileSizeInMB(file);
+      if (fileSizeMB > 10) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('File size must be less than 10MB')),
+        );
+        return;
+      }
+
+      // Create attachment model for local storage
+      final AttachmentModel attachment = AttachmentModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        fileName: file.path.split('/').last,
+        localPath: file.path,
+        fileType: FileUtils.getFileExtension(file.path.split('/').last),
+        fileSizeMB: fileSizeMB,
+        createdAt: DateTime.now(),
+        isUploaded: false,
+      );
+
+      setState(() {
+        _attachments.add(attachment);
+      });
+
+      print('✅ Added attachment: ${attachment.fileName}');
+      print('📊 Total attachments: ${_attachments.length}');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Image added: ${attachment.fileName}'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding image: ${e.toString()}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  void _removeAttachment(String attachmentId) {
+    setState(() {
+      _attachments.removeWhere((attachment) => attachment.id == attachmentId);
+    });
   }
 
   void _submitRequest(LeaveController ctrl) async {
@@ -761,8 +933,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Generate unique ID for leave request
-      final leaveId = 'LR-${DateTime.now().millisecondsSinceEpoch}';
+      // Generate unique ID for leave request (for future use)
+      // final leaveId = 'LR-${DateTime.now().millisecondsSinceEpoch}';
 
       // Prepare request data according to API specification
       final requestData = {
@@ -775,8 +947,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'reason': _reason.text.trim(),
         'isHalfDay': false,
         'halfDayType': 'morning', // Default value
-        'attachments':
-            <Map<String, dynamic>>[], // Initialize empty attachments list
+        'attachments': [], // Will be populated with uploaded file URLs
       };
 
       // Add daily leave specific fields
@@ -800,29 +971,40 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             : 'afternoon';
       }
 
-      // Handle file upload if image is selected
-      if (_selectedImage != null) {
-        try {
-          final leaveService = LeaveService();
-          final uploadResult = await leaveService.uploadFile(
-            _selectedImage!.path,
-          );
-          if (uploadResult['success'] == true) {
-            (requestData['attachments'] as List<Map<String, dynamic>>).add({
-              'name': _selectedImage!.path.split('/').last,
-              'url': uploadResult['url'],
-              'type': 'image',
-            });
-          }
-        } catch (e) {
-          print('⚠️ File upload failed: $e');
-          // Continue without attachment
-        }
-      }
+      // Convert attachments to File list
+      final List<File> attachmentFiles = _attachments
+          .map((attachment) => File(attachment.localPath))
+          .toList();
 
-      // Submit leave request using real API with the correct format
-      final repository = ref.read(leaveRepositoryProvider);
-      await repository.submitRequest(requestData);
+      print('🔍 Submit: Checking attachments...');
+      print('🔍 Submit: _attachments.length = ${_attachments.length}');
+      print('🔍 Submit: attachmentFiles.length = ${attachmentFiles.length}');
+
+      // Submit leave request with attachments using multipart form data
+      final leaveService = LeaveService();
+      final response = await leaveService.createLeaveRequestWithAttachments(
+        requestData,
+        attachmentFiles,
+      );
+
+      if (response['success'] == true) {
+        print('✅ Leave request with attachments submitted successfully');
+
+        // Print photo URLs if available
+        if (response['leaveRequest']?['attachment'] != null) {
+          final attachment = response['leaveRequest']['attachment'];
+          if (attachment['files'] != null) {
+            print('📸 Uploaded photo URLs:');
+            for (var file in attachment['files']) {
+              print('  - ${file['publicUrl']}');
+            }
+          }
+        }
+      } else {
+        throw Exception(
+          response['message'] ?? 'Failed to submit leave request',
+        );
+      }
 
       // Close loading dialog
       Navigator.pop(context);

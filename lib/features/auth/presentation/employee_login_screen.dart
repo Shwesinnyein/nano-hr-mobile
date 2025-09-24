@@ -182,7 +182,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             children: [
               // Header with gradient
               Container(
-                height: 250,
+                height: 220,
                 width: double.infinity,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -201,35 +201,35 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     children: [
                       // Logo
                       Container(
-                        height: 130,
-                        width: 130,
+                        height: 100,
+                        width: 100,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(25),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.25),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                              blurRadius: 15,
+                              offset: const Offset(0, 6),
                             ),
                             BoxShadow(
                               color: AppTheme.kNanoGold.withOpacity(0.3),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(25),
                           child: Image.asset(
                             'assets/icon/nano-store-dark.png',
-                            height: 110,
-                            width: 110,
+                            height: 85,
+                            width: 85,
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
                                 Icons.business,
-                                size: 70,
+                                size: 55,
                                 color: AppTheme.kNanoGold,
                               );
                             },
@@ -238,10 +238,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'NANO HR',
+                        'NANO Work',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 36,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 4,
                           shadows: [
@@ -274,10 +274,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                 decoration: BoxDecoration(
                   color: _showRegistration
                       ? AppTheme.kNanoGold.withOpacity(0.1)
-                      : Colors.blue.withOpacity(0.1),
+                      : AppTheme.kNanoGold.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: _showRegistration ? AppTheme.kNanoGold : Colors.blue,
+                    color: _showRegistration
+                        ? AppTheme.kNanoGold
+                        : AppTheme.kNanoGold,
                     width: 1,
                   ),
                 ),
@@ -288,7 +290,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _showRegistration ? AppTheme.kNanoGold : Colors.blue,
+                    color: _showRegistration
+                        ? AppTheme.kNanoGold
+                        : AppTheme.kNanoGold,
                   ),
                 ),
               ),
@@ -422,7 +426,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           labelText: label,
           labelStyle: const TextStyle(color: Colors.grey),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 8,
+          ),
           prefixIcon: Icon(icon, color: Colors.grey),
           suffixIcon: suffixIcon,
         ),
@@ -433,7 +440,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   Widget _buildActionButton() {
     return Container(
       width: double.infinity,
-      height: 56,
+      height: 48,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
@@ -460,7 +467,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           _showRegistration ? 'Register & Login' : 'Login',
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),

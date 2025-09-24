@@ -101,178 +101,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     );
   }
 
-  Widget _buildSettingsSkeleton() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SkeletonLoading(height: 20, width: 150),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const SkeletonLoading(height: 16, width: 100),
-              const SizedBox(width: 8),
-              const SkeletonLoading(height: 16, width: 80),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const SkeletonLoading(height: 16, width: 120),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeaveSettingsCard(LeaveSettingsResponse settings) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.kNanoGold.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.settings, color: AppTheme.kNanoWhite, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Leave Settings',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.kNanoWhite,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            settings.message,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.kNanoWhite.withOpacity(0.9),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildSettingsItem('Available', settings.count, Icons.list),
-              _buildSettingsItem(
-                'Eligible',
-                settings.employeeEligible ? 'Yes' : 'No',
-                Icons.check_circle,
-              ),
-              _buildSettingsItem(
-                'Months',
-                '${settings.monthsWithCompany}/${settings.requiredMonths}',
-                Icons.calendar_month,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Available Leave Types:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.kNanoWhite,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: settings.data
-                .take(4)
-                .map(
-                  (setting) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.kNanoWhite.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      setting.displayName,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.kNanoWhite,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          if (settings.data.length > 4) ...[
-            const SizedBox(height: 8),
-            Text(
-              '+${settings.data.length - 4} more types',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.kNanoWhite.withOpacity(0.8),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsItem(String label, dynamic value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.kNanoWhite, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value.toString(),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kNanoWhite,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.kNanoWhite.withOpacity(0.8),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildSkeletonLoading() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -771,36 +599,10 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 ),
               ],
 
-              // Attachment
-              if (request.attachmentUrl != null &&
-                  request.attachmentUrl!.isNotEmpty) ...[
+              // Attachments with image previews
+              if (request.attachments.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: () => _openAttachment(request.attachmentUrl!),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.attach_file,
-                        size: 16,
-                        color: AppTheme.kNanoGold,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Attachment: ${request.attachmentUrl!.split('/').last}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.kNanoGold,
-                            decoration: TextDecoration.underline,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Icon(Icons.download, size: 14, color: AppTheme.kNanoGold),
-                    ],
-                  ),
-                ),
+                _buildAttachmentsPreview(request.attachments),
               ],
 
               // Created date
@@ -834,6 +636,146 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   String _capitalizeFirst(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);
+  }
+
+  Widget _buildAttachmentsPreview(List<Map<String, dynamic>> attachments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.attach_file, size: 16, color: AppTheme.kNanoGold),
+            const SizedBox(width: 8),
+            Text(
+              'Attachments (${attachments.length})',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.kNanoGold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 70,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: attachments.length,
+            itemBuilder: (context, index) {
+              final attachment = attachments[index];
+              final url = attachment['publicUrl'] ?? attachment['url'] ?? '';
+              final fileName =
+                  attachment['originalName'] ??
+                  attachment['fileName'] ??
+                  'attachment_${index + 1}';
+
+              return Container(
+                margin: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () => _openAttachment(url),
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.kNanoGold.withOpacity(0.3),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _isImageFile(fileName)
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[100],
+                                  child: Icon(
+                                    Icons.image,
+                                    color: Colors.grey[400],
+                                    size: 28,
+                                  ),
+                                );
+                              },
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      color: Colors.grey[100],
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          value:
+                                              loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                        .cumulativeBytesLoaded /
+                                                    loadingProgress
+                                                        .expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            ),
+                          )
+                        : Container(
+                            color: Colors.grey[100],
+                            child: Center(
+                              child: Icon(
+                                _getFileIcon(fileName),
+                                color: AppTheme.kNanoGold,
+                                size: 28,
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _isImageFile(String fileName) {
+    final extension = fileName.toLowerCase().split('.').last;
+    return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(extension);
+  }
+
+  IconData _getFileIcon(String fileName) {
+    final extension = fileName.toLowerCase().split('.').last;
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      default:
+        return Icons.attach_file;
+    }
   }
 
   Color _getLeaveTypeColor(String type) {
@@ -891,10 +833,13 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 600),
+            width: MediaQuery.of(context).size.width * 0.98,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -924,12 +869,14 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                               Text(
                                 _capitalizeFirst(request.leaveType),
                                 style: const TextStyle(
-                                  fontSize: 20,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.kOnSurface,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -952,10 +899,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                               ),
                             ],
                           ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close),
                         ),
                       ],
                     ),
@@ -1017,22 +960,20 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       isMultiline: true,
                     ),
 
-                    if (request.attachmentUrl != null &&
-                        request.attachmentUrl!.isNotEmpty)
-                      _buildAttachmentRow(request.attachmentUrl!),
+                    if (request.attachments.isNotEmpty)
+                      _buildAttachmentsSection(request.attachments),
 
-                    _buildDetailRow(
-                      'Created',
-                      request.createdAt,
-                      Icons.schedule,
-                    ),
+                    // _buildDetailRow(
+                    //   'Created',
+                    //   request.createdAt,
+                    //   Icons.schedule,
+                    // ),
 
-                    _buildDetailRow(
-                      'Last Updated',
-                      request.updatedAt,
-                      Icons.update,
-                    ),
-
+                    // _buildDetailRow(
+                    //   'Last Updated',
+                    //   request.updatedAt,
+                    //   Icons.update,
+                    // ),
                     const SizedBox(height: 24),
 
                     // Close Button
@@ -1043,7 +984,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.kNanoGold,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1051,7 +992,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                         child: const Text(
                           'Close',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1064,6 +1005,130 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAttachmentsSection(List<Map<String, dynamic>> attachments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Icon(Icons.attach_file, size: 20, color: AppTheme.kNanoGold),
+            const SizedBox(width: 8),
+            Text(
+              'Attachments (${attachments.length})',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.kOnSurface,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 5,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1,
+          ),
+          itemCount: attachments.length,
+          itemBuilder: (context, index) {
+            final attachment = attachments[index];
+            final url = attachment['publicUrl'] ?? attachment['url'] ?? '';
+            final fileName =
+                attachment['originalName'] ??
+                attachment['fileName'] ??
+                'attachment_${index + 1}';
+
+            return GestureDetector(
+              onTap: () => _openAttachment(url),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.kNanoGold.withOpacity(0.3),
+                  ),
+                ),
+                child: _isImageFile(fileName)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[100],
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image,
+                                    color: Colors.grey[400],
+                                    size: 32,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Error',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              color: Colors.grey[100],
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value:
+                                      loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : Container(
+                        color: Colors.grey[100],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _getFileIcon(fileName),
+                              color: AppTheme.kNanoGold,
+                              size: 32,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              fileName.split('.').last.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.kNanoGold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -1123,126 +1188,155 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     }
   }
 
-  Widget _buildAttachmentRow(String attachmentUrl) {
-    final fileName = attachmentUrl.split('/').last;
-    final fileExtension = fileName.split('.').last.toLowerCase();
-
-    IconData attachmentIcon;
-    Color attachmentColor;
-
-    // Determine icon and color based on file type
-    switch (fileExtension) {
-      case 'pdf':
-        attachmentIcon = Icons.picture_as_pdf;
-        attachmentColor = Colors.red;
-      case 'doc':
-      case 'docx':
-        attachmentIcon = Icons.description;
-        attachmentColor = Colors.blue;
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        attachmentIcon = Icons.image;
-        attachmentColor = Colors.green;
-      case 'xls':
-      case 'xlsx':
-        attachmentIcon = Icons.table_chart;
-        attachmentColor = Colors.green;
-      case 'txt':
-        attachmentIcon = Icons.text_snippet;
-        attachmentColor = Colors.grey;
-      default:
-        attachmentIcon = Icons.attach_file;
-        attachmentColor = Colors.grey;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(attachmentIcon, size: 20, color: attachmentColor),
-              const SizedBox(width: 12),
-              Text(
-                'Attachment',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () => _openAttachment(attachmentUrl),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: attachmentColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: attachmentColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(attachmentIcon, color: attachmentColor, size: 24),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          fileName,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.kOnSurface,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Tap to view/download',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: attachmentColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.download, color: attachmentColor, size: 20),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _openAttachment(String url) async {
     try {
-      final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // Check if it's an image URL
+      final fileName = url.split('/').last.toLowerCase();
+      final isImage = [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'bmp',
+        'webp',
+      ].any((ext) => fileName.endsWith(ext));
+
+      if (isImage) {
+        // Show image viewer dialog
+        _showImageViewer(url);
       } else {
-        _showErrorSnackBar('Could not open attachment');
+        // Open external application for non-image files
+        final Uri uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          _showErrorSnackBar('Could not open attachment');
+        }
       }
     } catch (e) {
       _showErrorSnackBar('Error opening attachment: $e');
     }
   }
 
+  void _showImageViewer(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          child: Stack(
+            children: [
+              // Full screen image
+              Center(
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 3.0,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        padding: const EdgeInsets.all(50),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.white,
+                              size: 64,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Failed to load image',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        padding: const EdgeInsets.all(50),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading image...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              // Close button
+              Positioned(
+                top: 40,
+                right: 20,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+              // Download button
+              Positioned(
+                top: 40,
+                right: 80,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.download, color: Colors.white),
+                    onPressed: () async {
+                      try {
+                        final Uri uri = Uri.parse(imageUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      } catch (e) {
+                        _showErrorSnackBar('Could not download image: $e');
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showErrorSnackBar(String message) {
-    // This would need to be called from a context that has ScaffoldMessenger
-    // For now, we'll just print the error
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
