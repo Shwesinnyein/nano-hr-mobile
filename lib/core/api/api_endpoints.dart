@@ -4,6 +4,7 @@ class ApiEndpoints {
   // Auth endpoints
   static const String loginUser = '/auth/login-user';
   static const String registerUser = '/auth/register-user';
+  static const String checkEmailExists = '/auth/check-email';
 
   // Attendance endpoints
   static const String checkInOut = '/attendance/check-in-out';

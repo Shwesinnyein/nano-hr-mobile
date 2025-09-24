@@ -19,6 +19,8 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _showRegistration = false;
+  bool _isLoading = false;
+  bool _isThai = true; // Language state: true = Thai, false = English
 
   @override
   void dispose() {
@@ -51,9 +53,35 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       final authService = ref.read(authServiceProvider);
 
       // Show loading
-      _showLoadingSnackBar('Setting up your account...');
+      _showLoadingSnackBar('Verifying employee email...');
 
-      // Register using API
+      // Check if email exists in employee system
+      final emailCheckResult = await authService.checkEmailExists(email);
+
+      // Debug: Print the response to see what we're getting
+      print('🔍 Email check result: $emailCheckResult');
+
+      // If API call failed, show error
+      if (emailCheckResult['success'] == false) {
+        _showErrorSnackBar('Failed to verify email. Please try again.');
+        return;
+      }
+
+      // If email doesn't exist in system, show error
+      if (emailCheckResult['exists'] == false) {
+        _showErrorSnackBar(
+          'Email not found in system. Please contact HR to add your email to the employee database.',
+        );
+        return;
+      }
+
+      // If exists is null or undefined, assume it doesn't exist for safety
+      if (emailCheckResult['exists'] == null) {
+        _showErrorSnackBar(
+          'Email verification failed. Please contact HR to verify your email.',
+        );
+        return;
+      }
       final result = await authService.registerUser(
         email,
         password,
@@ -175,219 +203,159 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.kBackground,
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFc7a27b), // Your specified color
+              const Color(0xFFb8956b), // Slightly darker shade
+              const Color(0xFFa0855a), // Even darker for depth
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
           child: Column(
             children: [
-              // Header with gradient
-              Container(
-                height: 220,
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(40),
-                    bottomRight: Radius.circular(40),
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo
-                      Container(
-                        height: 100,
-                        width: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.25),
-                              blurRadius: 15,
-                              offset: const Offset(0, 6),
-                            ),
-                            BoxShadow(
-                              color: AppTheme.kNanoGold.withOpacity(0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(25),
-                          child: Image.asset(
-                            'assets/icon/nano-store-dark.png',
-                            height: 85,
-                            width: 85,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.business,
-                                size: 55,
-                                color: AppTheme.kNanoGold,
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'NANO Work',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 4,
-                          shadows: [
-                            const Shadow(
-                              color: Colors.black38,
-                              offset: Offset(0, 3),
-                              blurRadius: 6,
-                            ),
-                            Shadow(
-                              color: AppTheme.kNanoGold.withOpacity(0.5),
-                              offset: const Offset(0, 1),
-                              blurRadius: 3,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Mode indicator
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _showRegistration
-                      ? AppTheme.kNanoGold.withOpacity(0.1)
-                      : AppTheme.kNanoGold.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _showRegistration
-                        ? AppTheme.kNanoGold
-                        : AppTheme.kNanoGold,
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  _showRegistration
-                      ? 'New Employee Registration'
-                      : 'Employee Login',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: _showRegistration
-                        ? AppTheme.kNanoGold
-                        : AppTheme.kNanoGold,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Login form
+              // Language Switch in top right
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    // Email field
-                    _buildTextField(
-                      controller: _email,
-                      label: 'Employee Email',
-                      icon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                    ),
+                padding: const EdgeInsets.only(top: 16.0, right: 24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [_buildLanguageSwitch()],
+                ),
+              ),
+              // Main content
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight:
+                            MediaQuery.of(context).size.height -
+                            MediaQuery.of(context).padding.top -
+                            MediaQuery.of(context).padding.bottom,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 40),
 
-                    const SizedBox(height: 20),
+                            // Modern Logo Section
+                            _buildModernLogo(),
 
-                    // Password field
-                    _buildTextField(
-                      controller: _password,
-                      label: 'Password',
-                      icon: Icons.lock_outline,
-                      obscureText: _obscurePassword,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Colors.grey,
+                            const SizedBox(height: 30),
+
+                            // Modern Card Container
+                            Container(
+                              width: double.infinity,
+                              constraints: BoxConstraints(maxWidth: 400),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 30,
+                                    offset: const Offset(0, 15),
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(32.0),
+                                child: Column(
+                                  children: [
+                                    // Modern Mode Indicator
+                                    _buildModernModeIndicator(),
+
+                                    const SizedBox(height: 30),
+
+                                    // Modern Form Fields
+                                    _buildModernTextField(
+                                      controller: _email,
+                                      label: 'Employee Email',
+                                      icon: Icons.email_outlined,
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    _buildModernTextField(
+                                      controller: _password,
+                                      label: 'Password',
+                                      icon: Icons.lock_outline,
+                                      obscureText: _obscurePassword,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword
+                                              ? Icons.visibility_off_rounded
+                                              : Icons.visibility_rounded,
+                                          color: Colors.grey[600],
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _obscurePassword =
+                                                !_obscurePassword;
+                                          });
+                                        },
+                                      ),
+                                    ),
+
+                                    // Confirm Password field (only show in registration mode)
+                                    if (_showRegistration) ...[
+                                      const SizedBox(height: 16),
+                                      _buildModernTextField(
+                                        controller: _confirmPassword,
+                                        label: 'Confirm Password',
+                                        icon: Icons.lock_outline,
+                                        obscureText: _obscureConfirmPassword,
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscureConfirmPassword
+                                                ? Icons.visibility_off_rounded
+                                                : Icons.visibility_rounded,
+                                            color: Colors.grey[600],
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _obscureConfirmPassword =
+                                                  !_obscureConfirmPassword;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ],
+
+                                    const SizedBox(height: 24),
+
+                                    // Modern 3D Button
+                                    _buildModern3DButton(),
+
+                                    const SizedBox(height: 24),
+
+                                    // Modern Toggle Button
+                                    _buildModernToggleButton(),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 30),
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
                       ),
                     ),
-
-                    // Confirm Password field (only show in registration mode)
-                    if (_showRegistration) ...[
-                      const SizedBox(height: 20),
-                      _buildTextField(
-                        controller: _confirmPassword,
-                        label: 'Confirm Password',
-                        icon: Icons.lock_outline,
-                        obscureText: _obscureConfirmPassword,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscureConfirmPassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: Colors.grey,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _obscureConfirmPassword =
-                                  !_obscureConfirmPassword;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 30),
-
-                    // Login button
-                    _buildActionButton(),
-
-                    const SizedBox(height: 20),
-
-                    // Toggle between login and registration
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _showRegistration = !_showRegistration;
-                          _password.clear();
-                          _confirmPassword.clear();
-                        });
-                      },
-                      child: Text(
-                        _showRegistration
-                            ? 'Already registered? Click here to Login'
-                            : 'New Employee? Register here',
-                        style: const TextStyle(
-                          color: AppTheme.kNanoGold,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -397,80 +365,403 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  Widget _buildTextField({
+  // Modern Logo Section
+  Widget _buildModernLogo() {
+    return Column(
+      children: [
+        // 3D Logo Container
+        Container(
+          height: 120,
+          width: 120,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, Color(0xFFf8f9fa)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.white.withOpacity(0.7),
+                blurRadius: 10,
+                offset: const Offset(-5, -5),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: Image.asset(
+              'assets/icon/nano-store-dark.png',
+              height: 80,
+              width: 80,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(
+                  Icons.business_rounded,
+                  size: 60,
+                  color: Color(0xFFc7a27b),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        // Modern App Name
+        Text(
+          'NANO Work',
+          style: TextStyle(
+            fontSize: 28, // Reduced from 32
+            fontWeight: FontWeight.w700, // Reduced from w800
+            color: Colors.white,
+            letterSpacing: 1.5, // Reduced from 2
+            shadows: [
+              Shadow(
+                color: Colors.black.withOpacity(0.3),
+                offset: const Offset(0, 2),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+        ),
+        // const SizedBox(height: 8),
+        // Text(
+        //   'Employee Portal',
+        //   style: TextStyle(
+        //     fontSize: 16,
+        //     fontWeight: FontWeight.w400,
+        //     color: Colors.white.withOpacity(0.9),
+        //     letterSpacing: 1,
+        //   ),
+        // ),
+      ],
+    );
+  }
+
+  // Modern Mode Indicator
+  Widget _buildModernModeIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFc7a27b).withOpacity(0.1),
+            const Color(0xFFb8956b).withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(
+          color: const Color(0xFFc7a27b).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _showRegistration ? Icons.person_add_rounded : Icons.login_rounded,
+            color: const Color(0xFFc7a27b),
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              _showRegistration ? 'New Employee' : 'Employee Login',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFc7a27b),
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Modern Text Field
+  Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool obscureText = false,
-    TextInputType? keyboardType,
     Widget? suffixIcon,
+    TextInputType? keyboardType,
   }) {
     return Container(
+      height: 50, // Reduced height
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12), // Smaller radius
+        border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: TextField(
+      child: TextFormField(
         controller: controller,
-        keyboardType: keyboardType,
         obscureText: obscureText,
-        style: const TextStyle(color: Colors.black, fontSize: 16),
+        keyboardType: keyboardType,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontWeight: FontWeight.w500,
+          fontSize: 15, // Slightly smaller font
+        ),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Colors.grey),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
+          labelStyle: TextStyle(
+            fontSize: 13, // Smaller label
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[600],
           ),
-          prefixIcon: Icon(icon, color: Colors.grey),
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(8), // Reduced margin
+            padding: const EdgeInsets.all(6), // Reduced padding
+            decoration: BoxDecoration(
+              color: const Color(0xFFc7a27b).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6), // Smaller radius
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFFc7a27b),
+              size: 18,
+            ), // Smaller icon
+          ),
           suffixIcon: suffixIcon,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFc7a27b), width: 2),
+          ),
+          filled: true,
+          fillColor: Colors.grey[50],
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, // Reduced horizontal padding
+            vertical: 12, // Reduced vertical padding
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildActionButton() {
+  // Modern 3D Button
+  Widget _buildModern3DButton() {
     return Container(
       width: double.infinity,
-      height: 48,
+      height: 52, // Increased from 48 for better text visibility
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFc7a27b), Color(0xFFb8956b)],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.kNanoGold.withOpacity(0.3),
-            blurRadius: 15,
+            color: const Color(0xFFc7a27b).withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
             offset: const Offset(0, 5),
           ),
         ],
       ),
       child: ElevatedButton(
-        onPressed: _handleLogin,
+        onPressed: _showRegistration ? _handleRegistration : _handleLogin,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _showRegistration
+                        ? Icons.person_add_rounded
+                        : Icons.login_rounded,
+                    color: Colors.white,
+                    size: 18, // Reduced from 20
+                  ),
+                  const SizedBox(width: 6), // Reduced from 8
+                  Text(
+                    _showRegistration ? 'Create Account' : 'Sign In',
+                    style: const TextStyle(
+                      fontSize: 15, // Increased from 14
+                      fontWeight: FontWeight.w700, // Increased from w600
+                      color: Colors.white,
+                      letterSpacing: 0.5, // Increased from 0.3
+                      shadows: const [
+                        Shadow(
+                          color: Color(
+                            0x4D000000,
+                          ), // Colors.black.withOpacity(0.3)
+                          offset: Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // Modern Toggle Button
+  Widget _buildModernToggleButton() {
+    return Container(
+      width: double.infinity,
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(25),
+          onTap: () {
+            setState(() {
+              _showRegistration = !_showRegistration;
+              _password.clear();
+              _confirmPassword.clear();
+            });
+          },
+          child: Center(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                children: [
+                  TextSpan(
+                    text: _showRegistration
+                        ? 'Already have an account? '
+                        : 'Don\'t have an account? ',
+                  ),
+                  TextSpan(
+                    text: _showRegistration ? 'Sign In' : 'Sign Up',
+                    style: const TextStyle(
+                      color: Color(0xFFc7a27b),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        child: Text(
-          _showRegistration ? 'Register & Login' : 'Login',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  // Handle Registration
+  Future<void> _handleRegistration() async {
+    if (_email.text.isEmpty || _password.text.isEmpty) {
+      _showErrorSnackBar('Please fill in all fields');
+      return;
+    }
+
+    if (_password.text != _confirmPassword.text) {
+      _showErrorSnackBar('Passwords do not match');
+      return;
+    }
+
+    // Call the actual registration method with email validation
+    _performRegistration(_email.text, _password.text, _confirmPassword.text);
+  }
+
+  // Language Switch Widget
+  Widget _buildLanguageSwitch() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isThai = true;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _isThai
+                    ? Colors.white.withOpacity(0.9)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'TH',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _isThai ? const Color(0xFFc7a27b) : Colors.white,
+                ),
+              ),
+            ),
           ),
-        ),
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isThai = false;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: !_isThai
+                    ? Colors.white.withOpacity(0.9)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'EN',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: !_isThai ? const Color(0xFFc7a27b) : Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

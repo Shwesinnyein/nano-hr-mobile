@@ -60,6 +60,16 @@ class AuthService {
     }
   }
 
+  // Check if email already exists
+  Future<Map<String, dynamic>> checkEmailExists(String email) async {
+    try {
+      final response = await _apiService.checkEmailExists(email: email);
+      return response;
+    } catch (e) {
+      throw Exception('Email check failed: ${e.toString()}');
+    }
+  }
+
   // Register user with email and password
   Future<Map<String, dynamic>> registerUser(
     String email,
