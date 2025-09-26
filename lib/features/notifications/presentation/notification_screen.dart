@@ -1,14 +1,200 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/models/notification_model.dart';
+import '../../../core/services/auth_service.dart';
+import '../../../core/providers/notification_provider.dart';
 
-class NotificationScreen extends StatefulWidget {
+class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
 
   @override
-  State<NotificationScreen> createState() => _NotificationScreenState();
+  ConsumerState<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> {
+class _NotificationScreenState extends ConsumerState<NotificationScreen> {
+  final NotificationService _notificationService = NotificationService();
+  List<NotificationModel> _notifications = [];
+  bool _isLoading = true;
+  String? _error;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCurrentUserId();
+    // Initialize notification count
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notificationProvider.notifier).initialize();
+    });
+  }
+
+  void _getCurrentUserId() {
+    final authService = ref.read(authServiceProvider);
+    _currentUserId = authService.currentEmployeeId;
+    if (_currentUserId != null) {
+      _loadNotifications();
+      // Also refresh the badge count
+      ref.read(notificationProvider.notifier).refreshUnreadCount();
+    } else {
+      setState(() {
+        _isLoading = false;
+        _error = 'User not logged in';
+      });
+    }
+  }
+
+  Future<void> _loadNotifications() async {
+    print('🔔 Debug: _loadNotifications called');
+    if (_currentUserId == null) {
+      print('🔔 Debug: No user ID in _loadNotifications, returning');
+      return;
+    }
+
+    print('🔔 Debug: Setting loading state...');
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      print('🔔 Debug: Calling notification service...');
+      final response = await _notificationService.getNotifications(
+        employeeId: _currentUserId!,
+        limit: 50, // Load more notifications
+      );
+
+      print('🔔 Debug: Notification service response: $response');
+
+      if (response['success'] == true) {
+        print('🔔 Debug: Success response, parsing notifications...');
+        try {
+          final notificationResponse = NotificationResponse.fromJson(response);
+          print(
+            '🔔 Debug: Parsed ${notificationResponse.notifications.length} notifications',
+          );
+          setState(() {
+            _notifications = notificationResponse.notifications;
+            _isLoading = false;
+          });
+        } catch (parseError) {
+          print('🔔 Debug: Error parsing NotificationResponse: $parseError');
+          print('🔔 Debug: Response data: $response');
+          setState(() {
+            _error = 'Error parsing notifications: $parseError';
+            _isLoading = false;
+          });
+        }
+      } else {
+        print('🔔 Debug: Error response: ${response['message']}');
+        setState(() {
+          _error = response['message'] ?? 'Failed to load notifications';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('🔔 Debug: Exception in _loadNotifications: $e');
+      setState(() {
+        _error = 'Error loading notifications: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshNotifications() async {
+    print('🔔 Debug: _refreshNotifications called');
+    print('🔔 Debug: Current user ID: $_currentUserId');
+    if (_currentUserId == null) {
+      print('🔔 Debug: No user ID, returning early');
+      return;
+    }
+    print('🔔 Debug: Loading notifications...');
+    await _loadNotifications();
+    print('🔔 Debug: Refreshing badge count...');
+    // Also refresh the badge count
+    ref.read(notificationProvider.notifier).refreshUnreadCount();
+    print('🔔 Debug: Refresh completed');
+  }
+
+  Future<void> _markAsRead(NotificationModel notification) async {
+    if (_currentUserId == null) return;
+
+    try {
+      final response = await _notificationService.markAsRead(
+        employeeId: _currentUserId!,
+        notificationId: notification.id,
+      );
+
+      if (response['success'] == true) {
+        setState(() {
+          // Update the notification in the list
+          final index = _notifications.indexWhere(
+            (n) => n.id == notification.id,
+          );
+          if (index != -1) {
+            _notifications[index] = NotificationModel(
+              id: notification.id,
+              userId: notification.userId,
+              title: notification.title,
+              message: notification.message,
+              type: notification.type,
+              data: notification.data,
+              isRead: true, // Mark as read
+              createdAt: notification.createdAt,
+              updatedAt: DateTime.now(),
+            );
+          }
+        });
+
+        // Update the badge count
+        ref.read(notificationProvider.notifier).markAsRead();
+      } else {
+        _showErrorSnackBar(response['message'] ?? 'Failed to mark as read');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error marking as read: $e');
+    }
+  }
+
+  Future<void> _markAllAsRead() async {
+    if (_currentUserId == null) return;
+
+    try {
+      final response = await _notificationService.markAllAsRead(
+        employeeId: _currentUserId!,
+      );
+
+      if (response['success'] == true) {
+        // Reload notifications to get updated read status
+        await _loadNotifications();
+
+        // Update the badge count to 0
+        ref.read(notificationProvider.notifier).markAllAsRead();
+
+        _showSuccessSnackBar(
+          response['message'] ?? 'All notifications marked as read',
+        );
+      } else {
+        _showErrorSnackBar(response['message'] ?? 'Failed to mark all as read');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error marking all as read: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppTheme.errorColor),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppTheme.successColor),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,16 +212,23 @@ class _NotificationScreenState extends State<NotificationScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: Icon(Icons.refresh, color: AppTheme.kOnBackground),
+            onPressed: _refreshNotifications,
+          ),
+          IconButton(
             icon: Icon(Icons.mark_email_read, color: AppTheme.kOnBackground),
             onPressed: _markAllAsRead,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildNotificationSummary(),
-          Expanded(child: _buildNotificationList()),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _refreshNotifications,
+        child: Column(
+          children: [
+            _buildNotificationSummary(),
+            Expanded(child: _buildNotificationList()),
+          ],
+        ),
       ),
     );
   }
@@ -103,9 +296,44 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _buildNotificationList() {
-    final notifications = _getSampleNotifications();
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+        ),
+      );
+    }
 
-    if (notifications.isEmpty) {
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red.withOpacity(0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.red.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadNotifications,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_notifications.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -123,6 +351,22 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 color: Colors.grey.withOpacity(0.7),
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Pull down to refresh',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.withOpacity(0.5),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                print('🔔 Debug: Manual notification refresh triggered');
+                _refreshNotifications();
+              },
+              child: const Text('Debug: Refresh Notifications'),
+            ),
           ],
         ),
       );
@@ -130,239 +374,144 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: notifications.length,
+      itemCount: _notifications.length,
       itemBuilder: (context, index) {
-        final notification = notifications[index];
+        final notification = _notifications[index];
         return _buildNotificationCard(notification);
       },
     );
   }
 
-  Widget _buildNotificationCard(NotificationData notification) {
+  Widget _buildNotificationCard(NotificationModel notification) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: AppTheme.kSurface,
         borderRadius: BorderRadius.circular(16),
         elevation: 2,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: notification.isRead
-                  ? Colors.grey.withOpacity(0.2)
-                  : AppTheme.kNanoGold.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _getNotificationColor(
-                    notification.type,
-                  ).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _getNotificationIcon(notification.type),
-                  color: _getNotificationColor(notification.type),
-                  size: 20,
-                ),
+        child: InkWell(
+          onTap: () => _markAsRead(notification),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: notification.isRead
+                    ? Colors.grey.withOpacity(0.2)
+                    : AppTheme.kNanoGold.withOpacity(0.3),
+                width: 1,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.kOnSurface,
-                            ),
-                          ),
-                        ),
-                        if (!notification.isRead)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: AppTheme.kNanoGold,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.kOnSurface.withOpacity(0.7),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time, size: 12, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          notification.timeAgo,
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        const Spacer(),
-                        if (notification.isImportant)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.errorColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getNotificationColor(
+                      notification.type,
+                    ).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getNotificationIcon(notification.type),
+                    color: _getNotificationColor(notification.type),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
                             child: Text(
-                              'Important',
+                              notification.title,
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: AppTheme.errorColor,
+                                color: AppTheme.kOnSurface,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  ],
+                          if (!notification.isRead)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: AppTheme.kNanoGold,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        notification.message,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.kOnSurface.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            notification.timeAgo,
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          const Spacer(),
+                          if (notification.isImportant)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.errorColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Important',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.errorColor,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  List<NotificationData> _getSampleNotifications() {
-    return [
-      NotificationData(
-        id: '1',
-        title: 'Leave Request Approved',
-        message:
-            'Your annual leave request for March 15-20, 2024 has been approved by HR Manager.',
-        type: 'leave',
-        isRead: false,
-        isImportant: false,
-        timeAgo: '2 hours ago',
-      ),
-      NotificationData(
-        id: '2',
-        title: 'Sick Leave Request Pending',
-        message:
-            'Your sick leave request for today is under review. Please provide medical certificate.',
-        type: 'leave',
-        isRead: false,
-        isImportant: true,
-        timeAgo: '4 hours ago',
-      ),
-      NotificationData(
-        id: '3',
-        title: 'Leave Request Rejected',
-        message:
-            'Your casual leave request for March 25-26 was rejected due to insufficient balance.',
-        type: 'leave',
-        isRead: true,
-        isImportant: false,
-        timeAgo: '1 day ago',
-      ),
-      NotificationData(
-        id: '4',
-        title: 'Maternity Leave Approved',
-        message:
-            'Your maternity leave from April 1 to July 1, 2024 has been approved. Congratulations!',
-        type: 'leave',
-        isRead: true,
-        isImportant: true,
-        timeAgo: '2 days ago',
-      ),
-      NotificationData(
-        id: '5',
-        title: 'Leave Balance Update',
-        message:
-            'Your annual leave balance has been updated. You now have 8 days remaining.',
-        type: 'leave',
-        isRead: false,
-        isImportant: false,
-        timeAgo: '3 days ago',
-      ),
-      NotificationData(
-        id: '6',
-        title: 'Emergency Leave Request',
-        message:
-            'Your emergency leave request for family emergency has been approved immediately.',
-        type: 'leave',
-        isRead: true,
-        isImportant: true,
-        timeAgo: '1 week ago',
-      ),
-      NotificationData(
-        id: '7',
-        title: 'Study Leave Approved',
-        message:
-            'Your study leave for professional certification exam on March 30 has been approved.',
-        type: 'leave',
-        isRead: false,
-        isImportant: false,
-        timeAgo: '1 week ago',
-      ),
-      NotificationData(
-        id: '8',
-        title: 'Compensatory Leave Available',
-        message:
-            'You have 3 compensatory leave days available from overtime work last month.',
-        type: 'leave',
-        isRead: true,
-        isImportant: false,
-        timeAgo: '2 weeks ago',
-      ),
-      NotificationData(
-        id: '9',
-        title: 'Paternity Leave Reminder',
-        message:
-            'Your paternity leave application deadline is approaching. Please submit required documents.',
-        type: 'leave',
-        isRead: false,
-        isImportant: true,
-        timeAgo: '2 weeks ago',
-      ),
-      NotificationData(
-        id: '10',
-        title: 'Leave Policy Update',
-        message:
-            'HR has updated the leave policy. New rules for sick leave documentation apply from April 1.',
-        type: 'policy',
-        isRead: false,
-        isImportant: true,
-        timeAgo: '3 weeks ago',
-      ),
-    ];
-  }
-
   int _getUnreadCount() {
-    return _getSampleNotifications().where((n) => !n.isRead).length;
+    return _notifications.where((n) => !n.isRead).length;
   }
 
   Color _getNotificationColor(String type) {
     switch (type) {
-      case 'leave':
-        return AppTheme.primaryColor;
+      case 'leave_request':
+        return AppTheme.kNanoGold;
+      case 'leave_approved':
+        return AppTheme.successColor;
+      case 'leave_rejected':
+        return AppTheme.errorColor;
+      case 'leave_reminder':
+        return AppTheme.warningColor;
       case 'policy':
         return AppTheme.warningColor;
       case 'system':
@@ -380,8 +529,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   IconData _getNotificationIcon(String type) {
     switch (type) {
-      case 'leave':
+      case 'leave_request':
         return Icons.calendar_today;
+      case 'leave_approved':
+        return Icons.check_circle;
+      case 'leave_rejected':
+        return Icons.cancel;
+      case 'leave_reminder':
+        return Icons.schedule;
       case 'policy':
         return Icons.policy;
       case 'system':
@@ -396,36 +551,4 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return Icons.notifications;
     }
   }
-
-  void _markAllAsRead() {
-    setState(() {
-      // In a real app, this would update the notification status
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('All notifications marked as read'),
-        backgroundColor: AppTheme.kNanoGold,
-      ),
-    );
-  }
-}
-
-class NotificationData {
-  final String id;
-  final String title;
-  final String message;
-  final String type;
-  final bool isRead;
-  final bool isImportant;
-  final String timeAgo;
-
-  NotificationData({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.type,
-    required this.isRead,
-    required this.isImportant,
-    required this.timeAgo,
-  });
 }

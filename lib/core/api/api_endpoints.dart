@@ -13,7 +13,8 @@ class ApiEndpoints {
   static const String attendanceList = '/attendance';
 
   // Employee endpoints
-  static const String employeeProfile = '/employee/profile';
+  static const String employeeProfile =
+      '/employee/profile'; // Gets employee profile by ID
   static const String updateProfile = '/employee/update-profile';
   static const String employeeList = '/employee/list';
 
@@ -25,4 +26,10 @@ class ApiEndpoints {
 
   // File upload endpoints
   static const String uploadFile = '/upload/file';
+
+  // Notification endpoints
+  static const String getUserNotifications =
+      '/notifications'; // GET /notifications/{employeeId}
+  static const String markNotificationRead =
+      '/notifications'; // PUT /notifications/{employeeId}/read/{notificationId}
 }
