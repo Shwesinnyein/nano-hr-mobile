@@ -501,18 +501,42 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     );
   }
 
+  // Normalize status for employee view - show simple statuses only
+  String _normalizeStatusForEmployee(String status) {
+    final statusLower = status.toLowerCase();
+
+    // If already final status, return as is
+    if (statusLower == 'approved' || statusLower == 'rejected') {
+      return statusLower;
+    }
+
+    // If rejected, return rejected
+    if (statusLower.contains('rejected')) {
+      return 'rejected';
+    }
+
+    // If approved (any level), return approved
+    if (statusLower.contains('approved')) {
+      return 'approved';
+    }
+
+    // Everything else is pending
+    return 'pending';
+  }
+
   Widget _buildRequestCard(LeaveRequest request) {
+    final normalizedStatus = _normalizeStatusForEmployee(request.status);
     Color statusColor;
     IconData statusIcon;
 
-    switch (request.status) {
+    switch (normalizedStatus) {
       case 'approved':
         statusColor = AppTheme.successColor;
         statusIcon = Icons.check_circle;
       case 'rejected':
         statusColor = AppTheme.errorColor;
         statusIcon = Icons.cancel;
-      default:
+      default: // pending
         statusColor = AppTheme.warningColor;
         statusIcon = Icons.pending;
     }

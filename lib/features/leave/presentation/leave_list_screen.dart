@@ -232,11 +232,13 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   Widget _buildSummaryCard(List<LeaveRequest> requests) {
     final totalRequests = requests.length;
     final approvedRequests = requests
-        .where((r) => r.status == 'approved')
+        .where((r) => _normalizeStatusForEmployee(r.status) == 'approved')
         .length;
-    final pendingRequests = requests.where((r) => r.status == 'pending').length;
+    final pendingRequests = requests
+        .where((r) => _normalizeStatusForEmployee(r.status) == 'pending')
+        .length;
     final rejectedRequests = requests
-        .where((r) => r.status == 'rejected')
+        .where((r) => _normalizeStatusForEmployee(r.status) == 'rejected')
         .length;
 
     return Container(
@@ -889,7 +891,9 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
-                                  request.status.toUpperCase(),
+                                  _normalizeStatusForEmployee(
+                                    request.status,
+                                  ).toUpperCase(),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -1177,13 +1181,39 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     );
   }
 
+  // Normalize status for employee view - show simple statuses only
+  String _normalizeStatusForEmployee(String status) {
+    final statusLower = status.toLowerCase();
+
+    // If already final status, return as is
+    if (statusLower == 'approved' || statusLower == 'rejected') {
+      return statusLower;
+    }
+
+    // If rejected, return rejected
+    if (statusLower.contains('rejected')) {
+      return 'rejected';
+    }
+
+    // If approved (any level), return approved
+    if (statusLower.contains('approved')) {
+      return 'approved';
+    }
+
+    // Everything else is pending
+    return 'pending';
+  }
+
   Color _getStatusColor(String status) {
-    switch (status) {
+    // Use normalized status for consistent colors
+    final normalizedStatus = _normalizeStatusForEmployee(status);
+
+    switch (normalizedStatus) {
       case 'approved':
         return AppTheme.successColor;
       case 'rejected':
         return AppTheme.errorColor;
-      default:
+      default: // pending
         return AppTheme.warningColor;
     }
   }

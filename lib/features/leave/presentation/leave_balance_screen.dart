@@ -7,6 +7,29 @@ import '../../../core/widgets/async_value_widget.dart';
 class LeaveBalanceScreen extends ConsumerWidget {
   const LeaveBalanceScreen({super.key});
 
+  // Normalize status for employee view - show simple statuses only
+  String _normalizeStatusForEmployee(String status) {
+    final statusLower = status.toLowerCase();
+
+    // If already final status, return as is
+    if (statusLower == 'approved' || statusLower == 'rejected') {
+      return statusLower;
+    }
+
+    // If rejected, return rejected
+    if (statusLower.contains('rejected')) {
+      return 'rejected';
+    }
+
+    // If approved (any level), return approved
+    if (statusLower.contains('approved')) {
+      return 'approved';
+    }
+
+    // Everything else is pending
+    return 'pending';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return FutureBuilder<String?>(
@@ -52,7 +75,9 @@ class LeaveBalanceScreen extends ConsumerWidget {
                 ...d.requests.map(
                   (r) => Card(
                     child: ListTile(
-                      title: Text('${r.type.toUpperCase()} — ${r.status}'),
+                      title: Text(
+                        '${r.type.toUpperCase()} — ${_normalizeStatusForEmployee(r.status)}',
+                      ),
                       subtitle: Text(
                         '${r.start?.toLocal()} → ${r.end?.toLocal()}\n${r.reason}',
                       ),
