@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/providers/language_provider.dart';
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
   const EmployeeLoginScreen({super.key});
@@ -20,7 +21,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   bool _obscureConfirmPassword = true;
   bool _showRegistration = false;
   bool _isLoading = false;
-  bool _isThai = true; // Language state: true = Thai, false = English
+
+  // Translation helper method using global state
+  String _t(WidgetRef ref, String thaiText, String englishText) {
+    final isThai = ref.watch(languageProvider);
+    return isThai ? thaiText : englishText;
+  }
 
   @override
   void dispose() {
@@ -283,7 +289,11 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                                     // Modern Form Fields
                                     _buildModernTextField(
                                       controller: _email,
-                                      label: 'Employee Email',
+                                      label: _t(
+                                        ref,
+                                        'อีเมลพนักงาน',
+                                        'Employee Email',
+                                      ),
                                       icon: Icons.email_outlined,
                                       keyboardType: TextInputType.emailAddress,
                                     ),
@@ -292,7 +302,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
 
                                     _buildModernTextField(
                                       controller: _password,
-                                      label: 'Password',
+                                      label: _t(ref, 'รหัสผ่าน', 'Password'),
                                       icon: Icons.lock_outline,
                                       obscureText: _obscurePassword,
                                       suffixIcon: IconButton(
@@ -316,7 +326,11 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                                       const SizedBox(height: 16),
                                       _buildModernTextField(
                                         controller: _confirmPassword,
-                                        label: 'Confirm Password',
+                                        label: _t(
+                                          ref,
+                                          'ยืนยันรหัสผ่าน',
+                                          'Confirm Password',
+                                        ),
                                         icon: Icons.lock_outline,
                                         obscureText: _obscureConfirmPassword,
                                         suffixIcon: IconButton(
@@ -413,7 +427,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         const SizedBox(height: 24),
         // Modern App Name
         Text(
-          'NANO Work',
+          _t(ref, 'NANO Work', 'NANO Work'),
           style: TextStyle(
             fontSize: 28, // Reduced from 32
             fontWeight: FontWeight.w700, // Reduced from w800
@@ -470,7 +484,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              _showRegistration ? 'New Employee' : 'Employee Login',
+              _showRegistration
+                  ? _t(ref, 'พนักงานใหม่', 'New Employee')
+                  : _t(ref, 'เข้าสู่ระบบพนักงาน', 'Employee Login'),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -616,7 +632,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                   ),
                   const SizedBox(width: 6), // Reduced from 8
                   Text(
-                    _showRegistration ? 'Create Account' : 'Sign In',
+                    _showRegistration
+                        ? _t(ref, 'สร้างบัญชี', 'Create Account')
+                        : _t(ref, 'เข้าสู่ระบบ', 'Sign In'),
                     style: const TextStyle(
                       fontSize: 15, // Increased from 14
                       fontWeight: FontWeight.w700, // Increased from w600
@@ -667,11 +685,13 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                 children: [
                   TextSpan(
                     text: _showRegistration
-                        ? 'Already have an account? '
-                        : 'Don\'t have an account? ',
+                        ? _t(ref, 'มีบัญชีแล้ว? ', 'Already have an account? ')
+                        : _t(ref, 'ไม่มีบัญชี? ', 'Don\'t have an account? '),
                   ),
                   TextSpan(
-                    text: _showRegistration ? 'Sign In' : 'Sign Up',
+                    text: _showRegistration
+                        ? _t(ref, 'เข้าสู่ระบบ', 'Sign In')
+                        : _t(ref, 'สมัครสมาชิก', 'Sign Up'),
                     style: const TextStyle(
                       color: Color(0xFFc7a27b),
                       fontWeight: FontWeight.w600,
@@ -704,6 +724,8 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
 
   // Language Switch Widget
   Widget _buildLanguageSwitch() {
+    final isThai = ref.watch(languageProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
@@ -715,14 +737,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         children: [
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isThai = true;
-              });
+              ref.read(languageProvider.notifier).setLanguage(true);
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: _isThai
+                color: isThai
                     ? Colors.white.withOpacity(0.9)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
@@ -732,21 +752,19 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _isThai ? const Color(0xFFc7a27b) : Colors.white,
+                  color: isThai ? const Color(0xFFc7a27b) : Colors.white,
                 ),
               ),
             ),
           ),
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isThai = false;
-              });
+              ref.read(languageProvider.notifier).setLanguage(false);
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: !_isThai
+                color: !isThai
                     ? Colors.white.withOpacity(0.9)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
@@ -756,7 +774,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: !_isThai ? const Color(0xFFc7a27b) : Colors.white,
+                  color: !isThai ? const Color(0xFFc7a27b) : Colors.white,
                 ),
               ),
             ),

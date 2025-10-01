@@ -171,6 +171,8 @@ class ApiService {
     required String employeeId,
   }) async {
     try {
+      // Use the original endpoint with employeeId for now
+      // TODO: Backend should implement /employee/profile endpoint for current user
       final response = await _dio.get(
         '${ApiEndpoints.employeeProfile}/$employeeId',
       );

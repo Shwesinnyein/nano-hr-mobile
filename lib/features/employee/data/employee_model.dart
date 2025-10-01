@@ -87,6 +87,35 @@ class Employee {
     this.updatedAt,
   });
 
+  // Helper method to parse DateTime from various formats
+  static DateTime? _parseDateTime(dynamic dateValue) {
+    if (dateValue == null) return null;
+
+    if (dateValue is String) {
+      try {
+        return DateTime.parse(dateValue);
+      } catch (e) {
+        print('Error parsing date string: $e');
+        return null;
+      }
+    }
+
+    if (dateValue is Map<String, dynamic>) {
+      // Handle Firebase timestamp format
+      if (dateValue.containsKey('_seconds')) {
+        final seconds = dateValue['_seconds'] as int?;
+        final nanoseconds = dateValue['_nanoseconds'] as int? ?? 0;
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(
+            seconds * 1000 + (nanoseconds ~/ 1000000),
+          );
+        }
+      }
+    }
+
+    return null;
+  }
+
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
       id: json['id'] ?? json['_id'] ?? '',
@@ -130,10 +159,10 @@ class Employee {
       department: json['department'],
       password: json['password'],
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
+          ? _parseDateTime(json['createdAt'])
           : null,
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
+          ? _parseDateTime(json['updatedAt'])
           : null,
     );
   }

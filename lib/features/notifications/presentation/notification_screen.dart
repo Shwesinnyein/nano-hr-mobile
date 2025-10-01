@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/models/notification_model.dart';
@@ -74,8 +75,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           print(
             '🔔 Debug: Parsed ${notificationResponse.notifications.length} notifications',
           );
+
+          // Filter out inappropriate notifications
+          final filteredNotifications = _filterNotifications(
+            notificationResponse.notifications,
+            _currentUserId!,
+          );
+          print(
+            '🔔 Debug: Filtered to ${filteredNotifications.length} notifications',
+          );
+
           setState(() {
-            _notifications = notificationResponse.notifications;
+            _notifications = filteredNotifications;
             _isLoading = false;
           });
         } catch (parseError) {
@@ -100,6 +111,46 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // Filter notifications based on user role and context
+  List<NotificationModel> _filterNotifications(
+    List<NotificationModel> notifications,
+    String currentEmployeeId,
+  ) {
+    // 1) Base filtering rules
+    final filtered = notifications.where((notification) {
+      // Hide self-originated leave_request (employee shouldn't see their own request)
+      if (notification.type == 'leave_request') {
+        // If sender is missing or equals current user, hide it (defensive until backend fixes senderId)
+        if (notification.senderId == null ||
+            notification.senderId == currentEmployeeId) {
+          print(
+            '🚫 Filtering leave_request for self or null sender: ${notification.id}',
+          );
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+
+    // 2) De-duplicate potential duplicates from backend (same leave request emitted twice)
+    final Map<String, NotificationModel> uniqueByKey = {};
+    for (final n in filtered) {
+      final leaveId = n.data['leaveRequestId'] ?? n.data['leaveId'] ?? '';
+      final coarseTimeBucket =
+          n.createdAt.millisecondsSinceEpoch ~/ 60000; // 1-minute bucket
+      final key =
+          '${n.type}:${leaveId}:${n.title}:${n.message}:$coarseTimeBucket';
+      // Keep the first occurrence (usually the earlier one), or replace with the latest if needed
+      if (!uniqueByKey.containsKey(key)) {
+        uniqueByKey[key] = n;
+      }
+    }
+
+    return uniqueByKey.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Future<void> _refreshNotifications() async {
@@ -180,6 +231,44 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       }
     } catch (e) {
       _showErrorSnackBar('Error marking all as read: $e');
+    }
+  }
+
+  void _handleNotificationTap(NotificationModel notification) async {
+    // Mark as read first
+    await _markAsRead(notification);
+
+    // Get current user ID for filtering
+    final authService = ref.read(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
+
+    // Navigate based on notification type and user role
+    switch (notification.type) {
+      case 'leave_request':
+        // Only managers should see leave request notifications
+        // Regular employees should NOT see their own leave request notifications
+        if (currentEmployeeId != null &&
+            notification.senderId == currentEmployeeId) {
+          // This is the employee's own request - they shouldn't see this notification
+          print('🚫 Filtering out self-notification for leave request');
+          return;
+        }
+
+        // Navigate to leave approval screen (for managers)
+        if (mounted) {
+          context.push('/leave/approval');
+        }
+        break;
+      case 'leave_approved':
+      case 'leave_rejected':
+        // Navigate to leave list to see the status (for employees)
+        if (mounted) {
+          context.push('/leave/list');
+        }
+        break;
+      default:
+        // For other notification types, just mark as read
+        break;
     }
   }
 
@@ -390,7 +479,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         borderRadius: BorderRadius.circular(16),
         elevation: 2,
         child: InkWell(
-          onTap: () => _markAsRead(notification),
+          onTap: () => _handleNotificationTap(notification),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.all(16),

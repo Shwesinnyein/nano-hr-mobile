@@ -921,9 +921,13 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Get current employee ID
+      // Get current employee ID, name, and position
       final authService = ref.read(authServiceProvider);
       final currentEmployeeId = authService.currentEmployeeId;
+      final currentEmployeeName = authService.currentEmployeeName;
+      final currentEmployeeFirstName = authService.currentEmployeeFirstName;
+      final currentEmployeeLastName = authService.currentEmployeeLastName;
+      final currentPositionName = authService.currentPositionName;
 
       if (currentEmployeeId == null) {
         Navigator.pop(context); // Close loading dialog
@@ -939,6 +943,10 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       // Prepare request data according to API specification
       final requestData = {
         'employeeId': currentEmployeeId,
+        'employeeName': currentEmployeeName ?? 'Unknown Employee',
+        'firstName': currentEmployeeFirstName ?? '',
+        'lastName': currentEmployeeLastName ?? '',
+        'positionName': currentPositionName ?? '',
         'leaveType': _getLeaveTypeId(widget.leaveType), // Map leave type to ID
         'leaveTypeName': _getLeaveTypeName(
           widget.leaveType,

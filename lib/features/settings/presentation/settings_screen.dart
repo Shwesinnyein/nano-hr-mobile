@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../employee/presentation/employee_list_screen.dart';
 import '../../auth/data/auth_repository.dart' as auth;
+import '../../../core/providers/language_provider.dart';
+import '../../../core/utils/translation_helper.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -13,9 +15,9 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Settings',
-          style: TextStyle(
+        title: Text(
+          ref.t('การตั้งค่า', 'Settings'),
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
           ),
@@ -29,28 +31,43 @@ class SettingsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSettingsSection('Organization', [
+            _buildSettingsSection(ref.t('องค์กร', 'Organization'), [
               _buildSettingsItem(
-                'Company Information',
-                'View company details and policies',
+                ref.t('ข้อมูลบริษัท', 'Company Information'),
+                ref.t(
+                  'ดูรายละเอียดบริษัทและนโยบาย',
+                  'View company details and policies',
+                ),
                 Icons.business,
-                () => _showComingSoon(context, 'Company Information'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('ข้อมูลบริษัท', 'Company Information'),
+                ),
               ),
               _buildSettingsItem(
-                'Department Structure',
-                'View organizational hierarchy',
+                ref.t('โครงสร้างแผนก', 'Department Structure'),
+                ref.t('ดูลำดับชั้นองค์กร', 'View organizational hierarchy'),
                 Icons.account_tree,
-                () => _showComingSoon(context, 'Department Structure'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('โครงสร้างแผนก', 'Department Structure'),
+                ),
               ),
               _buildSettingsItem(
-                'Employee Directory',
-                'Browse employee contacts',
+                ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
+                ref.t('เรียกดูรายชื่อพนักงาน', 'Browse employee contacts'),
                 Icons.contacts,
-                () => _showComingSoon(context, 'Employee Directory'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
+                ),
               ),
               _buildSettingsItem(
-                'Employee List',
-                'View all employees and their details',
+                ref.t('รายชื่อพนักงาน', 'Employee List'),
+                ref.t(
+                  'ดูพนักงานทั้งหมดและรายละเอียด',
+                  'View all employees and their details',
+                ),
                 Icons.people,
                 () => _navigateToEmployeeList(context),
               ),
@@ -153,17 +170,23 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ]),
             const SizedBox(height: 24),
-            _buildSettingsSection('App Settings', [
-              _buildLanguageSelector(context),
-              _buildNotificationToggle(context),
+            _buildSettingsSection(ref.t('การตั้งค่าแอป', 'App Settings'), [
+              _buildLanguageSelector(context, ref),
+              _buildNotificationToggle(context, ref),
               _buildSettingsItem(
-                'Privacy Settings',
-                'Manage privacy and security',
+                ref.t('การตั้งค่าความเป็นส่วนตัว', 'Privacy Settings'),
+                ref.t(
+                  'จัดการความเป็นส่วนตัวและความปลอดภัย',
+                  'Manage privacy and security',
+                ),
                 Icons.privacy_tip,
-                () => _showComingSoon(context, 'Privacy Settings'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('การตั้งค่าความเป็นส่วนตัว', 'Privacy Settings'),
+                ),
               ),
               _buildLogoutButton(context, ref),
-              _buildVersionInfo(),
+              _buildVersionInfo(ref),
             ]),
             const SizedBox(height: 32),
           ],
@@ -258,7 +281,9 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLanguageSegmentedControl(BuildContext context) {
+  Widget _buildLanguageSegmentedControl(BuildContext context, WidgetRef ref) {
+    final isThai = ref.watch(languageProvider);
+
     return Container(
       height: 32,
       decoration: BoxDecoration(
@@ -269,8 +294,8 @@ class SettingsScreen extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildLanguageOption(context, 'TH', 'ไทย', false),
-          _buildLanguageOption(context, 'ENG', 'EN', true),
+          _buildLanguageOption(context, ref, 'TH', 'ไทย', isThai),
+          _buildLanguageOption(context, ref, 'ENG', 'EN', !isThai),
         ],
       ),
     );
@@ -278,12 +303,17 @@ class SettingsScreen extends ConsumerWidget {
 
   Widget _buildLanguageOption(
     BuildContext context,
+    WidgetRef ref,
     String code,
     String text,
     bool isSelected,
   ) {
     return GestureDetector(
-      onTap: () => _showLanguageChanged(context, code),
+      onTap: () {
+        // Update global language state
+        ref.read(languageProvider.notifier).setLanguage(code == 'TH');
+        _showLanguageChanged(context, code);
+      },
       child: Container(
         height: 32,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -305,7 +335,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildLanguageSelector(BuildContext context) {
+  Widget _buildLanguageSelector(BuildContext context, WidgetRef ref) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -338,7 +368,7 @@ class SettingsScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Language',
+                      ref.t('ภาษา', 'Language'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -347,7 +377,10 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Choose your preferred language',
+                      ref.t(
+                        'เลือกภาษาที่คุณต้องการ',
+                        'Choose your preferred language',
+                      ),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnSurface.withOpacity(0.7),
@@ -356,7 +389,7 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              _buildLanguageSegmentedControl(context),
+              _buildLanguageSegmentedControl(context, ref),
             ],
           ),
         ),
@@ -364,7 +397,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotificationToggle(BuildContext context) {
+  Widget _buildNotificationToggle(BuildContext context, WidgetRef ref) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -397,7 +430,7 @@ class SettingsScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Notifications',
+                      ref.t('การแจ้งเตือน', 'Notifications'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -406,7 +439,10 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Enable or disable app notifications',
+                      ref.t(
+                        'เปิดหรือปิดการแจ้งเตือนของแอป',
+                        'Enable or disable app notifications',
+                      ),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnSurface.withOpacity(0.7),
@@ -418,7 +454,7 @@ class SettingsScreen extends ConsumerWidget {
               Switch(
                 value: true,
                 onChanged: (bool value) {
-                  _showNotificationToggle(context, value);
+                  _showNotificationToggle(context, ref, value);
                 },
                 activeThumbColor: AppTheme.kNanoGold,
                 activeTrackColor: AppTheme.kNanoGold.withOpacity(0.3),
@@ -464,7 +500,7 @@ class SettingsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Logout',
+                        ref.t('ออกจากระบบ', 'Logout'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -473,7 +509,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Sign out of your account',
+                        ref.t('ออกจากบัญชีของคุณ', 'Sign out of your account'),
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.7),
@@ -495,7 +531,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildVersionInfo() {
+  Widget _buildVersionInfo(WidgetRef ref) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -524,7 +560,7 @@ class SettingsScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Version',
+                      ref.t('เวอร์ชัน', 'Version'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -558,8 +594,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showLanguageChanged(BuildContext context, String language) {
-    // In a real app, you would implement language switching logic here
-    // For now, just show a message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -571,10 +605,19 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showNotificationToggle(BuildContext context, bool isEnabled) {
+  void _showNotificationToggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool isEnabled,
+  ) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Notifications ${isEnabled ? 'enabled' : 'disabled'}'),
+        content: Text(
+          ref.t(
+            'การแจ้งเตือน${isEnabled ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}',
+            'Notifications ${isEnabled ? 'enabled' : 'disabled'}',
+          ),
+        ),
         backgroundColor: AppTheme.kNanoGold,
         duration: const Duration(seconds: 2),
       ),
@@ -586,19 +629,25 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text(
-            'Logout',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+          title: Text(
+            ref.t('ออกจากระบบ', 'Logout'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
           ),
-          content: const Text(
-            'Are you sure you want to logout?',
-            style: TextStyle(fontSize: 16),
+          content: Text(
+            ref.t(
+              'คุณแน่ใจหรือไม่ที่จะออกจากระบบ?',
+              'Are you sure you want to logout?',
+            ),
+            style: const TextStyle(fontSize: 16),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: Text(
-                'Cancel',
+                ref.t('ยกเลิก', 'Cancel'),
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontWeight: FontWeight.w500,
@@ -617,9 +666,9 @@ class SettingsScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Logout',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              child: Text(
+                ref.t('ออกจากระบบ', 'Logout'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -638,10 +687,10 @@ class SettingsScreen extends ConsumerWidget {
         context.go('/login');
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Logged out successfully'),
+          SnackBar(
+            content: Text(ref.t('ออกจากระบบสำเร็จ', 'Logged out successfully')),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -649,7 +698,12 @@ class SettingsScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Logout failed: ${e.toString()}'),
+            content: Text(
+              ref.t(
+                'ออกจากระบบล้มเหลว: ${e.toString()}',
+                'Logout failed: ${e.toString()}',
+              ),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

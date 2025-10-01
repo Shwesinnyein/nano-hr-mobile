@@ -20,6 +20,27 @@ class LeaveService {
     );
   }
 
+  Future<Map<String, dynamic>> getLeaveDetails(String leaveId) async {
+    try {
+      final response = await _dio.get(ApiEndpoints.leaveDetails(leaveId));
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data);
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get leave details: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      return {'success': false, 'message': 'Network error: ${e.message}'};
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   // Get leave settings for employee
   Future<Map<String, dynamic>> getLeaveSettings(String employeeId) async {
     try {
@@ -99,6 +120,48 @@ class LeaveService {
     } catch (e) {
       print('❌ Leave API: Unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Get leave requests for approval based on user level (manager/hr/approver)
+  Future<List<Map<String, dynamic>>> getLeaveRequestsForApproval(
+    String level,
+    String userId,
+  ) async {
+    try {
+      print(
+        '🌐 Leave API: Getting leave requests for approval by $level: $userId',
+      );
+
+      final response = await _dio.get(
+        ApiEndpoints.getLeaveRequestsForApproval(level, userId),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Leave API: All leave requests retrieved successfully');
+        final data = response.data;
+
+        if (data['success'] == true && data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        } else {
+          print('⚠️ Leave API: No leave records found or invalid data format');
+          return [];
+        }
+      } else {
+        print(
+          '❌ Leave API: Failed to get all requests - Status: ${response.statusCode}',
+        );
+        return [];
+      }
+    } on DioException catch (e) {
+      print('❌ Leave API: DioException - ${e.message}');
+      if (e.response != null) {
+        print('🌐 Leave API: Error response: ${e.response!.data}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error: $e');
+      return [];
     }
   }
 
@@ -238,6 +301,84 @@ class LeaveService {
       }
     } catch (e) {
       print('❌ Leave API: Unexpected error - $e');
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Approve or reject leave via status endpoint
+  Future<Map<String, dynamic>> updateLeaveStatus({
+    required String leaveId,
+    required String status, // 'approved' | 'rejected'
+    required String approverId,
+    String? note,
+  }) async {
+    try {
+      final payload = {
+        'leaveId': leaveId,
+        'userId': approverId,
+        'userRole': 'manager', // Assuming manager role for approval
+        'action': status == 'approved' ? 'approve' : 'reject',
+        if (note != null && note.isNotEmpty) 'note': note,
+      };
+
+      final response = await _dio.put(
+        ApiEndpoints.leaveStatus(leaveId),
+        data: payload,
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to update status: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      return {'success': false, 'message': 'Network error: ${e.message}'};
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Alternate approval endpoint
+  Future<Map<String, dynamic>> approveOrRejectLeave({
+    required String leaveId,
+    required String action, // 'approve' | 'reject'
+    required String approverId,
+    String? note,
+  }) async {
+    try {
+      final payload = {
+        'leaveId': leaveId,
+        'userId': approverId,
+        'userRole': 'manager', // Assuming manager role for approval
+        'action': action,
+        if (note != null && note.isNotEmpty) 'note': note,
+      };
+
+      final response = await _dio.put(
+        ApiEndpoints.leaveApproval(leaveId),
+        data: payload,
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to update approval: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      return {'success': false, 'message': 'Network error: ${e.message}'};
+    } catch (e) {
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }

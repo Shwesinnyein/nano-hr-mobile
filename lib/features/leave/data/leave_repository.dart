@@ -60,7 +60,6 @@ class LeaveRepository {
           throw Exception(errorMessage);
         }
       } else {
-        // Handle case where API endpoint doesn't exist
         print('❌ Leave Repository: API endpoint not available');
         throw Exception('Leave request API endpoint not available');
       }

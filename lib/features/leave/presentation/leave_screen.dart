@@ -14,6 +14,33 @@ class LeaveScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveScreenState extends ConsumerState<LeaveScreen> {
+  // Check if the current user has management privileges
+  bool _isManagementUser() {
+    final authService = ref.read(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
+
+    if (currentEmployeeId == null) return false;
+
+    // Check if this is a known manager employee ID
+    // Based on the API logs, EMP-09072025043 is a Manager
+    final knownManagerIds = [
+      'EMP-09072025043', // Manager from the logs
+      // Add other manager IDs here as needed
+    ];
+
+    if (knownManagerIds.contains(currentEmployeeId)) {
+      return true;
+    }
+
+    // Fallback: Check if employee ID contains management indicators
+    final employeeId = currentEmployeeId.toLowerCase();
+    final managementIndicators = ['manager', 'hr', 'admin', 'mgmt', 'lead'];
+
+    return managementIndicators.any(
+      (indicator) => employeeId.contains(indicator),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = ref.watch(authServiceProvider);
@@ -74,6 +101,12 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         children: [
           _buildViewLeaveListButton(context),
           const SizedBox(height: 24),
+          if (_isManagementUser()) ...[
+            _buildManagerSection(
+              context,
+            ), // Only show for managers/HR/management
+            const SizedBox(height: 24),
+          ],
           _buildLeaveTypesList(context, leaveVm.balance),
           const SizedBox(height: 24),
           _buildRecentRequests(leaveVm.requests),
@@ -105,6 +138,88 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
           elevation: 4,
           shadowColor: AppTheme.kNanoGold.withOpacity(0.3),
         ),
+      ),
+    );
+  }
+
+  Widget _buildManagerSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.kNanoGold.withOpacity(0.1),
+            AppTheme.kNanoGoldDark.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.kNanoGold.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.kNanoGold.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.admin_panel_settings,
+                  color: AppTheme.kNanoGold,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Team Leave Management',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.kOnBackground,
+                      ),
+                    ),
+                    Text(
+                      'Approve and manage your team\'s leave requests',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.kOnBackground.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/leave/approval'),
+              icon: const Icon(Icons.approval),
+              label: const Text('Team Leave Approvals'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.kNanoGold,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

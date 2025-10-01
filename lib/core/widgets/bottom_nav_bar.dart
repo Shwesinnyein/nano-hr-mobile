@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
+import '../providers/notification_provider.dart';
 
-class CustomBottomNavBar extends StatelessWidget {
+class CustomBottomNavBar extends ConsumerWidget {
   final int currentIndex;
 
   const CustomBottomNavBar({super.key, required this.currentIndex});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -42,13 +45,14 @@ class CustomBottomNavBar extends StatelessWidget {
                 index: 1,
                 route: '/leave',
               ),
-              _buildNavItem(
+              _buildNavItemWithBadge(
                 context,
                 icon: Icons.notifications_outlined,
                 activeIcon: Icons.notifications,
                 label: 'Notifications',
                 index: 2,
                 route: '/notifications',
+                badgeCount: unreadCount,
               ),
               _buildNavItem(
                 context,
@@ -100,6 +104,81 @@ class CustomBottomNavBar extends StatelessWidget {
               isActive ? activeIcon : icon,
               color: isActive ? AppTheme.kNanoGold : Colors.grey[600],
               size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? AppTheme.kNanoGold : Colors.grey[600],
+                fontSize: 12,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItemWithBadge(
+    BuildContext context, {
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required int index,
+    required String route,
+    required int badgeCount,
+  }) {
+    final isActive = currentIndex == index;
+
+    return GestureDetector(
+      onTap: () => context.go(route),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppTheme.kNanoGold.withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  isActive ? activeIcon : icon,
+                  color: isActive ? AppTheme.kNanoGold : Colors.grey[600],
+                  size: 24,
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : badgeCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

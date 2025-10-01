@@ -66,9 +66,20 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         print('🔔 Badge: Data: $data');
 
         if (data is List<dynamic>) {
-          // Count only unread notifications
+          // Count only unread notifications after filtering
           final unreadCount = data.where((notification) {
             print('🔔 Badge: Processing notification: $notification');
+
+            // Apply the same filtering logic as in notification screen
+            final senderId = notification['senderId'];
+            if (notification['type'] == 'leave_request' &&
+                senderId == employeeId) {
+              print(
+                '🚫 Badge: Filtering out self leave request notification: ${notification['id']}',
+              );
+              return false; // Filter out self-notifications
+            }
+
             final isRead = notification['isRead'];
             print(
               '🔔 Badge: isRead value: $isRead (type: ${isRead.runtimeType})',

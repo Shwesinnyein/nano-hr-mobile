@@ -7,6 +7,7 @@ import '../features/leave/presentation/leave_balance_screen.dart';
 import '../features/leave/presentation/leave_request_screen.dart';
 import '../features/leave/presentation/leave_screen.dart';
 import '../features/leave/presentation/leave_list_screen.dart';
+import '../features/leave/presentation/leave_approval_screen.dart';
 import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -60,6 +61,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/leave/list', builder: (_, __) => const LeaveListScreen()),
+      GoRoute(
+        path: '/leave/approval',
+        builder: (_, __) => const LeaveApprovalScreen(),
+      ),
     ],
     redirect: (context, state) {
       // Redirect from splash to employee login

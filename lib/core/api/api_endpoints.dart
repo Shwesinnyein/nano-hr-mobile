@@ -23,6 +23,16 @@ class ApiEndpoints {
   static const String leaveRequests = '/leave/employee';
   static const String leaveBalance = '/leave/balance';
   static const String leaveSettings = '/leave/settings';
+  // Approval endpoints for different levels
+  static String getLeaveRequestsForApproval(String level, String userId) =>
+      '/leave/approval/pending?level=$level&userId=$userId';
+  // GET /leave/{leaveId}
+  static String leaveDetails(String leaveId) => '/leave/$leaveId';
+  // Leave approval endpoints (server supports either path)
+  // PUT /leave/{leaveId}/status
+  static String leaveStatus(String leaveId) => '/leave/$leaveId/status';
+  // PUT /leave/approval/{leaveId}
+  static String leaveApproval(String leaveId) => '/leave/approval/$leaveId';
 
   // File upload endpoints
   static const String uploadFile = '/upload/file';

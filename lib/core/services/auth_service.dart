@@ -4,6 +4,10 @@ import 'api_service.dart';
 class AuthService {
   String? _currentUserId;
   String? _currentEmployeeId;
+  String? _currentEmployeeName;
+  String? _currentEmployeeFirstName;
+  String? _currentEmployeeLastName;
+  String? _currentPositionName;
   final ApiService _apiService;
 
   AuthService(this._apiService);
@@ -11,6 +15,10 @@ class AuthService {
   // Get current user
   String? get currentUserId => _currentUserId;
   String? get currentEmployeeId => _currentEmployeeId;
+  String? get currentEmployeeName => _currentEmployeeName;
+  String? get currentEmployeeFirstName => _currentEmployeeFirstName;
+  String? get currentEmployeeLastName => _currentEmployeeLastName;
+  String? get currentPositionName => _currentPositionName;
 
   // Set current user (for internal use)
   void setCurrentUser(String? userId) {
@@ -20,6 +28,18 @@ class AuthService {
   // Set current employee ID
   void setCurrentEmployeeId(String? employeeId) {
     _currentEmployeeId = employeeId;
+  }
+
+  // Set current employee name and position
+  void setCurrentEmployeeName(
+    String? firstName,
+    String? lastName,
+    String? positionName,
+  ) {
+    _currentEmployeeFirstName = firstName;
+    _currentEmployeeLastName = lastName;
+    _currentEmployeeName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
+    _currentPositionName = positionName;
   }
 
   // Check if user is authenticated
@@ -45,6 +65,20 @@ class AuthService {
         final employeeData = response['employee'];
         _currentUserId = employeeData['authId'] ?? employeeData['id'] ?? email;
         _currentEmployeeId = employeeData['id'] ?? employeeData['uid'];
+
+        // Store employee name and position information
+        _currentEmployeeFirstName =
+            employeeData['firstName'] ?? employeeData['first_name'];
+        _currentEmployeeLastName =
+            employeeData['lastName'] ?? employeeData['last_name'];
+        _currentEmployeeName =
+            '${_currentEmployeeFirstName ?? ''} ${_currentEmployeeLastName ?? ''}'
+                .trim();
+        _currentPositionName =
+            employeeData['positionName'] ??
+            employeeData['position_name'] ??
+            employeeData['jobTitle'] ??
+            employeeData['job_title'];
 
         return {
           'success': true,
@@ -111,8 +145,10 @@ class AuthService {
         };
       }
 
+      // SECURITY: Only allow users to get their own profile
+      // The backend should also verify this on the server side
       final response = await _apiService.getEmployeeProfile(
-        employeeId: _currentEmployeeId!,
+        employeeId: _currentEmployeeId!, // Only current user's ID
       );
 
       if (response['success'] == true) {

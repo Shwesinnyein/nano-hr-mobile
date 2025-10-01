@@ -6,6 +6,7 @@ import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../employee/data/employee_model.dart';
+import '../../../core/utils/translation_helper.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -80,17 +81,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_isLoading) {
       return Scaffold(
         backgroundColor: AppTheme.kBackground,
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
+              const CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                'Loading profile...',
-                style: TextStyle(color: Colors.grey, fontSize: 16),
+                ref.t('กำลังโหลดโปรไฟล์...', 'Loading profile...'),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
               ),
             ],
           ),
@@ -119,8 +120,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 16),
                 Text(
                   isNotAuthenticated
-                      ? 'Please Login First'
-                      : 'No profile data available',
+                      ? ref.t('กรุณาเข้าสู่ระบบก่อน', 'Please Login First')
+                      : ref.t(
+                          'ไม่มีข้อมูลโปรไฟล์',
+                          'No profile data available',
+                        ),
                   style: const TextStyle(
                     fontSize: 18,
                     color: Colors.grey,
@@ -130,8 +134,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 8),
                 Text(
                   isNotAuthenticated
-                      ? 'You need to login to view your profile information.'
-                      : 'Please make sure you are logged in and try again.',
+                      ? ref.t(
+                          'คุณต้องเข้าสู่ระบบเพื่อดูข้อมูลโปรไฟล์ของคุณ',
+                          'You need to login to view your profile information.',
+                        )
+                      : ref.t(
+                          'กรุณาตรวจสอบให้แน่ใจว่าคุณเข้าสู่ระบบแล้วและลองอีกครั้ง',
+                          'Please make sure you are logged in and try again.',
+                        ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
@@ -140,7 +150,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ElevatedButton.icon(
                     onPressed: _loadEmployeeProfile,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(ref.t('ลองใหม่', 'Retry')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.kNanoGold,
                       foregroundColor: Colors.white,
@@ -154,7 +164,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     context.go('/login');
                   },
                   icon: const Icon(Icons.login),
-                  label: Text(isNotAuthenticated ? 'Login Now' : 'Go to Login'),
+                  label: Text(
+                    isNotAuthenticated
+                        ? ref.t('เข้าสู่ระบบตอนนี้', 'Login Now')
+                        : ref.t('ไปที่หน้าเข้าสู่ระบบ', 'Go to Login'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.kNanoGold,
                     foregroundColor: Colors.white,
@@ -172,12 +186,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.kNanoGold,
         foregroundColor: Colors.white,
-        title: const Text('Profile'),
+        title: Text(ref.t('โปรไฟล์', 'Profile')),
         actions: [
           IconButton(
             onPressed: _loadEmployeeProfile,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Profile',
+            tooltip: ref.t('รีเฟรชโปรไฟล์', 'Refresh Profile'),
           ),
         ],
       ),
@@ -307,7 +321,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Personal Information',
+            ref.t('ข้อมูลส่วนตัว', 'Personal Information'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -325,27 +339,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Map<String, String> _getPersonalInfoMap(Employee employee) {
     return {
-      'Full Name': '${employee.firstName} ${employee.lastName}',
-      'Employee ID': employee.uid ?? '',
-      'Email': employee.email,
-      'Phone': employee.primaryNumber ?? '-',
-      'Company': employee.companyName ?? '-',
-      'Location': employee.locationName ?? '-',
-      'Branch': employee.branchName ?? '-',
-      'Position': employee.positionName ?? 'Employee',
+      ref.t('ชื่อเต็ม', 'Full Name'):
+          '${employee.firstName} ${employee.lastName}',
+      ref.t('รหัสพนักงาน', 'Employee ID'): employee.uid ?? '',
+      ref.t('อีเมล', 'Email'): employee.email,
+      ref.t('โทรศัพท์', 'Phone'): employee.primaryNumber ?? '-',
+      ref.t('บริษัท', 'Company'): employee.companyName ?? '-',
+      ref.t('สถานที่', 'Location'): employee.locationName ?? '-',
+      ref.t('สาขา', 'Branch'): employee.branchName ?? '-',
+      ref.t('ตำแหน่ง', 'Position'):
+          employee.positionName ?? ref.t('พนักงาน', 'Employee'),
 
-      'Status': employee.status ?? 'Active',
-      'Date of Birth': employee.dateOfBirth ?? '-',
-      'Gender': employee.gender ?? '-',
-      'Marital Status': employee.maritalStatus ?? '-',
-      'Join Date': employee.joinDate != null
+      ref.t('สถานะ', 'Status'): employee.status ?? ref.t('ใช้งาน', 'Active'),
+      ref.t('วันเกิด', 'Date of Birth'): employee.dateOfBirth ?? '-',
+      ref.t('เพศ', 'Gender'): employee.gender ?? '-',
+      ref.t('สถานะสมรส', 'Marital Status'): employee.maritalStatus ?? '-',
+      ref.t('วันที่เข้าร่วม', 'Join Date'): employee.joinDate != null
           ? DateTime.parse(
               employee.joinDate!,
             ).toLocal().toString().split(' ')[0]
-          : 'Not provided',
-      'ID Card Number': employee.idCardNumber ?? 'Not provided',
-      'Nationality': employee.nationality ?? 'Not specified',
-      'Title': employee.title ?? 'Not specified',
+          : ref.t('ไม่ระบุ', 'Not provided'),
+      ref.t('เลขบัตรประชาชน', 'ID Card Number'):
+          employee.idCardNumber ?? ref.t('ไม่ระบุ', 'Not provided'),
+      ref.t('สัญชาติ', 'Nationality'):
+          employee.nationality ?? ref.t('ไม่ระบุ', 'Not specified'),
+      ref.t('คำนำหน้า', 'Title'):
+          employee.title ?? ref.t('ไม่ระบุ', 'Not specified'),
     };
   }
 
@@ -411,43 +430,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   IconData _getInfoIcon(String label) {
-    switch (label) {
-      case 'Full Name':
-        return Icons.person;
-      case 'Employee ID':
-        return Icons.badge;
-      case 'Email':
-        return Icons.email;
-      case 'Phone':
-        return Icons.phone;
-      case 'Company':
-        return Icons.business;
-      case 'Location':
-        return Icons.location_on;
-      case 'Branch':
-        return Icons.business_center;
-      case 'Position':
-        return Icons.work;
-      case 'Role':
-        return Icons.admin_panel_settings;
-      case 'Status':
-        return Icons.check_circle;
-      case 'Date of Birth':
-        return Icons.cake;
-      case 'Gender':
-        return Icons.person_outline;
-      case 'Marital Status':
-        return Icons.favorite;
-      case 'Join Date':
-        return Icons.calendar_today;
-      case 'ID Card Number':
-        return Icons.credit_card;
-      case 'Nationality':
-        return Icons.flag;
-      case 'Title':
-        return Icons.title;
-      default:
-        return Icons.info;
+    // Check for both Thai and English labels
+    if (label.contains('ชื่อเต็ม') || label.contains('Full Name')) {
+      return Icons.person;
+    } else if (label.contains('รหัสพนักงาน') || label.contains('Employee ID')) {
+      return Icons.badge;
+    } else if (label.contains('อีเมล') || label.contains('Email')) {
+      return Icons.email;
+    } else if (label.contains('โทรศัพท์') || label.contains('Phone')) {
+      return Icons.phone;
+    } else if (label.contains('บริษัท') || label.contains('Company')) {
+      return Icons.business;
+    } else if (label.contains('สถานที่') || label.contains('Location')) {
+      return Icons.location_on;
+    } else if (label.contains('สาขา') || label.contains('Branch')) {
+      return Icons.business_center;
+    } else if (label.contains('ตำแหน่ง') || label.contains('Position')) {
+      return Icons.work;
+    } else if (label.contains('Role')) {
+      return Icons.admin_panel_settings;
+    } else if (label.contains('สถานะ') || label.contains('Status')) {
+      return Icons.check_circle;
+    } else if (label.contains('วันเกิด') || label.contains('Date of Birth')) {
+      return Icons.cake;
+    } else if (label.contains('เพศ') || label.contains('Gender')) {
+      return Icons.person_outline;
+    } else if (label.contains('สถานะสมรส') ||
+        label.contains('Marital Status')) {
+      return Icons.favorite;
+    } else if (label.contains('วันที่เข้าร่วม') ||
+        label.contains('Join Date')) {
+      return Icons.calendar_today;
+    } else if (label.contains('เลขบัตรประชาชน') ||
+        label.contains('ID Card Number')) {
+      return Icons.credit_card;
+    } else if (label.contains('สัญชาติ') || label.contains('Nationality')) {
+      return Icons.flag;
+    } else if (label.contains('คำนำหน้า') || label.contains('Title')) {
+      return Icons.title;
+    } else {
+      return Icons.info;
     }
   }
 
