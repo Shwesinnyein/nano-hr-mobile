@@ -39,7 +39,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     }
 
     // Check if user is an approver
-    if (position.toLowerCase().contains('approver')) {
+    if (position.toLowerCase().contains('approver') ||
+        position.toLowerCase().contains('management')) {
       return 'approver';
     }
 
@@ -372,10 +373,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         statusLower == 'approved_by_manager' ||
         (statusLower.contains('approved') && statusLower.contains('manager'));
 
-    // HR can act on pending/sent AND approved_by_manager requests
-    // Managers/Approvers can only act on pending/sent requests
-    final showActions =
-        isPendingOrSent || (userLevel == 'hr' && isApprovedByManager);
+    // Determine what statuses each user level can act on
+    final isApprovedByHR =
+        statusLower == 'approved_hr' || statusLower == 'approved_by_hr';
+
+    final showActions = userLevel == 'hr'
+        ? (isPendingOrSent ||
+              isApprovedByManager) // HR can act on pending/sent AND approved_by_manager
+        : userLevel == 'approver'
+        ? (isPendingOrSent ||
+              isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+        : isPendingOrSent; // Managers can only act on pending/sent
 
     // Debug: Print status info
     print('  - rawStatus: $rawStatus');
@@ -478,6 +486,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                               (statusLower.contains('approved') &&
                                   statusLower.contains('manager'))
                         ? Colors.blue.withOpacity(0.1)
+                        : statusLower == 'approved_hr' ||
+                              statusLower == 'approved_by_hr' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('hr'))
+                        ? Colors.purple.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -491,6 +504,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                               (statusLower.contains('approved') &&
                                   statusLower.contains('manager'))
                         ? 'Approved by Manager'
+                        : statusLower == 'approved_hr' ||
+                              statusLower == 'approved_by_hr' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('hr'))
+                        ? 'Approved by HR'
                         : 'Pending',
                     style: TextStyle(
                       fontSize: 11,
@@ -504,6 +522,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                                 (statusLower.contains('approved') &&
                                     statusLower.contains('manager'))
                           ? Colors.blue[700]
+                          : statusLower == 'approved_hr' ||
+                                statusLower == 'approved_by_hr' ||
+                                (statusLower.contains('approved') &&
+                                    statusLower.contains('hr'))
+                          ? Colors.purple[700]
                           : Colors.orange[700],
                     ),
                   ),
@@ -1089,12 +1112,24 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       final userLevel = _getUserLevel(auth);
       final statusLower = currentStatus?.toString().toLowerCase() ?? '';
 
-      // Check if user can act on this status
+      // Check if user can act on this status (same logic as action button visibility)
+      final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
+      final isApprovedByManager =
+          statusLower == 'approved_manager' ||
+          statusLower == 'approved_by_manager' ||
+          (statusLower.contains('approved') && statusLower.contains('manager'));
+      final isApprovedByHR =
+          statusLower == 'approved_hr' ||
+          statusLower == 'approved_by_hr' ||
+          (statusLower.contains('approved') && statusLower.contains('hr'));
+
       final canAct = userLevel == 'hr'
-          ? (statusLower == 'pending' ||
-                statusLower == 'approved_manager' ||
-                statusLower == 'approved_by_manager')
-          : (statusLower == 'pending' || statusLower == 'sent');
+          ? (isPendingOrSent ||
+                isApprovedByManager) // HR can act on pending/sent AND approved_by_manager
+          : userLevel == 'approver'
+          ? (isPendingOrSent ||
+                isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+          : isPendingOrSent; // Managers can only act on pending/sent
 
       if (currentStatus != null && !canAct) {
         ScaffoldMessenger.of(context).showSnackBar(

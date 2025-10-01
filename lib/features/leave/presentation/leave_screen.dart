@@ -22,8 +22,17 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
 
     if (currentEmployeeId == null) return false;
 
+    print('🔍 DEBUG: Current Employee ID: $currentEmployeeId');
+    print('🔍 DEBUG: Current Position: $position');
+
     // Check position name for approval privileges
     final positionLower = position.toLowerCase();
+
+    // Debug logging
+    print('🔍 DEBUG: Checking approval permissions:');
+    print('  - Employee ID: $currentEmployeeId');
+    print('  - Position: $position');
+    print('  - Position Lower: $positionLower');
 
     // HR users can approve
     if (positionLower.contains('hr') ||
@@ -39,11 +48,14 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     }
 
     // Approvers can approve
-    if (positionLower.contains('approver')) {
+    if (positionLower.contains('approver') ||
+        positionLower.contains('management')) {
+      print('✅ DEBUG: User has approver permissions (Management position)');
       return true;
     }
 
     // If no position match found, user cannot approve
+    print('❌ DEBUG: User does not have approval permissions');
     return false;
   }
 
