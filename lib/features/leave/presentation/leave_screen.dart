@@ -14,31 +14,37 @@ class LeaveScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveScreenState extends ConsumerState<LeaveScreen> {
-  // Check if the current user has management privileges
-  bool _isManagementUser() {
+  // Check if the current user can approve leave requests (HR, Manager, Approver)
+  bool _canApproveLeave() {
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
+    final position = authService.currentPositionName ?? '';
 
     if (currentEmployeeId == null) return false;
 
-    // Check if this is a known manager employee ID
-    // Based on the API logs, EMP-09072025043 is a Manager
-    final knownManagerIds = [
-      'EMP-09072025043', // Manager from the logs
-      // Add other manager IDs here as needed
-    ];
+    // Check position name for approval privileges
+    final positionLower = position.toLowerCase();
 
-    if (knownManagerIds.contains(currentEmployeeId)) {
+    // HR users can approve
+    if (positionLower.contains('hr') ||
+        positionLower.contains('human resource')) {
       return true;
     }
 
-    // Fallback: Check if employee ID contains management indicators
-    final employeeId = currentEmployeeId.toLowerCase();
-    final managementIndicators = ['manager', 'hr', 'admin', 'mgmt', 'lead'];
+    // Managers can approve
+    if (positionLower.contains('manager') ||
+        positionLower.contains('supervisor') ||
+        positionLower.contains('lead')) {
+      return true;
+    }
 
-    return managementIndicators.any(
-      (indicator) => employeeId.contains(indicator),
-    );
+    // Approvers can approve
+    if (positionLower.contains('approver')) {
+      return true;
+    }
+
+    // If no position match found, user cannot approve
+    return false;
   }
 
   @override
@@ -101,10 +107,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         children: [
           _buildViewLeaveListButton(context),
           const SizedBox(height: 24),
-          if (_isManagementUser()) ...[
-            _buildManagerSection(
-              context,
-            ), // Only show for managers/HR/management
+          if (_canApproveLeave()) ...[
+            _buildManagerSection(context), // Show for HR/Managers/Approvers
             const SizedBox(height: 24),
           ],
           _buildLeaveTypesList(context, leaveVm.balance),

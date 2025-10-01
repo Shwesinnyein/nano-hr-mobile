@@ -3,11 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/notification_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/leave_service.dart';
-import '../../../core/services/employee_service.dart';
-import '../../../core/services/api_service.dart';
 
 class LeaveApprovalScreen extends ConsumerStatefulWidget {
   const LeaveApprovalScreen({super.key});
@@ -18,7 +15,6 @@ class LeaveApprovalScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
-  final NotificationService _notificationService = NotificationService();
   List<NotificationModel> _pending = [];
   List<NotificationModel> _recent = [];
   bool _loading = true;
@@ -110,13 +106,27 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       // Determine user level (manager/hr/approver) based on user role or permissions
       final userLevel = _getUserLevel(auth);
       print('🔍 DEBUG: User level determined as: $userLevel');
+      print('🔍 DEBUG: User position: ${auth.currentPositionName}');
+      print('🔍 DEBUG: User employee ID: $currentEmployeeId');
 
       // Fetch leave requests that need approval based on user level and permissions
       final leaveService = LeaveService();
-      final leaveRequests = await leaveService.getLeaveRequestsForApproval(
-        userLevel,
-        currentEmployeeId,
-      );
+
+      // All users (HR, managers, approvers) should use the approval endpoint
+      // The backend now correctly handles HR requests with approved_manager status
+      List<Map<String, dynamic>> leaveRequests;
+      try {
+        leaveRequests = await leaveService.getLeaveRequestsForApproval(
+          userLevel,
+          currentEmployeeId,
+        );
+        print(
+          '🔍 DEBUG: API returned ${leaveRequests.length} leave requests for $userLevel',
+        );
+      } catch (e) {
+        print('❌ DEBUG: Error getting leave requests: $e');
+        leaveRequests = [];
+      }
 
       print('🔍 DEBUG: Found ${leaveRequests.length} leave requests');
       print('🔍 DEBUG: Current user ID: $currentEmployeeId');
@@ -152,14 +162,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
           '  - isPending: ${leaveRequest['status'] == 'pending' || leaveRequest['status'] == 'sent'}',
         );
 
-        // Filter for pending/sent leave requests only (not from current user)
-        if (leaveRequest['employeeId'] != currentEmployeeId &&
-            (leaveRequest['status'] == 'pending' ||
-                leaveRequest['status'] == 'sent')) {
-          print('✅ DEBUG: Adding to pending requests');
+        // Filter for leave requests that need attention (not from current user)
+        // The backend now handles the status filtering correctly, so we just need to exclude current user's requests
+        if (leaveRequest['employeeId'] != currentEmployeeId) {
+          print(
+            '✅ DEBUG: Adding to pending requests (status: ${leaveRequest['status']}, userLevel: $userLevel)',
+          );
           pendingRequests.add(leaveRequest);
         } else {
-          print('❌ DEBUG: Skipping this request');
+          print(
+            '❌ DEBUG: Skipping this request (same user: ${leaveRequest['employeeId']})',
+          );
         }
       }
 
@@ -351,7 +364,18 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                 'pending')
             .toString();
     final statusLower = rawStatus.toLowerCase();
-    final showActions = statusLower == 'pending' || statusLower == 'sent';
+    // Determine if action buttons should be shown based on user role and status
+    final userLevel = _getUserLevel(ref.read(authServiceProvider));
+    final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
+    final isApprovedByManager =
+        statusLower == 'approved_manager' ||
+        statusLower == 'approved_by_manager' ||
+        (statusLower.contains('approved') && statusLower.contains('manager'));
+
+    // HR can act on pending/sent AND approved_by_manager requests
+    // Managers/Approvers can only act on pending/sent requests
+    final showActions =
+        isPendingOrSent || (userLevel == 'hr' && isApprovedByManager);
 
     // Debug: Print status info
     print('  - rawStatus: $rawStatus');
@@ -449,6 +473,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                         ? Colors.green.withOpacity(0.1)
                         : statusLower == 'rejected'
                         ? Colors.red.withOpacity(0.1)
+                        : statusLower == 'approved_manager' ||
+                              statusLower == 'approved_by_manager' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('manager'))
+                        ? Colors.blue.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -457,6 +486,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                         ? 'Approved'
                         : statusLower == 'rejected'
                         ? 'Rejected'
+                        : statusLower == 'approved_manager' ||
+                              statusLower == 'approved_by_manager' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('manager'))
+                        ? 'Approved by Manager'
                         : 'Pending',
                     style: TextStyle(
                       fontSize: 11,
@@ -465,6 +499,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                           ? Colors.green[700]
                           : statusLower == 'rejected'
                           ? Colors.red[700]
+                          : statusLower == 'approved_manager' ||
+                                statusLower == 'approved_by_manager' ||
+                                (statusLower.contains('approved') &&
+                                    statusLower.contains('manager'))
+                          ? Colors.blue[700]
                           : Colors.orange[700],
                     ),
                   ),
@@ -472,7 +511,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
               ],
             ),
             // Action buttons (moved under the employee details)
-            if (statusLower == 'pending') ...[
+            if (showActions) ...[
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -848,30 +887,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     );
   }
 
-  Future<void> _prefetchDetailsForPending() async {
-    final ids = _pending
-        .map(
-          (n) => n.data['leaveRequestId'] ?? n.data['leaveId'] ?? n.data['id'],
-        )
-        .whereType<String>()
-        .toSet();
-    if (ids.isEmpty) return;
-    final service = LeaveService();
-    for (final id in ids) {
-      if (_leaveDetails.containsKey(id)) continue;
-      final res = await service.getLeaveDetails(id);
-      if (res['success'] == true) {
-        final lr = res['leaveRequest'] ?? res['data'] ?? {};
-        _leaveDetails[id] = {
-          'status': lr['status'] ?? lr['statusName'],
-          'approvedBy': lr['approvedBy'] ?? lr['approvedById'],
-          'approvedByName': lr['approvedByName'] ?? lr['approvedByDisplayName'],
-        };
-        if (mounted) setState(() {});
-      }
-    }
-  }
-
   Widget _buildRecentApprovals() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1063,15 +1078,25 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     }
 
     final service = LeaveService();
-    // Verify current status first
+    // Verify current status first - but allow HR to act on manager-approved requests
     final details = await service.getLeaveDetails(leaveId);
     if (details['success'] == true) {
       final currentStatus =
           details['leaveRequest']?['status'] ??
           details['data']?['status'] ??
           details['status'];
-      if (currentStatus != null &&
-          currentStatus.toString().toLowerCase() != 'pending') {
+
+      final userLevel = _getUserLevel(auth);
+      final statusLower = currentStatus?.toString().toLowerCase() ?? '';
+
+      // Check if user can act on this status
+      final canAct = userLevel == 'hr'
+          ? (statusLower == 'pending' ||
+                statusLower == 'approved_manager' ||
+                statusLower == 'approved_by_manager')
+          : (statusLower == 'pending' || statusLower == 'sent');
+
+      if (currentStatus != null && !canAct) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1086,10 +1111,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     }
     // Prefer the status endpoint; backend also supports approval path
     final status = approve ? 'approved' : 'rejected';
+    final userRole = _getUserLevel(auth);
     final res = await service.updateLeaveStatus(
       leaveId: leaveId,
       status: status,
       approverId: approverId,
+      userRole: userRole,
       note: note,
     );
 
@@ -1106,6 +1133,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         leaveId: leaveId,
         action: approve ? 'approve' : 'reject',
         approverId: approverId,
+        userRole: userRole,
         note: note,
       );
       if (alt['success'] == true) {

@@ -310,13 +310,14 @@ class LeaveService {
     required String leaveId,
     required String status, // 'approved' | 'rejected'
     required String approverId,
+    required String userRole, // 'hr' | 'manager' | 'approver'
     String? note,
   }) async {
     try {
       final payload = {
         'leaveId': leaveId,
         'userId': approverId,
-        'userRole': 'manager', // Assuming manager role for approval
+        'userRole': userRole, // Use the actual user role
         'action': status == 'approved' ? 'approve' : 'reject',
         if (note != null && note.isNotEmpty) 'note': note,
       };
@@ -349,13 +350,14 @@ class LeaveService {
     required String leaveId,
     required String action, // 'approve' | 'reject'
     required String approverId,
+    required String userRole, // 'hr' | 'manager' | 'approver'
     String? note,
   }) async {
     try {
       final payload = {
         'leaveId': leaveId,
         'userId': approverId,
-        'userRole': 'manager', // Assuming manager role for approval
+        'userRole': userRole, // Use the actual user role
         'action': action,
         if (note != null && note.isNotEmpty) 'note': note,
       };
@@ -380,6 +382,49 @@ class LeaveService {
       return {'success': false, 'message': 'Network error: ${e.message}'};
     } catch (e) {
       return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Get all leave requests (for HR users to see manager-approved requests)
+  Future<List<Map<String, dynamic>>> getAllLeaveRequests() async {
+    try {
+      print('🌐 Leave API: Getting all leave requests');
+      print('🌐 Leave API: *** Request ***');
+      print('🌐 Leave API: uri: ${ApiEndpoints.leaveRequests}');
+      print('🌐 Leave API: method: GET');
+
+      final response = await _dio.get(ApiEndpoints.leaveRequests);
+
+      print('🌐 Leave API: *** Response ***');
+      print('🌐 Leave API: statusCode: ${response.statusCode}');
+      print('🌐 Leave API: Response data: ${response.data}');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data['success'] == true) {
+          final requests = data['data'] as List<dynamic>? ?? [];
+          print('✅ Leave API: All leave requests retrieved successfully');
+          return requests.map((e) => Map<String, dynamic>.from(e)).toList();
+        } else {
+          print('❌ Leave API: Invalid response format');
+          return [];
+        }
+      } else {
+        print(
+          '❌ Leave API: Failed to get leave requests - Status: ${response.statusCode}',
+        );
+        return [];
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print('❌ Leave API: DioException - ${e.response!.data}');
+      } else {
+        print('❌ Leave API: Network error - ${e.message}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error - $e');
+      return [];
     }
   }
 }
