@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/leave_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
 
@@ -241,90 +242,156 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   }
 
   Widget _buildLeaveTypesList(BuildContext context, LeaveBalance balance) {
-    final leaveTypes = [
-      LeaveTypeData(
-        type: 'vacation',
-        name: 'ลาพักร้อน (Annual Leave)',
-        icon: Icons.beach_access,
-        totalDays: 6,
-        remainingDays: balance.annualLeave.toDouble(),
-        color: AppTheme.primaryColor,
-      ),
-      LeaveTypeData(
-        type: 'sick',
-        name: 'ลาป่วย(ได้รับค่าจ้าง) (Paid Sick Leave)',
-        icon: Icons.health_and_safety,
-        totalDays: 30,
-        remainingDays: balance.sickLeave.toDouble(),
-        color: AppTheme.errorColor,
-      ),
-      LeaveTypeData(
-        type: 'unpaid',
-        name: 'ลา(โดยไม่ได้รับค่าจ้าง) (Unpaid Leave)',
-        icon: Icons.event_available,
-        totalDays: 30,
-        remainingDays: balance.personalLeave.toDouble(),
-        color: AppTheme.secondaryColor,
-      ),
-      LeaveTypeData(
-        type: 'maternity',
-        name: 'ลาคลอด (Maternity Leave)',
-        icon: Icons.child_care,
-        totalDays: 98,
-        remainingDays: 98.0, // Available days
-        color: const Color(0xFFE91E63), // Pink
-      ),
-      LeaveTypeData(
-        type: 'personal',
-        name: 'ลากิจ(ได้รับค่าจ้าง) (Paid Personal Leave)',
-        icon: Icons.family_restroom,
-        totalDays: 3,
-        remainingDays: 3.0, // Available days
-        color: const Color(0xFF9C27B0), // Purple
-      ),
-      LeaveTypeData(
-        type: 'funeral',
-        name: 'ลา(เพื่อจัดงานฌาปนกิจ) (Funeral Leave)',
-        icon: Icons.emergency,
-        totalDays: 3,
-        remainingDays: 3.0, // Available days
-        color: const Color(0xFFFF5722), // Deep Orange
-      ),
-      LeaveTypeData(
-        type: 'marriage',
-        name: 'ลาสมรส (Marriage Leave)',
-        icon: Icons.favorite,
-        totalDays: 3,
-        remainingDays: 3.0, // 3 days, 0 hours remaining
-        color: const Color(0xFF607D8B), // Blue Grey
-      ),
-      LeaveTypeData(
-        type: 'sterilization',
-        name: 'ลา(เพื่อทำหมัน) (Sterilization Leave)',
-        icon: Icons.medical_services,
-        totalDays: 3,
-        remainingDays: 3.0, // 3 days, 0 hours remaining
-        color: const Color(0xFF795548), // Brown
-      ),
-    ];
+    final authService = ref.read(authServiceProvider);
+    final currentEmployeeId = authService.currentEmployeeId;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Leave Types',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...leaveTypes.map(
-          (leaveType) => _buildLeaveTypeCard(context, leaveType),
-        ),
-      ],
+    if (currentEmployeeId == null) {
+      return const SizedBox(); // Return empty if no user ID
+    }
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: LeaveService().getLeaveSettings(currentEmployeeId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError ||
+            !snapshot.hasData ||
+            snapshot.data!['success'] != true) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Failed to load leave types',
+              style: TextStyle(color: AppTheme.errorColor),
+            ),
+          );
+        }
+
+        final leaveSettings = snapshot.data!['data'] as List<dynamic>? ?? [];
+
+        if (leaveSettings.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'No leave types available',
+              style: TextStyle(color: AppTheme.kOnBackground.withOpacity(0.7)),
+            ),
+          );
+        }
+
+        // Convert API data to LeaveTypeData objects
+        final leaveTypes = leaveSettings.map((setting) {
+          final data = setting as Map<String, dynamic>;
+          final leaveTypeName = data['leaveType'] ?? '';
+          final leaveTypeEng = data['leaveTypeEng'] ?? '';
+          final maxDays = int.tryParse(data['maxDays']?.toString() ?? '0') ?? 0;
+
+          // Map leave type to appropriate icon and color
+          final (icon, color) = _getLeaveTypeIconAndColor(
+            leaveTypeName,
+            leaveTypeEng,
+          );
+
+          // Calculate remaining days based on leave type
+          double remainingDays = _getRemainingDaysForType(
+            leaveTypeName,
+            leaveTypeEng,
+            balance,
+            maxDays,
+          );
+
+          // Use a more reliable type identifier
+          final leaveTypeId = data['id'] ?? data['uid'] ?? '';
+          final typeIdentifier = leaveTypeId.isNotEmpty
+              ? leaveTypeId
+              : leaveTypeEng
+                    .toLowerCase()
+                    .replaceAll(' ', '_')
+                    .replaceAll('(', '')
+                    .replaceAll(')', '');
+
+          return LeaveTypeData(
+            type: typeIdentifier,
+            name: leaveTypeEng.isNotEmpty
+                ? '$leaveTypeName ($leaveTypeEng)'
+                : leaveTypeName,
+            icon: icon,
+            totalDays: maxDays,
+            remainingDays: remainingDays,
+            color: color,
+          );
+        }).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Leave Types',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.kOnBackground,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...leaveTypes.map(
+              (leaveType) => _buildLeaveTypeCard(context, leaveType),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  // Helper method to get icon and color for leave type
+  (IconData, Color) _getLeaveTypeIconAndColor(
+    String thaiName,
+    String englishName,
+  ) {
+    final name = englishName.toLowerCase();
+
+    if (name.contains('annual') || name.contains('vacation')) {
+      return (Icons.beach_access, AppTheme.primaryColor);
+    } else if (name.contains('sick')) {
+      return (Icons.health_and_safety, AppTheme.errorColor);
+    } else if (name.contains('unpaid')) {
+      return (Icons.event_available, AppTheme.secondaryColor);
+    } else if (name.contains('maternity')) {
+      return (Icons.child_care, const Color(0xFFE91E63));
+    } else if (name.contains('personal')) {
+      return (Icons.family_restroom, const Color(0xFF9C27B0));
+    } else if (name.contains('funeral')) {
+      return (Icons.emergency, const Color(0xFFFF5722));
+    } else if (name.contains('marriage')) {
+      return (Icons.favorite, const Color(0xFF607D8B));
+    } else if (name.contains('sterilization')) {
+      return (Icons.medical_services, const Color(0xFF795548));
+    } else {
+      // Default fallback
+      return (Icons.event_note, AppTheme.kNanoGold);
+    }
+  }
+
+  // Helper method to calculate remaining days for each leave type
+  double _getRemainingDaysForType(
+    String thaiName,
+    String englishName,
+    LeaveBalance balance,
+    int maxDays,
+  ) {
+    final name = englishName.toLowerCase();
+
+    if (name.contains('annual') || name.contains('vacation')) {
+      return balance.annualLeave.toDouble();
+    } else if (name.contains('sick')) {
+      return balance.sickLeave.toDouble();
+    } else if (name.contains('unpaid')) {
+      return balance.personalLeave.toDouble();
+    } else {
+      // For other types (maternity, personal, funeral, etc.), show full available days
+      return maxDays.toDouble();
+    }
   }
 
   Widget _buildLeaveTypeCard(BuildContext context, LeaveTypeData leaveType) {
@@ -340,7 +407,12 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: isAvailable
-              ? () => _navigateToLeaveRequest(context, leaveType.type)
+              ? () => _navigateToLeaveRequest(
+                  context,
+                  leaveType.type,
+                  leaveType.name,
+                  leaveType.totalDays,
+                )
               : null,
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -603,8 +675,16 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     );
   }
 
-  void _navigateToLeaveRequest(BuildContext context, String leaveType) {
-    context.push('/leave/request/$leaveType');
+  void _navigateToLeaveRequest(
+    BuildContext context,
+    String leaveTypeId,
+    String leaveTypeName,
+    int maxDays,
+  ) {
+    // Pass leave type ID, name, and max days as query parameters
+    context.push(
+      '/leave/request/$leaveTypeId?name=${Uri.encodeComponent(leaveTypeName)}&maxDays=$maxDays',
+    );
   }
 
   void _navigateToLeaveList(BuildContext context) {

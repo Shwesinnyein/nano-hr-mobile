@@ -11,8 +11,15 @@ import '../data/leave_repository.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
+  final String leaveTypeName;
+  final int maxDays;
 
-  const LeaveRequestScreen({super.key, required this.leaveType});
+  const LeaveRequestScreen({
+    super.key,
+    required this.leaveType,
+    this.leaveTypeName = '',
+    this.maxDays = 0,
+  });
 
   @override
   ConsumerState<LeaveRequestScreen> createState() => _LeaveRequestScreenState();
@@ -45,7 +52,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
         title: Text(
-          '${_capitalizeFirst(widget.leaveType)} Leave Request',
+          widget.leaveTypeName.isNotEmpty
+              ? '${widget.leaveTypeName} Request'
+              : '${_capitalizeFirst(widget.leaveType)} Leave Request',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -580,16 +589,14 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     required VoidCallback onTap,
   }) {
     return GestureDetector(
-      onTap: _attachments.length >= 1 ? null : onTap,
+      onTap: _attachments.isNotEmpty ? null : onTap,
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: _attachments.length >= 1
-              ? Colors.grey[100]
-              : AppTheme.kSurface,
+          color: _attachments.isNotEmpty ? Colors.grey[100] : AppTheme.kSurface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _attachments.length >= 1
+            color: _attachments.isNotEmpty
                 ? Colors.grey.withOpacity(0.3)
                 : AppTheme.kNanoGold.withOpacity(0.3),
             width: 1.5,
@@ -600,7 +607,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           children: [
             Icon(
               icon,
-              color: _attachments.length >= 1
+              color: _attachments.isNotEmpty
                   ? Colors.grey[400]
                   : AppTheme.kNanoGold,
               size: 20,
@@ -611,7 +618,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: _attachments.length >= 1
+                color: _attachments.isNotEmpty
                     ? Colors.grey[400]
                     : AppTheme.kNanoGold,
               ),
@@ -947,10 +954,12 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'firstName': currentEmployeeFirstName ?? '',
         'lastName': currentEmployeeLastName ?? '',
         'positionName': currentPositionName ?? '',
-        'leaveType': _getLeaveTypeId(widget.leaveType), // Map leave type to ID
-        'leaveTypeName': _getLeaveTypeName(
-          widget.leaveType,
-        ), // Add leave type name
+        'leaveType': widget.leaveType, // Use the actual leave type ID from API
+        'leaveTypeName': widget.leaveTypeName.isNotEmpty
+            ? widget.leaveTypeName
+            : _getLeaveTypeName(
+                widget.leaveType,
+              ), // Use provided name or fallback
         'requestType': _durationType, // Use 'daily' or 'hourly'
         'reason': _reason.text.trim(),
         'isHalfDay': false,
@@ -1046,38 +1055,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   String _capitalizeFirst(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);
-  }
-
-  String _getLeaveTypeId(String type) {
-    // Map leave types to their actual IDs from the leave settings API
-    switch (type.toLowerCase()) {
-      case 'vacation':
-      case 'annual':
-        return 'c1cdc61e-80ba-4142-9845-2b1561d1bb98'; // Sick Leave (using as general leave)
-      case 'sick':
-        return 'c1cdc61e-80ba-4142-9845-2b1561d1bb98'; // Sick Leave
-      case 'personal':
-      case 'casual':
-        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
-      case 'maternity':
-        return 'f568f575-32c9-406e-883b-59cd991fb1d3'; // Maternity leave
-      case 'paternity':
-        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
-      case 'emergency':
-        return '95d7cfc5-ed62-4d69-b53f-b91fa9b941f7'; // Leave (without pay)
-      case 'study':
-        return '95d7cfc5-ed62-4d69-b53f-b91fa9b941f7'; // Leave (without pay)
-      case 'compensatory':
-        return '90a98a14-4664-42cf-be47-437111dbd186'; // Leave of absence (paid)
-      case 'funeral':
-        return 'a2680d55-4964-47b8-9585-c3b1795ceafa'; // Leave (for funeral arrangements)
-      case 'marriage':
-        return 'acd2e4a5-d52d-4ff5-8490-aa59c2bfc5f0'; // Marriage leave
-      case 'sterilization':
-        return '43d27e1a-267b-41af-95eb-f438fdaf29cb'; // Leave (for sterilization)
-      default:
-        return '90a98a14-4664-42cf-be47-437111dbd186'; // Default to Leave of absence (paid)
-    }
   }
 
   String _getLeaveTypeName(String type) {

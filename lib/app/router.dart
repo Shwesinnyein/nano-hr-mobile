@@ -57,7 +57,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/leave/request/:leaveType',
         builder: (context, state) {
           final leaveType = state.pathParameters['leaveType'] ?? 'annual';
-          return LeaveRequestScreen(leaveType: leaveType);
+          final leaveTypeName = state.uri.queryParameters['name'] ?? '';
+          final maxDaysStr = state.uri.queryParameters['maxDays'] ?? '0';
+          final maxDays = int.tryParse(maxDaysStr) ?? 0;
+          return LeaveRequestScreen(
+            leaveType: leaveType,
+            leaveTypeName: leaveTypeName,
+            maxDays: maxDays,
+          );
         },
       ),
       GoRoute(path: '/leave/list', builder: (_, __) => const LeaveListScreen()),
