@@ -954,7 +954,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       print('🔍 Leave Request: Position: ${currentPositionName}');
       print('🔍 Leave Request: Workflow: ${approvalWorkflow['workflow']}');
       print('🔍 Leave Request: Current Approver: ${approvalWorkflow['currentApprover']}');
-      
+
       // Prepare request data according to API specification
       final requestData = {
         'employeeId': currentEmployeeId,
@@ -1068,48 +1068,31 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   Map<String, String> _getApprovalWorkflow(String positionName) {
     final position = positionName.toLowerCase();
     
-    // Positions that go directly to HR (skip manager approval)
-    final directToHRPositions = [
-      'manager',
-      'management', 
-      'supervisor',
-      'lead',
-      'director',
-      'ceo',
-      'cto',
-      'cfo',
-      'vp',
-      'vice president',
-      'head',
-      'chief',
-    ];
-    
-    // Positions that should be excluded from direct HR routing
-    final excludedPositions = [
+    // Positions that should go through normal flow (Manager -> HR -> Approver)
+    final normalFlowPositions = [
       'programmer',
-      'developer',
+      'developer', 
       'software engineer',
       'salesman',
       'sales',
     ];
     
-    // Check if position should go directly to HR
-    bool shouldGoToHR = directToHRPositions.any((pos) => position.contains(pos));
-    bool isExcluded = excludedPositions.any((pos) => position.contains(pos));
+    // Check if position should use normal flow
+    bool useNormalFlow = normalFlowPositions.any((pos) => position.contains(pos));
     
-    if (shouldGoToHR && !isExcluded) {
-      // Direct to HR workflow
-      return {
-        'level': 'hr',
-        'currentApprover': 'hr',
-        'workflow': 'employee -> hr -> approver',
-      };
-    } else {
-      // Standard workflow (employee -> manager -> hr -> approver)
+    if (useNormalFlow) {
+      // Normal workflow (employee -> manager -> hr -> approver)
       return {
         'level': 'employee',
         'currentApprover': 'manager',
         'workflow': 'employee -> manager -> hr -> approver',
+      };
+    } else {
+      // Direct to HR workflow (skip manager for all other positions)
+      return {
+        'level': 'hr',
+        'currentApprover': 'hr',
+        'workflow': 'employee -> hr -> approver',
       };
     }
   }
