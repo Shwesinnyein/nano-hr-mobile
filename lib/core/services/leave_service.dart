@@ -4,11 +4,16 @@ import '../api/api_endpoints.dart';
 
 class LeaveService {
   final Dio _dio = Dio();
+  
+  // Simple cache for leave settings
+  static Map<String, Map<String, dynamic>> _leaveSettingsCache = {};
+  static DateTime? _cacheTimestamp;
 
   LeaveService() {
     _dio.options.baseUrl = ApiEndpoints.baseUrl;
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.connectTimeout = const Duration(seconds: 10);
+    _dio.options.receiveTimeout = const Duration(seconds: 15);
+    _dio.options.sendTimeout = const Duration(seconds: 10);
 
     // Add interceptors
     _dio.interceptors.add(
@@ -41,18 +46,36 @@ class LeaveService {
     }
   }
 
-  // Get leave settings for employee
+  // Get leave settings for employee with caching
   Future<Map<String, dynamic>> getLeaveSettings(String employeeId) async {
     try {
+      // Check cache first (valid for 5 minutes)
+      final now = DateTime.now();
+      if (_cacheTimestamp != null && 
+          now.difference(_cacheTimestamp!).inMinutes < 5 &&
+          _leaveSettingsCache.containsKey(employeeId)) {
+        print('🚀 Leave API: Using cached settings for employee: $employeeId');
+        return _leaveSettingsCache[employeeId]!;
+      }
+
+      final stopwatch = Stopwatch()..start();
       print('🌐 Leave API: Getting leave settings for employee: $employeeId');
 
       final response = await _dio.get(
         ApiEndpoints.leaveSettings,
         queryParameters: {'employeeId': employeeId},
       );
+      
+      stopwatch.stop();
+      print('⏱️ Leave API: Settings request took ${stopwatch.elapsedMilliseconds}ms');
 
       if (response.statusCode == 200) {
         print('✅ Leave API: Settings retrieved successfully');
+        
+        // Cache the response
+        _leaveSettingsCache[employeeId] = response.data;
+        _cacheTimestamp = now;
+        
         return response.data;
       } else {
         print(
