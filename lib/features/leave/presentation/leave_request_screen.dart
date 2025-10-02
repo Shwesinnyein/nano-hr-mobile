@@ -1079,6 +1079,15 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
+    // Special case: Manager requests go directly to HR
+    if (position.contains('manager') || position.contains('supervisor') || position.contains('lead')) {
+      return {
+        'level': 'hr',
+        'currentApprover': 'hr',
+        'workflow': 'manager -> hr -> approver',
+      };
+    }
+
     // Special case: Approver requests are self-approved
     if (position.contains('approver') || position.contains('management')) {
       return {
