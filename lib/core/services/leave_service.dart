@@ -4,10 +4,21 @@ import '../api/api_endpoints.dart';
 
 class LeaveService {
   final Dio _dio = Dio();
-  
+
   // Simple cache for leave settings
   static Map<String, Map<String, dynamic>> _leaveSettingsCache = {};
   static DateTime? _cacheTimestamp;
+
+  // Cache for leave approval requests (more aggressive caching for slow endpoints)
+  static Map<String, Map<String, dynamic>> _leaveApprovalCache = {};
+  static DateTime? _approvalCacheTimestamp;
+
+  // Method to clear cache (call after approving/rejecting leave requests)
+  static void clearApprovalCache() {
+    _leaveApprovalCache.clear();
+    _approvalCacheTimestamp = null;
+    print('🗑️ Leave API: Approval cache cleared');
+  }
 
   LeaveService() {
     _dio.options.baseUrl = ApiEndpoints.baseUrl;
@@ -51,7 +62,7 @@ class LeaveService {
     try {
       // Check cache first (valid for 5 minutes)
       final now = DateTime.now();
-      if (_cacheTimestamp != null && 
+      if (_cacheTimestamp != null &&
           now.difference(_cacheTimestamp!).inMinutes < 5 &&
           _leaveSettingsCache.containsKey(employeeId)) {
         print('🚀 Leave API: Using cached settings for employee: $employeeId');
@@ -65,17 +76,19 @@ class LeaveService {
         ApiEndpoints.leaveSettings,
         queryParameters: {'employeeId': employeeId},
       );
-      
+
       stopwatch.stop();
-      print('⏱️ Leave API: Settings request took ${stopwatch.elapsedMilliseconds}ms');
+      print(
+        '⏱️ Leave API: Settings request took ${stopwatch.elapsedMilliseconds}ms',
+      );
 
       if (response.statusCode == 200) {
         print('✅ Leave API: Settings retrieved successfully');
-        
+
         // Cache the response
         _leaveSettingsCache[employeeId] = response.data;
         _cacheTimestamp = now;
-        
+
         return response.data;
       } else {
         print(
@@ -152,6 +165,21 @@ class LeaveService {
     String userId,
   ) async {
     try {
+      // Check cache first (valid for 2 minutes for approval requests)
+      final cacheKey = '${level}_$userId';
+      final now = DateTime.now();
+      if (_approvalCacheTimestamp != null &&
+          now.difference(_approvalCacheTimestamp!).inMinutes < 2 &&
+          _leaveApprovalCache.containsKey(cacheKey)) {
+        print(
+          '🚀 Leave API: Using cached approval requests for $level: $userId',
+        );
+        return List<Map<String, dynamic>>.from(
+          _leaveApprovalCache[cacheKey]!['data'] ?? [],
+        );
+      }
+
+      final stopwatch = Stopwatch()..start();
       print(
         '🌐 Leave API: Getting leave requests for approval by $level: $userId',
       );
@@ -160,11 +188,20 @@ class LeaveService {
         ApiEndpoints.getLeaveRequestsForApproval(level, userId),
       );
 
+      stopwatch.stop();
+      print(
+        '⏱️ Leave API: Approval request took ${stopwatch.elapsedMilliseconds}ms',
+      );
+
       if (response.statusCode == 200) {
         print('✅ Leave API: All leave requests retrieved successfully');
         final data = response.data;
 
         if (data['success'] == true && data['data'] is List) {
+          // Cache the successful response
+          _leaveApprovalCache[cacheKey] = data;
+          _approvalCacheTimestamp = now;
+
           return List<Map<String, dynamic>>.from(data['data']);
         } else {
           print('⚠️ Leave API: No leave records found or invalid data format');
@@ -351,6 +388,8 @@ class LeaveService {
       );
 
       if (response.statusCode == 200) {
+        // Clear cache after successful approval/rejection
+        clearApprovalCache();
         return response.data;
       } else {
         return {
@@ -391,6 +430,8 @@ class LeaveService {
       );
 
       if (response.statusCode == 200) {
+        // Clear cache after successful approval/rejection
+        clearApprovalCache();
         return response.data;
       } else {
         return {
