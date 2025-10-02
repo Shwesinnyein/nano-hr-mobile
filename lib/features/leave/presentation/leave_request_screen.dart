@@ -147,7 +147,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _capitalizeFirst(widget.leaveType),
+                  widget.leaveTypeName.isNotEmpty
+                      ? widget.leaveTypeName
+                      : _capitalizeFirst(widget.leaveType),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -1031,7 +1033,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${_capitalizeFirst(widget.leaveType)} leave request submitted successfully!',
+              '${widget.leaveTypeName.isNotEmpty ? widget.leaveTypeName : _capitalizeFirst(widget.leaveType)} leave request submitted successfully!',
             ),
             backgroundColor: AppTheme.successColor,
           ),
