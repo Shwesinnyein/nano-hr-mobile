@@ -1080,7 +1080,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
 
     // Special case: Manager requests go directly to HR
-    if (position.contains('manager') || position.contains('supervisor') || position.contains('lead')) {
+    if (position.contains('manager') ||
+        position.contains('supervisor') ||
+        position.contains('lead')) {
       return {
         'level': 'hr',
         'currentApprover': 'hr',
