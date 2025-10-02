@@ -1079,6 +1079,15 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
+    // Special case: Approver requests are self-approved
+    if (position.contains('approver') || position.contains('management')) {
+      return {
+        'level': 'approved',
+        'currentApprover': 'self',
+        'workflow': 'self-approved',
+      };
+    }
+
     // Positions that should go through normal flow (Manager -> HR -> Approver)
     final normalFlowPositions = [
       'programmer',
