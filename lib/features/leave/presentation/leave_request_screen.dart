@@ -953,7 +953,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       final approvalWorkflow = _getApprovalWorkflow(currentPositionName ?? '');
       print('🔍 Leave Request: Position: ${currentPositionName}');
       print('🔍 Leave Request: Workflow: ${approvalWorkflow['workflow']}');
-      print('🔍 Leave Request: Current Approver: ${approvalWorkflow['currentApprover']}');
+      print(
+        '🔍 Leave Request: Current Approver: ${approvalWorkflow['currentApprover']}',
+      );
 
       // Prepare request data according to API specification
       final requestData = {
@@ -1067,19 +1069,30 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   // Determine approval workflow based on employee position
   Map<String, String> _getApprovalWorkflow(String positionName) {
     final position = positionName.toLowerCase();
-    
+
+    // Special case: HR requests go directly to approver
+    if (position.contains('hr') || position.contains('human resource')) {
+      return {
+        'level': 'approver',
+        'currentApprover': 'approver',
+        'workflow': 'hr -> approver',
+      };
+    }
+
     // Positions that should go through normal flow (Manager -> HR -> Approver)
     final normalFlowPositions = [
       'programmer',
-      'developer', 
+      'developer',
       'software engineer',
       'salesman',
       'sales',
     ];
-    
+
     // Check if position should use normal flow
-    bool useNormalFlow = normalFlowPositions.any((pos) => position.contains(pos));
-    
+    bool useNormalFlow = normalFlowPositions.any(
+      (pos) => position.contains(pos),
+    );
+
     if (useNormalFlow) {
       // Normal workflow (employee -> manager -> hr -> approver)
       return {
