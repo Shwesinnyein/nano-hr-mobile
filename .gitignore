@@ -140,4 +140,5 @@ vite.config.ts.timestamp-*
 build/
 
 # Flutter/Dart build artifacts
-.dart_tool/flutter_build/
+.dart_tool/
+build/
