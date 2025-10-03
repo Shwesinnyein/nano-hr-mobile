@@ -9,8 +9,9 @@ class ApiService {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+        sendTimeout: const Duration(seconds: 8),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -18,17 +19,39 @@ class ApiService {
       ),
     );
 
-    // Add minimal logging interceptor
+    // Add performance and error logging interceptor
     _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: false,
-        responseBody: false,
-        logPrint: (obj) {
-          // Only log errors and important info
-          if (obj.toString().contains('Error') ||
-              obj.toString().contains('Exception')) {
-            print('🌐 API: $obj');
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          options.extra['startTime'] = DateTime.now().millisecondsSinceEpoch;
+          print('🚀 API Request: ${options.method} ${options.path}');
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          final startTime = response.requestOptions.extra['startTime'] as int?;
+          if (startTime != null) {
+            final duration = DateTime.now().millisecondsSinceEpoch - startTime;
+            if (duration > 2000) {
+              print(
+                '⚠️ SLOW API: ${response.requestOptions.path} took ${duration}ms',
+              );
+            } else {
+              print(
+                '✅ API: ${response.requestOptions.path} took ${duration}ms',
+              );
+            }
           }
+          handler.next(response);
+        },
+        onError: (error, handler) {
+          final startTime = error.requestOptions.extra['startTime'] as int?;
+          if (startTime != null) {
+            final duration = DateTime.now().millisecondsSinceEpoch - startTime;
+            print(
+              '❌ API Error: ${error.requestOptions.path} failed after ${duration}ms',
+            );
+          }
+          handler.next(error);
         },
       ),
     );
