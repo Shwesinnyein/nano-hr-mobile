@@ -378,7 +378,17 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         color: AppTheme.kSurface,
         borderRadius: BorderRadius.circular(16),
         elevation: 2,
-        child: Container(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: isAvailable
+              ? () => _navigateToLeaveRequest(
+                  context,
+                  leaveTypeBalance.leaveTypeId,
+                  leaveTypeBalance.leaveTypeName,
+                  leaveTypeBalance.totalAllocated,
+                )
+              : null,
+          child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
@@ -506,6 +516,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                   ),
                 ),
             ],
+          ),
           ),
         ),
       ),
