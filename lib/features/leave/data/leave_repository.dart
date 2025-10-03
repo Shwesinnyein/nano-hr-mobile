@@ -12,7 +12,8 @@ class LeaveRepository {
       final response = await _leaveService.getLeaveBalance(employeeId);
 
       if (response['success'] == true) {
-        return LeaveBalance.fromJson(response['data']);
+        // The API response has the data directly in the response, not under 'data' key
+        return LeaveBalance.fromJson(response);
       } else {
         throw Exception(response['message'] ?? 'Failed to get leave balance');
       }
