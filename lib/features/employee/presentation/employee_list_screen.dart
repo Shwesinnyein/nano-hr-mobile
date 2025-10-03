@@ -17,39 +17,66 @@ class EmployeeListScreen extends ConsumerStatefulWidget {
 
 class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   List<Employee> _employees = [];
   List<Employee> _filteredEmployees = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  int _currentPage = 1;
+  int _totalCount = 0;
+  bool _hasMoreData = true;
   Timer? _searchTimer;
 
   @override
   void initState() {
     super.initState();
     _loadEmployees();
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     _searchTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadEmployees() async {
+  void _onScroll() {
+    if (_scrollController.position.pixels >= 
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMoreEmployees();
+    }
+  }
+
+  Future<void> _loadEmployees({bool isRefresh = false}) async {
     try {
       setState(() {
         _isLoading = true;
+        if (isRefresh) {
+          _currentPage = 1;
+          _employees.clear();
+          _filteredEmployees.clear();
+        }
       });
 
       final employeeRepository = ref.read(employeeRepositoryProvider);
       final employees = await employeeRepository.getEmployees(
-        limit: 100, // Load more employees
+        page: _currentPage,
+        limit: 20, // Load 20 employees per page
       );
 
       setState(() {
-        _employees = employees;
-        _filteredEmployees = employees;
+        if (isRefresh) {
+          _employees = employees;
+          _filteredEmployees = employees;
+        } else {
+          _employees.addAll(employees);
+          _filteredEmployees.addAll(employees);
+        }
         _isLoading = false;
+        _hasMoreData = employees.length == 20; // If we got 20, there might be more
+        _currentPage++;
       });
     } catch (e) {
       setState(() {
@@ -68,6 +95,34 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadMoreEmployees() async {
+    if (_isLoadingMore || !_hasMoreData || _isLoading) return;
+
+    try {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      final employeeRepository = ref.read(employeeRepositoryProvider);
+      final employees = await employeeRepository.getEmployees(
+        page: _currentPage,
+        limit: 20,
+      );
+
+      setState(() {
+        _employees.addAll(employees);
+        _filteredEmployees.addAll(employees);
+        _isLoadingMore = false;
+        _hasMoreData = employees.length == 20;
+        _currentPage++;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingMore = false;
+      });
     }
   }
 
@@ -106,7 +161,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   }
 
   Future<void> _refresh() async {
-    await _loadEmployees();
+    await _loadEmployees(isRefresh: true);
   }
 
   @override
@@ -189,6 +244,15 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             ),
           ),
           const Spacer(),
+          if (_hasMoreData && !_isLoading && _searchController.text.isEmpty)
+            Text(
+              'Scroll for more',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.kNanoGold,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           if (_searchController.text.isNotEmpty)
             TextButton(
               onPressed: () {
@@ -269,15 +333,30 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: _filteredEmployees.length,
+        itemCount: _filteredEmployees.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == _filteredEmployees.length) {
+            return _buildLoadingIndicator();
+          }
           final employee = _filteredEmployees[index];
           return AnimatedFadeIn(
             delay: Duration(milliseconds: index * 50),
             child: _buildEmployeeCard(employee),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+        ),
       ),
     );
   }

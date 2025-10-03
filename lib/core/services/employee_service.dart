@@ -61,19 +61,40 @@ class EmployeeService {
         if (data is List && data.isNotEmpty) {
           return data.cast<Map<String, dynamic>>();
         } else {
-          // API returns empty list - use mock data as fallback
+          // API returns empty list - use mock data as fallback for demo
           print('📋 Employee API returned empty list, using mock data');
-          return MockDataService.mockEmployeeList;
+          // Simulate pagination for mock data
+          final startIndex = (page - 1) * limit;
+          final endIndex = startIndex + limit;
+          final paginatedMockData = MockDataService.mockEmployeeList
+              .skip(startIndex)
+              .take(limit)
+              .toList();
+          return paginatedMockData;
         }
       } else {
-        // API error - use mock data as fallback
+        // API error - use mock data as fallback for demo
         print('📋 Employee API error, using mock data: ${response['message']}');
-        return MockDataService.mockEmployeeList;
+        // Simulate pagination for mock data
+        final startIndex = (page - 1) * limit;
+        final endIndex = startIndex + limit;
+        final paginatedMockData = MockDataService.mockEmployeeList
+            .skip(startIndex)
+            .take(limit)
+            .toList();
+        return paginatedMockData;
       }
     } catch (e) {
-      // Exception - use mock data as fallback
+      // Exception - use mock data as fallback for demo
       print('📋 Employee API exception, using mock data: $e');
-      return MockDataService.mockEmployeeList;
+      // Simulate pagination for mock data
+      final startIndex = (page - 1) * limit;
+      final endIndex = startIndex + limit;
+      final paginatedMockData = MockDataService.mockEmployeeList
+          .skip(startIndex)
+          .take(limit)
+          .toList();
+      return paginatedMockData;
     }
   }
 
