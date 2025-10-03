@@ -83,25 +83,32 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             child: _buildLeaveContent(context, leaveVm),
           ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: AppTheme.errorColor),
-              const SizedBox(height: 16),
-              Text(
-                'Error loading leave data',
-                style: TextStyle(fontSize: 18, color: AppTheme.kOnBackground),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error.toString(),
-                style: const TextStyle(color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.errorColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error loading leave data',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: AppTheme.kOnBackground,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    error.toString(),
+                    style: const TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
@@ -254,42 +261,42 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     final currentEmployeeId = authService.currentEmployeeId;
 
     if (currentEmployeeId == null) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            child: Text(
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
           'User not logged in',
-              style: TextStyle(color: AppTheme.errorColor),
-            ),
-          );
-        }
+          style: TextStyle(color: AppTheme.errorColor),
+        ),
+      );
+    }
 
     if (balance.balances.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            child: Text(
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
           'Failed to load leave balance',
           style: TextStyle(color: AppTheme.errorColor),
-            ),
-          );
-        }
+        ),
+      );
+    }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Leave Types',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.kOnBackground,
-              ),
-            ),
-            const SizedBox(height: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Leave Types',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.kOnBackground,
+          ),
+        ),
+        const SizedBox(height: 16),
         ...balance.balances.map(
           (leaveTypeBalance) => _buildLeaveTypeCard(context, leaveTypeBalance),
-            ),
-          ],
-        );
+        ),
+      ],
+    );
   }
 
   // Helper method to get color for leave type

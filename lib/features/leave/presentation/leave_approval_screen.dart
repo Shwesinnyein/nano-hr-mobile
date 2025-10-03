@@ -1151,7 +1151,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
             ? 'Leave request approved successfully!'
             : 'Leave request rejected.',
       );
-      
+
       // Clear leave data cache to ensure fresh data
       final auth = ref.read(authServiceProvider);
       final currentEmployeeId = auth.currentEmployeeId;
@@ -1161,7 +1161,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         // Refresh the leave controller data
         ref.refresh(leaveControllerProvider(currentEmployeeId));
       }
-      
+
       await _loadPending();
     } else {
       // Fallback: try the alternate endpoint once

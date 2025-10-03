@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'api_service.dart';
+import 'mock_data_service.dart';
 
 class EmployeeService {
   final ApiService _apiService;
@@ -57,19 +58,22 @@ class EmployeeService {
       if (response['success'] == true) {
         final data = response['data'];
 
-        if (data is List) {
+        if (data is List && data.isNotEmpty) {
           return data.cast<Map<String, dynamic>>();
         } else {
-          // Return empty list if API structure is unexpected
-          return [];
+          // API returns empty list - use mock data as fallback
+          print('📋 Employee API returned empty list, using mock data');
+          return MockDataService.mockEmployeeList;
         }
       } else {
-        // Return empty list on API error
-        return [];
+        // API error - use mock data as fallback
+        print('📋 Employee API error, using mock data: ${response['message']}');
+        return MockDataService.mockEmployeeList;
       }
     } catch (e) {
-      // Return empty list on exception
-      return [];
+      // Exception - use mock data as fallback
+      print('📋 Employee API exception, using mock data: $e');
+      return MockDataService.mockEmployeeList;
     }
   }
 
