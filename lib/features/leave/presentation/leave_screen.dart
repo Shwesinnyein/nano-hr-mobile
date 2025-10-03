@@ -5,6 +5,7 @@ import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
+import '../utils/leave_translations.dart';
 
 class LeaveScreen extends ConsumerStatefulWidget {
   const LeaveScreen({super.key});
@@ -60,8 +61,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Leave Management',
+        title: Text(
+          LeaveTranslations.leaveManagement(ref),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -73,7 +74,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          final userId = currentEmployeeId!;
+          final userId = currentEmployeeId;
           // Clear cache and refresh data
           LeaveController.clearCache(userId);
           ref.refresh(leaveControllerProvider(userId));
@@ -97,7 +98,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Error loading leave data',
+                    LeaveTranslations.errorLoadingLeaveData(ref),
                     style: TextStyle(
                       fontSize: 18,
                       color: AppTheme.kOnBackground,
@@ -112,11 +113,11 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      final userId = currentEmployeeId!;
+                      final userId = currentEmployeeId;
                       LeaveController.clearCache(userId);
                       ref.refresh(leaveControllerProvider(userId));
                     },
-                    child: const Text('Retry'),
+                    child: Text(LeaveTranslations.retry(ref)),
                   ),
                 ],
               ),
@@ -154,7 +155,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         onPressed: () => _navigateToLeaveList(context),
         icon: Icon(Icons.list_alt, color: AppTheme.kNanoWhite),
         label: Text(
-          'View Leave List',
+          LeaveTranslations.viewLeaveList(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -215,7 +216,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Team Leave Management',
+                      LeaveTranslations.teamLeaveManagement(ref),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -223,7 +224,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                       ),
                     ),
                     Text(
-                      'Approve and manage your team\'s leave requests',
+                      LeaveTranslations.approveAndManageTeam(ref),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnBackground.withOpacity(0.7),
@@ -240,7 +241,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
             child: ElevatedButton.icon(
               onPressed: () => context.push('/leave/approval'),
               icon: const Icon(Icons.approval),
-              label: const Text('Team Leave Approvals'),
+              label: Text(LeaveTranslations.teamLeaveApprovals(ref)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.kNanoGold,
                 foregroundColor: Colors.white,
@@ -264,7 +265,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         child: Text(
-          'User not logged in',
+          LeaveTranslations.userNotLoggedIn(ref),
           style: TextStyle(color: AppTheme.errorColor),
         ),
       );
@@ -274,7 +275,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         child: Text(
-          'Failed to load leave balance',
+          LeaveTranslations.failedToLoadLeaveBalance(ref),
           style: TextStyle(color: AppTheme.errorColor),
         ),
       );
@@ -284,7 +285,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Leave Types',
+          LeaveTranslations.leaveTypes(ref),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -349,56 +350,6 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     }
   }
 
-  // Helper method to get icon and color for leave type (legacy)
-  (IconData, Color) _getLeaveTypeIconAndColor(
-    String thaiName,
-    String englishName,
-  ) {
-    final name = englishName.toLowerCase();
-
-    if (name.contains('annual') || name.contains('vacation')) {
-      return (Icons.beach_access, AppTheme.primaryColor);
-    } else if (name.contains('sick')) {
-      return (Icons.health_and_safety, AppTheme.errorColor);
-    } else if (name.contains('unpaid')) {
-      return (Icons.event_available, AppTheme.secondaryColor);
-    } else if (name.contains('maternity')) {
-      return (Icons.child_care, const Color(0xFFE91E63));
-    } else if (name.contains('personal')) {
-      return (Icons.family_restroom, const Color(0xFF9C27B0));
-    } else if (name.contains('funeral')) {
-      return (Icons.emergency, const Color(0xFFFF5722));
-    } else if (name.contains('marriage')) {
-      return (Icons.favorite, const Color(0xFF607D8B));
-    } else if (name.contains('sterilization')) {
-      return (Icons.medical_services, const Color(0xFF795548));
-    } else {
-      // Default fallback
-      return (Icons.event_note, AppTheme.kNanoGold);
-    }
-  }
-
-  // Helper method to calculate remaining days for each leave type
-  double _getRemainingDaysForType(
-    String thaiName,
-    String englishName,
-    LeaveBalance balance,
-    int maxDays,
-  ) {
-    final name = englishName.toLowerCase();
-
-    if (name.contains('annual') || name.contains('vacation')) {
-      return balance.annualLeave.toDouble();
-    } else if (name.contains('sick')) {
-      return balance.sickLeave.toDouble();
-    } else if (name.contains('unpaid')) {
-      return balance.personalLeave.toDouble();
-    } else {
-      // For other types (maternity, personal, funeral, etc.), show full available days
-      return maxDays.toDouble();
-    }
-  }
-
   Widget _buildLeaveTypeCard(
     BuildContext context,
     LeaveTypeBalance leaveTypeBalance,
@@ -457,7 +408,10 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        leaveTypeBalance.leaveTypeName,
+                        LeaveTranslations.translateLeaveTypeName(
+                          ref,
+                          leaveTypeBalance.leaveTypeName,
+                        ),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -470,7 +424,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                       Row(
                         children: [
                           Text(
-                            '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} days',
+                            '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} ${LeaveTranslations.days(ref)}',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -489,7 +443,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '${leaveTypeBalance.percentageUsed}% used',
+                                '${leaveTypeBalance.percentageUsed}% ${LeaveTranslations.used(ref)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.kNanoGold,
@@ -535,7 +489,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Available',
+                      LeaveTranslations.available(ref),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -554,7 +508,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Used Up',
+                      LeaveTranslations.usedUp(ref),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -570,146 +524,12 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     );
   }
 
-  Widget _buildLeaveTypeCardOld(BuildContext context, LeaveTypeData leaveType) {
-    final progress = leaveType.remainingDays / leaveType.totalDays;
-    final isAvailable = leaveType.remainingDays > 0;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: AppTheme.kSurface,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 2,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: isAvailable
-              ? () => _navigateToLeaveRequest(
-                  context,
-                  leaveType.type,
-                  leaveType.name,
-                  leaveType.totalDays,
-                )
-              : null,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isAvailable
-                    ? leaveType.color.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: leaveType.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    leaveType.icon,
-                    color: isAvailable ? leaveType.color : Colors.grey,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        leaveType.name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isAvailable
-                              ? AppTheme.kOnSurface
-                              : Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '${leaveType.remainingDays.toStringAsFixed(0)} / ${leaveType.totalDays} days',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isAvailable
-                                  ? AppTheme.kOnSurface.withOpacity(0.7)
-                                  : Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: LinearProgressIndicator(
-                              value: progress,
-                              backgroundColor: Colors.grey.withOpacity(0.2),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                isAvailable ? leaveType.color : Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                _buildStatusButton(leaveType, isAvailable),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusButton(LeaveTypeData leaveType, bool isAvailable) {
-    if (!isAvailable) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          'Exhausted',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: leaveType.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: leaveType.color.withOpacity(0.3), width: 1),
-      ),
-      child: Text(
-        'Available',
-        style: TextStyle(
-          fontSize: 12,
-          color: leaveType.color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildRecentRequests(List<LeaveRequest> requests) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recent Requests',
+          LeaveTranslations.recentRequests(ref),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -734,7 +554,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'No leave requests yet',
+                  LeaveTranslations.noLeaveRequests(ref),
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey.withOpacity(0.7),
@@ -838,7 +658,10 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              request.status.toUpperCase(),
+              LeaveTranslations.translateStatus(
+                ref,
+                request.status,
+              ).toUpperCase(),
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,

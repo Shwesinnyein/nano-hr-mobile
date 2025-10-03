@@ -43,7 +43,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMoreEmployees();
     }
@@ -75,7 +75,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           _filteredEmployees.addAll(employees);
         }
         _isLoading = false;
-        _hasMoreData = employees.length == 20; // If we got 20, there might be more
+        _hasMoreData =
+            employees.length == 20; // If we got 20, there might be more
         _currentPage++;
       });
     } catch (e) {
