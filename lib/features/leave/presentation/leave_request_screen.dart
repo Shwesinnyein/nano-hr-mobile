@@ -1099,6 +1099,15 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
+    // Special case: Programmer requests go to Team Lead first
+    if (position.contains('programmer')) {
+      return {
+        'level': 'team_lead',
+        'currentApprover': 'team_lead',
+        'workflow': 'programmer -> team_lead -> hr -> approver',
+      };
+    }
+
     // Positions that should go through normal flow (Manager -> HR -> Approver)
     final normalFlowPositions = [
       'programmer',

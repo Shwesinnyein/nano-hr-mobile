@@ -44,6 +44,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       return 'approver';
     }
 
+    // Check if user is Team Lead (positionName contains "Team Lead")
+    if (position.toLowerCase().contains('team lead')) {
+      return 'team-lead';
+    }
+
     // Default to manager (most common case)
     return 'manager';
   }
@@ -110,6 +115,18 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       print('🔍 DEBUG: User position: ${auth.currentPositionName}');
       print('🔍 DEBUG: User employee ID: $currentEmployeeId');
 
+      // Special debug for Team Lead users
+      if (userLevel == 'team-lead') {
+        print('🔍 DEBUG: *** TEAM LEAD DETECTED ***');
+        print(
+          '🔍 DEBUG: Position contains "Team Lead": ${auth.currentPositionName?.toLowerCase().contains('team lead')}',
+        );
+        print('🔍 DEBUG: Should see pending requests from regular Programmers');
+      }
+      print(
+        '🔍 DEBUG: Checking if EMP-24062025031 is current user: ${currentEmployeeId == 'EMP-24062025031'}',
+      );
+
       // Fetch leave requests that need approval based on user level and permissions
       final leaveService = LeaveService();
 
@@ -117,6 +134,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       // The backend now correctly handles HR requests with approved_manager status
       List<Map<String, dynamic>> leaveRequests;
       try {
+        print(
+          '🔍 DEBUG: Making API call: getLeaveRequestsForApproval($userLevel, $currentEmployeeId)',
+        );
+        print(
+          '🔍 DEBUG: API endpoint will be: /leave/approval/pending?level=$userLevel&userId=$currentEmployeeId',
+        );
+
         leaveRequests = await leaveService.getLeaveRequestsForApproval(
           userLevel,
           currentEmployeeId,
@@ -124,6 +148,21 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         print(
           '🔍 DEBUG: API returned ${leaveRequests.length} leave requests for $userLevel',
         );
+
+        // Debug: Show what requests were returned
+        if (leaveRequests.isEmpty) {
+          print('🔍 DEBUG: No leave requests returned - possible issues:');
+          print('🔍 DEBUG: 1. Backend doesn\'t support level=$userLevel');
+          print('🔍 DEBUG: 2. No pending requests for this level');
+          print('🔍 DEBUG: 3. User filtering issue');
+        } else {
+          for (int i = 0; i < leaveRequests.length; i++) {
+            final req = leaveRequests[i];
+            print(
+              '🔍 DEBUG: Request $i: ${req['employeeName']} (${req['positionName']}) - Status: ${req['status']}',
+            );
+          }
+        }
       } catch (e) {
         print('❌ DEBUG: Error getting leave requests: $e');
         leaveRequests = [];
@@ -373,22 +412,35 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         statusLower == 'approved_by_manager' ||
         (statusLower.contains('approved') && statusLower.contains('manager'));
 
+    final isApprovedByTeamLead =
+        statusLower == 'approved_team_lead' ||
+        statusLower == 'approved_by_team_lead' ||
+        (statusLower.contains('approved') && statusLower.contains('team_lead'));
+
     // Determine what statuses each user level can act on
     final isApprovedByHR =
         statusLower == 'approved_hr' || statusLower == 'approved_by_hr';
 
     final showActions = userLevel == 'hr'
         ? (isPendingOrSent ||
-              isApprovedByManager) // HR can act on pending/sent AND approved_by_manager
+              isApprovedByManager ||
+              isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
         : userLevel == 'approver'
         ? (isPendingOrSent ||
               isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+        : userLevel == 'team-lead'
+        ? isPendingOrSent // Team Leads can act on pending/sent requests
         : isPendingOrSent; // Managers can only act on pending/sent
 
     // Debug: Print status info
     print('  - rawStatus: $rawStatus');
     print('  - statusLower: $statusLower');
+    print('  - userLevel: $userLevel');
+    print('  - isPendingOrSent: $isPendingOrSent');
     print('  - showActions: $showActions');
+    print(
+      '  - Button visibility check: userLevel=$userLevel, statusLower=$statusLower, showActions=$showActions',
+    );
 
     return GestureDetector(
       onTap: () => _showLeaveDetails(notification),
@@ -491,6 +543,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                               (statusLower.contains('approved') &&
                                   statusLower.contains('hr'))
                         ? Colors.purple.withOpacity(0.1)
+                        : statusLower == 'approved_team_lead' ||
+                              statusLower == 'approved_by_team_lead' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('team_lead'))
+                        ? Colors.teal.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -509,6 +566,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                               (statusLower.contains('approved') &&
                                   statusLower.contains('hr'))
                         ? 'Approved by HR'
+                        : statusLower == 'approved_team_lead' ||
+                              statusLower == 'approved_by_team_lead' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('team_lead'))
+                        ? 'Approved by Team Lead'
                         : 'Pending',
                     style: TextStyle(
                       fontSize: 11,
@@ -527,6 +589,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                                 (statusLower.contains('approved') &&
                                     statusLower.contains('hr'))
                           ? Colors.purple[700]
+                          : statusLower == 'approved_team_lead' ||
+                                statusLower == 'approved_by_team_lead' ||
+                                (statusLower.contains('approved') &&
+                                    statusLower.contains('team_lead'))
+                          ? Colors.teal[700]
                           : Colors.orange[700],
                     ),
                   ),
@@ -535,6 +602,19 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
             ),
             // Action buttons (moved under the employee details)
             if (showActions) ...[
+              // Debug print to console
+              Container(
+                height: 0,
+                width: 0,
+                child: Builder(
+                  builder: (context) {
+                    print('🔍 DEBUG: RENDERING BUTTONS for ${employeeName}');
+                    return SizedBox.shrink();
+                  },
+                ),
+              ),
+              // Debug: Buttons should be visible
+              // This is a debug print that won't show in UI
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1118,6 +1198,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
           statusLower == 'approved_manager' ||
           statusLower == 'approved_by_manager' ||
           (statusLower.contains('approved') && statusLower.contains('manager'));
+      final isApprovedByTeamLead =
+          statusLower == 'approved_team_lead' ||
+          statusLower == 'approved_by_team_lead' ||
+          (statusLower.contains('approved') &&
+              statusLower.contains('team_lead'));
       final isApprovedByHR =
           statusLower == 'approved_hr' ||
           statusLower == 'approved_by_hr' ||
@@ -1125,7 +1210,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
 
       final canAct = userLevel == 'hr'
           ? (isPendingOrSent ||
-                isApprovedByManager) // HR can act on pending/sent AND approved_by_manager
+                isApprovedByManager ||
+                isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
           : userLevel == 'approver'
           ? (isPendingOrSent ||
                 isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr

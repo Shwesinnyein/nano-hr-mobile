@@ -142,7 +142,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       final coarseTimeBucket =
           n.createdAt.millisecondsSinceEpoch ~/ 60000; // 1-minute bucket
       final key =
-          '${n.type}:${leaveId}:${n.title}:${n.message}:$coarseTimeBucket';
+          '${n.type}:$leaveId:${n.title}:${n.message}:$coarseTimeBucket';
       // Keep the first occurrence (usually the earlier one), or replace with the latest if needed
       if (!uniqueByKey.containsKey(key)) {
         uniqueByKey[key] = n;
@@ -258,14 +258,12 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         if (mounted) {
           context.push('/leave/approval');
         }
-        break;
       case 'leave_approved':
       case 'leave_rejected':
         // Navigate to leave list to see the status (for employees)
         if (mounted) {
           context.push('/leave/list');
         }
-        break;
       default:
         // For other notification types, just mark as read
         break;

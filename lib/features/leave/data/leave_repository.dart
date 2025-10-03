@@ -48,22 +48,17 @@ class LeaveRepository {
       print('📝 Leave Repository: Received response: $response');
 
       // Check if response is a Map
-      if (response is Map<String, dynamic>) {
-        if (response['success'] == true) {
-          final leaveRequest = LeaveRequest.fromJson(response['leaveRequest']);
-          print('✅ Leave Repository: Request submitted successfully');
-          return leaveRequest;
-        } else {
-          final errorMessage =
-              response['message'] ?? 'Failed to submit leave request';
-          print('❌ Leave Repository: API error: $errorMessage');
-          throw Exception(errorMessage);
-        }
+      if (response['success'] == true) {
+        final leaveRequest = LeaveRequest.fromJson(response['leaveRequest']);
+        print('✅ Leave Repository: Request submitted successfully');
+        return leaveRequest;
       } else {
-        print('❌ Leave Repository: API endpoint not available');
-        throw Exception('Leave request API endpoint not available');
+        final errorMessage =
+            response['message'] ?? 'Failed to submit leave request';
+        print('❌ Leave Repository: API error: $errorMessage');
+        throw Exception(errorMessage);
       }
-    } catch (e) {
+        } catch (e) {
       print('❌ Leave Repository: Exception: ${e.toString()}');
       throw Exception('Failed to submit leave request: ${e.toString()}');
     }

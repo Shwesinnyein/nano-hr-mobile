@@ -130,8 +130,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         apiService.getTodayAttendanceStatus(employeeId: employeeId),
       ]);
 
-      final profileResponse = results[0] as Map<String, dynamic>;
-      final statusResponse = results[1] as Map<String, dynamic>;
+      final profileResponse = results[0];
+      final statusResponse = results[1];
 
       if (mounted) {
         setState(() {
@@ -1162,23 +1162,23 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 const SizedBox(height: 8),
 
                 // Check In time
-                if (entry.checkInAt != null) ...[
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.login,
-                        color: AppTheme.kNanoGold,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Check In: ${_formatTimeOnly(entry.checkInAt)}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.login,
+                      color: AppTheme.kNanoGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Check In: ${_formatTimeOnly(entry.checkInAt)}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
 
                 // Check Out time
                 if (entry.checkOutAt != null) ...[

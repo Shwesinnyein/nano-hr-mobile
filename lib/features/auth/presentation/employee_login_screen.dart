@@ -209,6 +209,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -235,140 +236,126 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
               ),
               // Main content
               Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight:
-                            MediaQuery.of(context).size.height -
-                            MediaQuery.of(context).padding.top -
-                            MediaQuery.of(context).padding.bottom,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 40),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 10),
 
-                            // Modern Logo Section
-                            _buildModernLogo(),
+                      // Modern Logo Section
+                      _buildModernLogo(),
 
-                            const SizedBox(height: 30),
+                      const SizedBox(height: 20),
 
-                            // Modern Card Container
-                            Container(
-                              width: double.infinity,
-                              constraints: BoxConstraints(maxWidth: 400),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(30),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 15),
-                                  ),
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(32.0),
-                                child: Column(
-                                  children: [
-                                    // Modern Mode Indicator
-                                    _buildModernModeIndicator(),
-
-                                    const SizedBox(height: 30),
-
-                                    // Modern Form Fields
-                                    _buildModernTextField(
-                                      controller: _email,
-                                      label: _t(
-                                        ref,
-                                        'อีเมลพนักงาน',
-                                        'Employee Email',
-                                      ),
-                                      icon: Icons.email_outlined,
-                                      keyboardType: TextInputType.emailAddress,
-                                    ),
-
-                                    const SizedBox(height: 16),
-
-                                    _buildModernTextField(
-                                      controller: _password,
-                                      label: _t(ref, 'รหัสผ่าน', 'Password'),
-                                      icon: Icons.lock_outline,
-                                      obscureText: _obscurePassword,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscurePassword
-                                              ? Icons.visibility_off_rounded
-                                              : Icons.visibility_rounded,
-                                          color: Colors.grey[600],
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _obscurePassword =
-                                                !_obscurePassword;
-                                          });
-                                        },
-                                      ),
-                                    ),
-
-                                    // Confirm Password field (only show in registration mode)
-                                    if (_showRegistration) ...[
-                                      const SizedBox(height: 16),
-                                      _buildModernTextField(
-                                        controller: _confirmPassword,
-                                        label: _t(
-                                          ref,
-                                          'ยืนยันรหัสผ่าน',
-                                          'Confirm Password',
-                                        ),
-                                        icon: Icons.lock_outline,
-                                        obscureText: _obscureConfirmPassword,
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            _obscureConfirmPassword
-                                                ? Icons.visibility_off_rounded
-                                                : Icons.visibility_rounded,
-                                            color: Colors.grey[600],
-                                          ),
-                                          onPressed: () {
-                                            setState(() {
-                                              _obscureConfirmPassword =
-                                                  !_obscureConfirmPassword;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ],
-
-                                    const SizedBox(height: 24),
-
-                                    // Modern 3D Button
-                                    _buildModern3DButton(),
-
-                                    const SizedBox(height: 24),
-
-                                    // Modern Toggle Button
-                                    _buildModernToggleButton(),
-                                  ],
-                                ),
-                              ),
+                      // Modern Card Container
+                      Container(
+                        width: double.infinity,
+                        constraints: BoxConstraints(maxWidth: 400),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
                             ),
-
-                            const SizedBox(height: 30),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 5),
+                            ),
                           ],
                         ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              // Modern Mode Indicator
+                              _buildModernModeIndicator(),
+
+                              const SizedBox(height: 20),
+
+                              // Modern Form Fields
+                              _buildModernTextField(
+                                controller: _email,
+                                label: _t(
+                                  ref,
+                                  'อีเมลพนักงาน',
+                                  'Employee Email',
+                                ),
+                                icon: Icons.email_outlined,
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              _buildModernTextField(
+                                controller: _password,
+                                label: _t(ref, 'รหัสผ่าน', 'Password'),
+                                icon: Icons.lock_outline,
+                                obscureText: _obscurePassword,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_rounded
+                                        : Icons.visibility_rounded,
+                                    color: Colors.grey[600],
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
+                              ),
+
+                              // Confirm Password field (only show in registration mode)
+                              if (_showRegistration) ...[
+                                const SizedBox(height: 16),
+                                _buildModernTextField(
+                                  controller: _confirmPassword,
+                                  label: _t(
+                                    ref,
+                                    'ยืนยันรหัสผ่าน',
+                                    'Confirm Password',
+                                  ),
+                                  icon: Icons.lock_outline,
+                                  obscureText: _obscureConfirmPassword,
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirmPassword
+                                          ? Icons.visibility_off_rounded
+                                          : Icons.visibility_rounded,
+                                      color: Colors.grey[600],
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _obscureConfirmPassword =
+                                            !_obscureConfirmPassword;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+
+                              const SizedBox(height: 24),
+
+                              // Modern 3D Button
+                              _buildModern3DButton(),
+
+                              const SizedBox(height: 24),
+
+                              // Modern Toggle Button
+                              _buildModernToggleButton(),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+
+                      const SizedBox(height: 30),
+                    ],
                   ),
                 ),
               ),
