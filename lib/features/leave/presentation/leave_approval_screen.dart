@@ -5,6 +5,7 @@ import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/leave_service.dart';
+import '../data/leave_repository.dart';
 
 class LeaveApprovalScreen extends ConsumerStatefulWidget {
   const LeaveApprovalScreen({super.key});
@@ -1150,6 +1151,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
             ? 'Leave request approved successfully!'
             : 'Leave request rejected.',
       );
+      
+      // Clear leave data cache to ensure fresh data
+      final auth = ref.read(authServiceProvider);
+      final currentEmployeeId = auth.currentEmployeeId;
+      if (currentEmployeeId != null) {
+        // Clear cache for all employees since approval affects balance
+        LeaveController.clearAllCache();
+        // Refresh the leave controller data
+        ref.refresh(leaveControllerProvider(currentEmployeeId));
+      }
+      
       await _loadPending();
     } else {
       // Fallback: try the alternate endpoint once

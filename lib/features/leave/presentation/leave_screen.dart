@@ -71,10 +71,22 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: leaveAsync.when(
-        data: (leaveVm) => _buildLeaveContent(context, leaveVm),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          final userId = currentEmployeeId!;
+          // Clear cache and refresh data
+          LeaveController.clearCache(userId);
+          ref.refresh(leaveControllerProvider(userId));
+        },
+        child: leaveAsync.when(
+          data: (leaveVm) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: _buildLeaveContent(context, leaveVm),
+          ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
+          error: (error, stack) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -90,7 +102,18 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                 style: const TextStyle(color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
-            ],
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      final userId = currentEmployeeId!;
+                      LeaveController.clearCache(userId);
+                      ref.refresh(leaveControllerProvider(userId));
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -98,7 +121,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   }
 
   Widget _buildLeaveContent(BuildContext context, LeaveVm leaveVm) {
-    return SingleChildScrollView(
+    return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,42 +254,42 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     final currentEmployeeId = authService.currentEmployeeId;
 
     if (currentEmployeeId == null) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Text(
           'User not logged in',
-          style: TextStyle(color: AppTheme.errorColor),
-        ),
-      );
-    }
+              style: TextStyle(color: AppTheme.errorColor),
+            ),
+          );
+        }
 
     if (balance.balances.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Text(
           'Failed to load leave balance',
           style: TextStyle(color: AppTheme.errorColor),
-        ),
-      );
-    }
+            ),
+          );
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Leave Types',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 16),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Leave Types',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.kOnBackground,
+              ),
+            ),
+            const SizedBox(height: 16),
         ...balance.balances.map(
           (leaveTypeBalance) => _buildLeaveTypeCard(context, leaveTypeBalance),
-        ),
-      ],
-    );
+            ),
+          ],
+        );
   }
 
   // Helper method to get color for leave type
@@ -369,9 +392,13 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     }
   }
 
-  Widget _buildLeaveTypeCard(BuildContext context, LeaveTypeBalance leaveTypeBalance) {
-    final isAvailable = leaveTypeBalance.remaining > 0 && leaveTypeBalance.isActive;
-    
+  Widget _buildLeaveTypeCard(
+    BuildContext context,
+    LeaveTypeBalance leaveTypeBalance,
+  ) {
+    final isAvailable =
+        leaveTypeBalance.remaining > 0 && leaveTypeBalance.isActive;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -389,134 +416,147 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                 )
               : null,
           child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isAvailable
-                  ? AppTheme.kNanoGold.withOpacity(0.3)
-                  : Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _getLeaveTypeColor(leaveTypeBalance.leaveTypeName).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getLeaveTypeIcon(leaveTypeBalance.leaveTypeName),
-                  color: isAvailable 
-                      ? _getLeaveTypeColor(leaveTypeBalance.leaveTypeName) 
-                      : Colors.grey,
-                  size: 24,
-                ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isAvailable
+                    ? AppTheme.kNanoGold.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
+                width: 1,
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _getLeaveTypeColor(
                       leaveTypeBalance.leaveTypeName,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: isAvailable
-                            ? AppTheme.kOnSurface
-                            : Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} days',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.kOnSurface.withOpacity(0.8),
-                          ),
+                    ).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _getLeaveTypeIcon(leaveTypeBalance.leaveTypeName),
+                    color: isAvailable
+                        ? _getLeaveTypeColor(leaveTypeBalance.leaveTypeName)
+                        : Colors.grey,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        leaveTypeBalance.leaveTypeName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isAvailable
+                              ? AppTheme.kOnSurface
+                              : Colors.grey,
                         ),
-                        const SizedBox(width: 8),
-                        if (leaveTypeBalance.percentageUsed > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.kNanoGold.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} days',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppTheme.kOnSurface.withOpacity(0.8),
                             ),
-                            child: Text(
-                              '${leaveTypeBalance.percentageUsed}% used',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.kNanoGold,
-                                fontWeight: FontWeight.w500,
+                          ),
+                          const SizedBox(width: 8),
+                          if (leaveTypeBalance.percentageUsed > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.kNanoGold.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '${leaveTypeBalance.percentageUsed}% used',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.kNanoGold,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Progress bar
+                      Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(2),
+                          color: Colors.grey.withOpacity(0.2),
+                        ),
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: leaveTypeBalance.percentageUsed / 100,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color: _getLeaveTypeColor(
+                                leaveTypeBalance.leaveTypeName,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Progress bar
-                    Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(2),
-                        color: Colors.grey.withOpacity(0.2),
-                      ),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: leaveTypeBalance.percentageUsed / 100,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(2),
-                            color: _getLeaveTypeColor(leaveTypeBalance.leaveTypeName),
-                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (isAvailable)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.kNanoGold.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Available',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.kNanoGold,
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Used Up',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey,
-                    ),
+                    ],
                   ),
                 ),
-            ],
-          ),
+                const SizedBox(width: 12),
+                if (isAvailable)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.kNanoGold.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Available',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.kNanoGold,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Used Up',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

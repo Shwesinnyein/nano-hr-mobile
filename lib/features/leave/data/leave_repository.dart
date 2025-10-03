@@ -138,6 +138,21 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
     _leaveDataCache.remove(employeeId);
     _cacheTimestamps.remove(employeeId);
   }
+
+  // Method to clear all cache (call when any leave data changes)
+  static void clearAllCache() {
+    _leaveDataCache.clear();
+    _cacheTimestamps.clear();
+  }
+
+  // Method to force refresh data (bypass cache)
+  Future<void> forceRefresh() async {
+    // Clear cache for this employee
+    _leaveDataCache.remove(_employeeId);
+    _cacheTimestamps.remove(_employeeId);
+    // Reload data
+    await load();
+  }
 }
 
 // Provider for LeaveController
