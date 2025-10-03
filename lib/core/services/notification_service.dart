@@ -139,20 +139,8 @@ class NotificationService {
     required String notificationId,
   }) async {
     try {
-      print('🔔 Notification API: Marking notification as read');
-      print(
-        '🔔 Notification API: Employee ID: $employeeId, Notification ID: $notificationId',
-      );
-
       final response = await _dio.put(
         '${ApiEndpoints.baseUrl}${ApiEndpoints.markNotificationRead}/$employeeId/read/$notificationId',
-      );
-
-      print(
-        '🔔 Notification API: Mark as read response status: ${response.statusCode}',
-      );
-      print(
-        '🔔 Notification API: Mark as read response data: ${response.data}',
       );
 
       if (response.statusCode == 200) {
@@ -165,17 +153,8 @@ class NotificationService {
         };
       }
     } on DioException catch (e) {
-      print('🔔 Notification API: Mark as read DioException - ${e.message}');
       if (e.response != null) {
-        print(
-          '🔔 Notification API: Mark as read error response: ${e.response!.data}',
-        );
-
-        // Handle 404 - notification endpoints might not exist yet
         if (e.response!.statusCode == 404) {
-          print(
-            '🔔 Notification API: Mark as read endpoint not found (404) - returning success',
-          );
           return {
             'success': true,
             'message':
@@ -188,7 +167,6 @@ class NotificationService {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      print('🔔 Notification API: Mark as read unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -239,7 +217,6 @@ class NotificationService {
         'failCount': failCount,
       };
     } catch (e) {
-      print('🔔 Notification API: Mark all as read error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }

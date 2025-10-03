@@ -111,21 +111,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     try {
       // Determine user level (manager/hr/approver) based on user role or permissions
       final userLevel = _getUserLevel(auth);
-      print('🔍 DEBUG: User level determined as: $userLevel');
-      print('🔍 DEBUG: User position: ${auth.currentPositionName}');
-      print('🔍 DEBUG: User employee ID: $currentEmployeeId');
 
-      // Special debug for Team Lead users
-      if (userLevel == 'team-lead') {
-        print('🔍 DEBUG: *** TEAM LEAD DETECTED ***');
-        print(
-          '🔍 DEBUG: Position contains "Team Lead": ${auth.currentPositionName?.toLowerCase().contains('team lead')}',
-        );
-        print('🔍 DEBUG: Should see pending requests from regular Programmers');
-      }
-      print(
-        '🔍 DEBUG: Checking if EMP-24062025031 is current user: ${currentEmployeeId == 'EMP-24062025031'}',
-      );
+      if (userLevel == 'team-lead') {}
 
       // Fetch leave requests that need approval based on user level and permissions
       final leaveService = LeaveService();
@@ -134,80 +121,31 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
       // The backend now correctly handles HR requests with approved_manager status
       List<Map<String, dynamic>> leaveRequests;
       try {
-        print(
-          '🔍 DEBUG: Making API call: getLeaveRequestsForApproval($userLevel, $currentEmployeeId)',
-        );
-        print(
-          '🔍 DEBUG: API endpoint will be: /leave/approval/pending?level=$userLevel&userId=$currentEmployeeId',
-        );
-
         leaveRequests = await leaveService.getLeaveRequestsForApproval(
           userLevel,
           currentEmployeeId,
         );
-        print(
-          '🔍 DEBUG: API returned ${leaveRequests.length} leave requests for $userLevel',
-        );
 
-        // Debug: Show what requests were returned
         if (leaveRequests.isEmpty) {
-          print('🔍 DEBUG: No leave requests returned - possible issues:');
-          print('🔍 DEBUG: 1. Backend doesn\'t support level=$userLevel');
-          print('🔍 DEBUG: 2. No pending requests for this level');
           print('🔍 DEBUG: 3. User filtering issue');
         } else {
           for (int i = 0; i < leaveRequests.length; i++) {
             final req = leaveRequests[i];
-            print(
-              '🔍 DEBUG: Request $i: ${req['employeeName']} (${req['positionName']}) - Status: ${req['status']}',
-            );
           }
         }
       } catch (e) {
-        print('❌ DEBUG: Error getting leave requests: $e');
         leaveRequests = [];
       }
 
-      print('🔍 DEBUG: Found ${leaveRequests.length} leave requests');
-      print('🔍 DEBUG: Current user ID: $currentEmployeeId');
-
-      // Debug: Print all leave requests
       for (int i = 0; i < leaveRequests.length; i++) {
         final request = leaveRequests[i];
-        print('🔍 DEBUG: Leave request $i:');
-        print('  - ID: ${request['id']}');
-        print('  - Employee ID: ${request['employeeId']}');
-        print('  - Employee Name: ${request['employeeName']}');
-        print('  - Status: ${request['status']}');
-        print('  - Leave Type: ${request['leaveTypeName']}');
-        print('  - Company: ${request['company']} / ${request['companyName']}');
-        print(
-          '  - Location: ${request['location']} / ${request['locationName']}',
-        );
-        print('  - Branch: ${request['branch']} / ${request['branchName']}');
       }
 
       // Filter pending leave requests directly
       final List<Map<String, dynamic>> pendingRequests = [];
 
       for (final leaveRequest in leaveRequests) {
-        print('🔍 DEBUG: Checking leave request ${leaveRequest['id']}:');
-        print('  - employeeId: ${leaveRequest['employeeId']}');
-        print('  - currentEmployeeId: $currentEmployeeId');
-        print('  - status: ${leaveRequest['status']}');
-        print(
-          '  - isDifferentEmployee: ${leaveRequest['employeeId'] != currentEmployeeId}',
-        );
-        print(
-          '  - isPending: ${leaveRequest['status'] == 'pending' || leaveRequest['status'] == 'sent'}',
-        );
-
-        // Filter for leave requests that need attention (not from current user)
-        // The backend now handles the status filtering correctly, so we just need to exclude current user's requests
         if (leaveRequest['employeeId'] != currentEmployeeId) {
-          print(
-            '✅ DEBUG: Adding to pending requests (status: ${leaveRequest['status']}, userLevel: $userLevel)',
-          );
           pendingRequests.add(leaveRequest);
         } else {
           print(
@@ -215,10 +153,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
           );
         }
       }
-
-      print(
-        '🔍 DEBUG: Final pending requests count: ${pendingRequests.length}',
-      );
 
       setState(() {
         _pending = pendingRequests
@@ -243,10 +177,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         _recent = [];
         _loading = false;
       });
-
-      print('🔍 DEBUG: Loaded ${_pending.length} pending approvals');
     } catch (e) {
-      print('❌ DEBUG: Error loading leave requests: $e');
       setState(() {
         _loading = false;
         _error = 'Error loading approvals: $e';
@@ -381,16 +312,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         notification.senderId ??
         '';
 
-    // Debug: Print notification data to see what's available
-    print('🔍 DEBUG: Building card for notification:');
-    print('  - notification.data: ${notification.data}');
-    print('  - rawTitle: $rawTitle');
-    print('  - leaveType (cleaned): $leaveType');
-    print('  - employeeName: $employeeName');
-    print('  - positionName: $positionName');
-    print('  - employeeId: $employeeId');
-
-    // Prefer live detail status if available
     final leaveId =
         notification.data['leaveRequestId'] ??
         notification.data['leaveId'] ??
@@ -431,16 +352,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         : userLevel == 'team-lead'
         ? isPendingOrSent // Team Leads can act on pending/sent requests
         : isPendingOrSent; // Managers can only act on pending/sent
-
-    // Debug: Print status info
-    print('  - rawStatus: $rawStatus');
-    print('  - statusLower: $statusLower');
-    print('  - userLevel: $userLevel');
-    print('  - isPendingOrSent: $isPendingOrSent');
-    print('  - showActions: $showActions');
-    print(
-      '  - Button visibility check: userLevel=$userLevel, statusLower=$statusLower, showActions=$showActions',
-    );
 
     return GestureDetector(
       onTap: () => _showLeaveDetails(notification),
@@ -608,7 +519,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
                 width: 0,
                 child: Builder(
                   builder: (context) {
-                    print('🔍 DEBUG: RENDERING BUTTONS for ${employeeName}');
                     return SizedBox.shrink();
                   },
                 ),
@@ -680,10 +590,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
         notification.data['leaveRequestId'] ??
         notification.data['leaveId'] ??
         notification.data['id'];
-    print('🔍 DEBUG: Tap detected, leaveId = $leaveId');
-    print('🔍 DEBUG: notification.data = ${notification.data}');
+
     if (leaveId == null) {
-      print('❌ DEBUG: No leaveId found, cannot show details');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('No leave ID found')));
@@ -695,17 +603,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     if (details == null) {
       final service = LeaveService();
       final res = await service.getLeaveDetails(leaveId);
-      print('🔍 DEBUG: Leave details API response: $res');
+
       if (res['success'] == true) {
         final lr = res['leaveRequest'] ?? res['data'] ?? {};
-        print('🔍 DEBUG: Leave request data: $lr');
-        print('🔍 DEBUG: Available fields in response:');
+
         lr.forEach((key, value) {
           print('  - $key: $value');
         });
-        // Use notification data which already has complete employee information
-        print('🔍 DEBUG: Using notification data for employee info');
-        print('🔍 DEBUG: notification.data: ${notification.data}');
 
         details = {
           'leaveTypeName':
@@ -749,7 +653,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
               }
               return <String>[];
             } catch (e) {
-              print('❌ DEBUG: Attachment parsing error: $e');
               return <String>[];
             }
           })(),

@@ -42,24 +42,19 @@ class LeaveRepository {
 
   Future<LeaveRequest> submitRequest(Map<String, dynamic> requestData) async {
     try {
-      print('📝 Leave Repository: Submitting request with data: $requestData');
-
       final response = await _leaveService.createLeaveRequest(requestData);
-      print('📝 Leave Repository: Received response: $response');
 
-      // Check if response is a Map
       if (response['success'] == true) {
         final leaveRequest = LeaveRequest.fromJson(response['leaveRequest']);
-        print('✅ Leave Repository: Request submitted successfully');
+
         return leaveRequest;
       } else {
         final errorMessage =
             response['message'] ?? 'Failed to submit leave request';
-        print('❌ Leave Repository: API error: $errorMessage');
+
         throw Exception(errorMessage);
       }
     } catch (e) {
-      print('❌ Leave Repository: Exception: ${e.toString()}');
       throw Exception('Failed to submit leave request: ${e.toString()}');
     }
   }
@@ -98,15 +93,10 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
       if (_cacheTimestamps.containsKey(_employeeId) &&
           now.difference(_cacheTimestamps[_employeeId]!).inMinutes < 2 &&
           _leaveDataCache.containsKey(_employeeId)) {
-        print(
-          '🚀 Leave Controller: Using cached data for employee: $_employeeId',
-        );
         state = AsyncValue.data(_leaveDataCache[_employeeId]!);
         return;
       }
 
-      // Make API calls in parallel instead of sequential
-      print('🚀 Leave Controller: Starting parallel API calls...');
       final stopwatch = Stopwatch()..start();
 
       final results = await Future.wait([
@@ -115,9 +105,6 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
       ]);
 
       stopwatch.stop();
-      print(
-        '⏱️ Leave Controller: All API calls completed in ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       final balance = results[0] as LeaveBalance;
       final requests = results[1] as List<LeaveRequest>;
@@ -129,7 +116,6 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
 
       state = AsyncValue.data(leaveVm);
     } catch (e) {
-      print('❌ Leave Controller: Error loading data - $e');
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
@@ -150,7 +136,6 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
   static void clearCache(String employeeId) {
     _leaveDataCache.remove(employeeId);
     _cacheTimestamps.remove(employeeId);
-    print('🗑️ Leave Controller: Cache cleared for employee: $employeeId');
   }
 }
 

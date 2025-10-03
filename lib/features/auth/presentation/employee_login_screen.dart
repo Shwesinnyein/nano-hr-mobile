@@ -64,10 +64,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       // Check if email exists in employee system
       final emailCheckResult = await authService.checkEmailExists(email);
 
-      // Debug: Print the response to see what we're getting
-      print('🔍 Email check result: $emailCheckResult');
-
-      // If API call failed, show error
       if (emailCheckResult['success'] == false) {
         _showErrorSnackBar('Failed to verify email. Please try again.');
         return;

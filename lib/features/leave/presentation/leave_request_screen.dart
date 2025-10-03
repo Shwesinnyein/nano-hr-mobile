@@ -812,22 +812,17 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   void _pickImage(ImageSource source) async {
     try {
-      print(
-        '📸 Picking image from: ${source == ImageSource.camera ? 'camera' : 'gallery'}',
-      );
       final ImagePicker picker = ImagePicker();
       final XFile? pickedFile = await picker.pickImage(source: source);
-      print('📸 Picked file: ${pickedFile?.path}');
 
       if (pickedFile != null) {
         final File file = File(pickedFile.path);
-        print('📸 File exists: ${file.existsSync()}');
+
         await _addAttachment(file);
       } else {
         print('📸 No file selected');
       }
     } catch (e) {
-      print('📸 Error picking image: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
@@ -859,9 +854,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       setState(() {
         _attachments.add(attachment);
       });
-
-      print('✅ Added attachment: ${attachment.fileName}');
-      print('📊 Total attachments: ${_attachments.length}');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -951,13 +943,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
       // Determine approval workflow based on position
       final approvalWorkflow = _getApprovalWorkflow(currentPositionName ?? '');
-      print('🔍 Leave Request: Position: ${currentPositionName}');
-      print('🔍 Leave Request: Workflow: ${approvalWorkflow['workflow']}');
-      print(
-        '🔍 Leave Request: Current Approver: ${approvalWorkflow['currentApprover']}',
-      );
 
-      // Prepare request data according to API specification
       final requestData = {
         'employeeId': currentEmployeeId,
         'employeeName': currentEmployeeName ?? 'Unknown Employee',
@@ -1007,11 +993,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           .map((attachment) => File(attachment.localPath))
           .toList();
 
-      print('🔍 Submit: Checking attachments...');
-      print('🔍 Submit: _attachments.length = ${_attachments.length}');
-      print('🔍 Submit: attachmentFiles.length = ${attachmentFiles.length}');
-
-      // Submit leave request with attachments using multipart form data
       final leaveService = LeaveService();
       final response = await leaveService.createLeaveRequestWithAttachments(
         requestData,
@@ -1019,13 +1000,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
 
       if (response['success'] == true) {
-        print('✅ Leave request with attachments submitted successfully');
-
-        // Print photo URLs if available
         if (response['leaveRequest']?['attachment'] != null) {
           final attachment = response['leaveRequest']['attachment'];
           if (attachment['files'] != null) {
-            print('📸 Uploaded photo URLs:');
             for (var file in attachment['files']) {
               print('  - ${file['publicUrl']}');
             }

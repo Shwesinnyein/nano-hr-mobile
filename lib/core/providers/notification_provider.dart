@@ -41,11 +41,9 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
   Future<void> _loadUnreadCount() async {
     final employeeId = _authService.currentEmployeeId;
     if (employeeId == null) {
-      print('🔔 Badge: No employee ID, skipping notification count load');
       return;
     }
 
-    print('🔔 Badge: Loading unread count for employee: $employeeId');
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -56,60 +54,40 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         limit: 100, // Get up to 100 notifications
       );
 
-      print('🔔 Badge: API response: $response');
-      print('🔔 Badge: API response type: ${response.runtimeType}');
-      print('🔔 Badge: API response keys: ${response.keys.toList()}');
-
       if (response['success'] == true) {
         final data = response['data'];
-        print('🔔 Badge: Data type: ${data.runtimeType}');
-        print('🔔 Badge: Data: $data');
 
         if (data is List<dynamic>) {
           // Count only unread notifications after filtering
           final unreadCount = data.where((notification) {
-            print('🔔 Badge: Processing notification: $notification');
-
-            // Apply the same filtering logic as in notification screen
             final senderId = notification['senderId'];
             if (notification['type'] == 'leave_request' &&
                 senderId == employeeId) {
-              print(
-                '🚫 Badge: Filtering out self leave request notification: ${notification['id']}',
-              );
               return false; // Filter out self-notifications
             }
 
             final isRead = notification['isRead'];
-            print(
-              '🔔 Badge: isRead value: $isRead (type: ${isRead.runtimeType})',
-            );
+
             final isUnread =
                 isRead == false ||
                 isRead == null ||
                 isRead == 'false' ||
                 isRead == 0;
-            print('🔔 Badge: Is unread: $isUnread');
+
             return isUnread;
           }).length;
-          print(
-            '🔔 Badge: Found $unreadCount unread notifications out of ${data.length} total',
-          );
+
           state = state.copyWith(unreadCount: unreadCount, isLoading: false);
         } else {
-          print('🔔 Badge: Data is not a list, it is: ${data.runtimeType}');
           state = state.copyWith(unreadCount: 0, isLoading: false);
         }
       } else {
-        print('🔔 Badge: API error: ${response['message']}');
-        print('🔔 Badge: Full error response: $response');
         state = state.copyWith(
           error: response['message'] ?? 'Failed to load notifications',
           isLoading: false,
         );
       }
     } catch (e) {
-      print('🔔 Badge: Exception: $e');
       state = state.copyWith(
         error: 'Error loading notifications: $e',
         isLoading: false,

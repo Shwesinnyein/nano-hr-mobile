@@ -36,14 +36,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       final authService = ref.read(authServiceProvider);
 
-      // Debug: Check if employee ID exists
-      print('🔍 Profile Debug: Employee ID: ${authService.currentEmployeeId}');
-      print('🔍 Profile Debug: User ID: ${authService.currentUserId}');
-
-      // Check if user is authenticated
       if (!authService.isAuthenticated ||
           authService.currentEmployeeId == null) {
-        print('❌ User not authenticated or no employee ID');
         setState(() {
           _isLoading = false;
         });
@@ -52,24 +46,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       final response = await authService.getEmployeeProfile();
 
-      // Debug: Print the response
-      print('🔍 Profile Debug: API Response: $response');
-
       if (response['success'] == true) {
         final employeeData = response['employee'] as Map<String, dynamic>;
         setState(() {
           _employeeProfile = Employee.fromJson(employeeData);
           _isLoading = false;
         });
-        print('✅ Profile loaded successfully');
       } else {
-        print('❌ Profile loading failed: ${response['message']}');
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('❌ Profile loading error: $e');
       setState(() {
         _isLoading = false;
       });

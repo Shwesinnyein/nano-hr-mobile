@@ -5,19 +5,15 @@ import '../api/api_endpoints.dart';
 class LeaveService {
   final Dio _dio = Dio();
 
-  // Simple cache for leave settings
   static Map<String, Map<String, dynamic>> _leaveSettingsCache = {};
   static DateTime? _cacheTimestamp;
 
-  // Cache for leave approval requests (more aggressive caching for slow endpoints)
   static Map<String, Map<String, dynamic>> _leaveApprovalCache = {};
   static DateTime? _approvalCacheTimestamp;
 
-  // Method to clear cache (call after approving/rejecting leave requests)
   static void clearApprovalCache() {
     _leaveApprovalCache.clear();
     _approvalCacheTimestamp = null;
-    print('🗑️ Leave API: Approval cache cleared');
   }
 
   LeaveService() {
@@ -65,12 +61,11 @@ class LeaveService {
       if (_cacheTimestamp != null &&
           now.difference(_cacheTimestamp!).inMinutes < 5 &&
           _leaveSettingsCache.containsKey(employeeId)) {
-        print('🚀 Leave API: Using cached settings for employee: $employeeId');
         return _leaveSettingsCache[employeeId]!;
       }
 
       final stopwatch = Stopwatch()..start();
-      print('🌐 Leave API: Getting leave settings for employee: $employeeId');
+      // Getting leave settings for employee
 
       final response = await _dio.get(
         ApiEndpoints.leaveSettings,
@@ -78,36 +73,26 @@ class LeaveService {
       );
 
       stopwatch.stop();
-      print(
-        '⏱️ Leave API: Settings request took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
-        print('✅ Leave API: Settings retrieved successfully');
-
         // Cache the response
         _leaveSettingsCache[employeeId] = response.data;
         _cacheTimestamp = now;
 
         return response.data;
       } else {
-        print(
-          '❌ Leave API: Failed to get settings - Status: ${response.statusCode}',
-        );
         return {
           'success': false,
           'message': 'Failed to get leave settings: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException - ${e.message}');
       if (e.response != null) {
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      print('❌ Leave API: Unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -117,8 +102,7 @@ class LeaveService {
     Map<String, dynamic> data,
   ) async {
     try {
-      print('🌐 Leave API: Creating leave request');
-      print('🌐 Leave API: Request data: $data');
+      // Creating leave request
 
       final response = await _dio.post(
         ApiEndpoints.createLeaveRequest,
@@ -126,23 +110,15 @@ class LeaveService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Leave API: Leave request created successfully');
-        print('🌐 Leave API: Response: ${response.data}');
         return response.data;
       } else {
-        print(
-          '❌ Leave API: Failed to create request - Status: ${response.statusCode}',
-        );
         return {
           'success': false,
           'message': 'Failed to create leave request: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException - ${e.message}');
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
-        // Handle 404 error specifically
         if (e.response!.statusCode == 404) {
           return {
             'success': false,
@@ -154,7 +130,6 @@ class LeaveService {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      print('❌ Leave API: Unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -171,30 +146,21 @@ class LeaveService {
       if (_approvalCacheTimestamp != null &&
           now.difference(_approvalCacheTimestamp!).inMinutes < 2 &&
           _leaveApprovalCache.containsKey(cacheKey)) {
-        print(
-          '🚀 Leave API: Using cached approval requests for $level: $userId',
-        );
         return List<Map<String, dynamic>>.from(
           _leaveApprovalCache[cacheKey]!['data'] ?? [],
         );
       }
 
       final stopwatch = Stopwatch()..start();
-      print(
-        '🌐 Leave API: Getting leave requests for approval by $level: $userId',
-      );
+      // Getting leave requests for approval
 
       final response = await _dio.get(
         ApiEndpoints.getLeaveRequestsForApproval(level, userId),
       );
 
       stopwatch.stop();
-      print(
-        '⏱️ Leave API: Approval request took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
-        print('✅ Leave API: All leave requests retrieved successfully');
         final data = response.data;
 
         if (data['success'] == true && data['data'] is List) {
@@ -204,23 +170,17 @@ class LeaveService {
 
           return List<Map<String, dynamic>>.from(data['data']);
         } else {
-          print('⚠️ Leave API: No leave records found or invalid data format');
           return [];
         }
       } else {
-        print(
-          '❌ Leave API: Failed to get all requests - Status: ${response.statusCode}',
-        );
         return [];
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException - ${e.message}');
       if (e.response != null) {
         print('🌐 Leave API: Error response: ${e.response!.data}');
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error: $e');
       return [];
     }
   }
@@ -228,20 +188,18 @@ class LeaveService {
   // Get leave requests for employee
   Future<List<Map<String, dynamic>>> getLeaveRequests(String employeeId) async {
     try {
-      print('🌐 Leave API: Getting leave requests for employee: $employeeId');
+      // Getting leave requests for employee
 
       final response = await _dio.get(
         '${ApiEndpoints.leaveRequests}/$employeeId',
       );
 
       if (response.statusCode == 200) {
-        print('✅ Leave API: Leave requests retrieved successfully');
         final data = response.data;
 
         if (data['success'] == true && data['data'] is List) {
           return List<Map<String, dynamic>>.from(data['data']);
         } else {
-          print('⚠️ Leave API: No leave records found or invalid data format');
           return [];
         }
       } else {
@@ -251,16 +209,12 @@ class LeaveService {
         return [];
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException - ${e.message}');
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
         return [];
       } else {
-        print('❌ Leave API: Network error - ${e.message}');
         return [];
       }
     } catch (e) {
-      print('❌ Leave API: Unexpected error - $e');
       return [];
     }
   }
@@ -268,9 +222,6 @@ class LeaveService {
   // Get leave balance (return available days since API endpoint doesn't exist)
   Future<Map<String, dynamic>> getLeaveBalance(String employeeId) async {
     try {
-      print(
-        '🌐 Leave API: Leave balance endpoint not available - returning available days',
-      );
       return {
         'success': true,
         'message': 'Leave balance retrieved successfully',
@@ -284,7 +235,6 @@ class LeaveService {
         },
       };
     } catch (e) {
-      print('❌ Leave API: Error getting balance - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -295,14 +245,8 @@ class LeaveService {
     List<File> attachments,
   ) async {
     try {
-      print(
-        '🌐 Leave API: Creating leave request with ${attachments.length} attachments',
-      );
-
-      // Create multipart form data
       final formData = FormData();
 
-      // Add form fields
       data.forEach((key, value) {
         if (value != null) {
           formData.fields.add(MapEntry(key, value.toString()));
@@ -319,48 +263,31 @@ class LeaveService {
               await MultipartFile.fromFile(file.path, filename: 'photo_$i.jpg'),
             ),
           );
-          print('🌐 Leave API: Added file ${i + 1}: ${file.path}');
         } else {
           print('❌ Leave API: File does not exist: ${file.path}');
         }
       }
 
-      print(
-        '🌐 Leave API: Sending POST request to: ${ApiEndpoints.createLeaveRequest}',
-      );
       final response = await _dio.post(
         ApiEndpoints.createLeaveRequest,
         data: formData,
       );
 
-      print('🌐 Leave API: Response status: ${response.statusCode}');
-      print('🌐 Leave API: Response data: ${response.data}');
-
       if (response.statusCode == 200) {
-        print(
-          '✅ Leave API: Leave request with attachments created successfully',
-        );
         return response.data;
       } else {
-        print(
-          '❌ Leave API: Failed to create request - Status: ${response.statusCode}',
-        );
         return {
           'success': false,
           'message': 'Failed to create leave request: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException - ${e.message}');
-      print('❌ Leave API: DioException type: ${e.type}');
       if (e.response != null) {
-        print('❌ Leave API: Error response: ${e.response!.data}');
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      print('❌ Leave API: Unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -452,31 +379,18 @@ class LeaveService {
   // Get all leave requests (for HR users to see manager-approved requests)
   Future<List<Map<String, dynamic>>> getAllLeaveRequests() async {
     try {
-      print('🌐 Leave API: Getting all leave requests');
-      print('🌐 Leave API: *** Request ***');
-      print('🌐 Leave API: uri: ${ApiEndpoints.leaveRequests}');
-      print('🌐 Leave API: method: GET');
-
       final response = await _dio.get(ApiEndpoints.leaveRequests);
-
-      print('🌐 Leave API: *** Response ***');
-      print('🌐 Leave API: statusCode: ${response.statusCode}');
-      print('🌐 Leave API: Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data is Map<String, dynamic> && data['success'] == true) {
           final requests = data['data'] as List<dynamic>? ?? [];
-          print('✅ Leave API: All leave requests retrieved successfully');
+
           return requests.map((e) => Map<String, dynamic>.from(e)).toList();
         } else {
-          print('❌ Leave API: Invalid response format');
           return [];
         }
       } else {
-        print(
-          '❌ Leave API: Failed to get leave requests - Status: ${response.statusCode}',
-        );
         return [];
       }
     } on DioException catch (e) {

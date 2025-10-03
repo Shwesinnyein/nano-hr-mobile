@@ -24,7 +24,7 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['startTime'] = DateTime.now().millisecondsSinceEpoch;
-          print('🚀 API Request: ${options.method} ${options.path}');
+
           handler.next(options);
         },
         onResponse: (response, handler) {
@@ -47,9 +47,6 @@ class ApiService {
           final startTime = error.requestOptions.extra['startTime'] as int?;
           if (startTime != null) {
             final duration = DateTime.now().millisecondsSinceEpoch - startTime;
-            print(
-              '❌ API Error: ${error.requestOptions.path} failed after ${duration}ms',
-            );
           }
           handler.next(error);
         },
@@ -60,16 +57,10 @@ class ApiService {
   // Check if email already exists
   Future<Map<String, dynamic>> checkEmailExists({required String email}) async {
     try {
-      print('🔍 API: Checking email exists for: $email');
-      print('🔍 API: Endpoint: ${ApiEndpoints.checkEmailExists}');
-
       final response = await _dio.post(
         ApiEndpoints.checkEmailExists,
         data: {'email': email},
       );
-
-      print('🔍 API: Response status: ${response.statusCode}');
-      print('🔍 API: Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         final result = {
@@ -79,7 +70,7 @@ class ApiService {
               false, // Changed from 'exists' to 'emailExists'
           'message': response.data['message'] ?? 'Email check completed',
         };
-        print('🔍 API: Returning result: $result');
+
         return result;
       } else {
         return {
@@ -89,9 +80,7 @@ class ApiService {
         };
       }
     } on DioException catch (e) {
-      print('🔍 API: DioException: ${e.message}');
       if (e.response != null) {
-        print('🔍 API: Error response: ${e.response?.data}');
         return {
           'success': false,
           'exists': false,
@@ -105,7 +94,6 @@ class ApiService {
         };
       }
     } catch (e) {
-      print('🔍 API: Unexpected error: $e');
       return {
         'success': false,
         'exists': false,

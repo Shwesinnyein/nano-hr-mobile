@@ -47,42 +47,28 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    print('🔔 Debug: _loadNotifications called');
     if (_currentUserId == null) {
-      print('🔔 Debug: No user ID in _loadNotifications, returning');
       return;
     }
 
-    print('🔔 Debug: Setting loading state...');
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      print('🔔 Debug: Calling notification service...');
       final response = await _notificationService.getNotifications(
         employeeId: _currentUserId!,
         limit: 50, // Load more notifications
       );
 
-      print('🔔 Debug: Notification service response: $response');
-
       if (response['success'] == true) {
-        print('🔔 Debug: Success response, parsing notifications...');
         try {
           final notificationResponse = NotificationResponse.fromJson(response);
-          print(
-            '🔔 Debug: Parsed ${notificationResponse.notifications.length} notifications',
-          );
 
-          // Filter out inappropriate notifications
           final filteredNotifications = _filterNotifications(
             notificationResponse.notifications,
             _currentUserId!,
-          );
-          print(
-            '🔔 Debug: Filtered to ${filteredNotifications.length} notifications',
           );
 
           setState(() {
@@ -90,22 +76,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             _isLoading = false;
           });
         } catch (parseError) {
-          print('🔔 Debug: Error parsing NotificationResponse: $parseError');
-          print('🔔 Debug: Response data: $response');
           setState(() {
             _error = 'Error parsing notifications: $parseError';
             _isLoading = false;
           });
         }
       } else {
-        print('🔔 Debug: Error response: ${response['message']}');
         setState(() {
           _error = response['message'] ?? 'Failed to load notifications';
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('🔔 Debug: Exception in _loadNotifications: $e');
       setState(() {
         _error = 'Error loading notifications: $e';
         _isLoading = false;
@@ -125,9 +107,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         // If sender is missing or equals current user, hide it (defensive until backend fixes senderId)
         if (notification.senderId == null ||
             notification.senderId == currentEmployeeId) {
-          print(
-            '🚫 Filtering leave_request for self or null sender: ${notification.id}',
-          );
           return false;
         }
       }
@@ -154,18 +133,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Future<void> _refreshNotifications() async {
-    print('🔔 Debug: _refreshNotifications called');
-    print('🔔 Debug: Current user ID: $_currentUserId');
     if (_currentUserId == null) {
-      print('🔔 Debug: No user ID, returning early');
       return;
     }
-    print('🔔 Debug: Loading notifications...');
+
     await _loadNotifications();
-    print('🔔 Debug: Refreshing badge count...');
-    // Also refresh the badge count
+
     ref.read(notificationProvider.notifier).refreshUnreadCount();
-    print('🔔 Debug: Refresh completed');
   }
 
   Future<void> _markAsRead(NotificationModel notification) async {
@@ -249,8 +223,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         // Regular employees should NOT see their own leave request notifications
         if (currentEmployeeId != null &&
             notification.senderId == currentEmployeeId) {
-          // This is the employee's own request - they shouldn't see this notification
-          print('🚫 Filtering out self-notification for leave request');
           return;
         }
 

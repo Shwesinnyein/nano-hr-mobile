@@ -95,7 +95,6 @@ class Employee {
       try {
         return DateTime.parse(dateValue);
       } catch (e) {
-        print('Error parsing date string: $e');
         return null;
       }
     }

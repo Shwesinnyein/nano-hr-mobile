@@ -25,8 +25,6 @@ class AuthRepository {
       _authService.setCurrentUser(userId);
       _authService.setCurrentEmployeeId(employeeId);
 
-      print('✅ Restored user ID: $userId');
-      print('✅ Restored employee ID: $employeeId');
       return true;
     }
 
@@ -40,9 +38,6 @@ class AuthRepository {
 
   Future<void> login({required String email, required String password}) async {
     try {
-      print('🔄 Attempting login with email: $email');
-
-      // Call API to authenticate
       final response = await _authService.signInWithEmailAndPassword(
         email,
         password,
@@ -54,10 +49,6 @@ class AuthRepository {
         final employeeId = userData['id'] ?? userData['uid'];
         final token = userData['token'] ?? userData['accessToken'];
 
-        print('✅ Login successful for user: $userId');
-        print('✅ Employee ID: $employeeId');
-
-        // Store login state
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_kLoggedInKey, true);
         await prefs.setString(_kUserId, userId);
@@ -73,7 +64,6 @@ class AuthRepository {
         throw Exception(response['message'] ?? 'Login failed');
       }
     } catch (e) {
-      print('❌ Login error: $e');
       await _clearLoginState();
       rethrow;
     }
@@ -84,8 +74,6 @@ class AuthRepository {
       // Call API to logout
       await _authService.signOut();
     } catch (e) {
-      print('⚠️ Logout API call failed: $e');
-      // Continue with local logout even if API fails
     } finally {
       // Clear local login state
       await _clearLoginState();
