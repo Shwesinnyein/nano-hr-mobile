@@ -110,50 +110,161 @@ class LeaveSettingsResponse {
 }
 
 class LeaveBalance {
-  final int annualLeave;
-  final int sickLeave;
-  final int personalLeave;
-  final int usedAnnualLeave;
-  final int usedSickLeave;
-  final int usedPersonalLeave;
+  final String employeeId;
+  final String employeeName;
+  final int year;
+  final bool eligible;
+  final int monthsWithCompany;
+  final List<LeaveTypeBalance> balances;
+  final LeaveSummary summary;
 
   LeaveBalance({
-    required this.annualLeave,
-    required this.sickLeave,
-    required this.personalLeave,
-    required this.usedAnnualLeave,
-    required this.usedSickLeave,
-    required this.usedPersonalLeave,
+    required this.employeeId,
+    required this.employeeName,
+    required this.year,
+    required this.eligible,
+    required this.monthsWithCompany,
+    required this.balances,
+    required this.summary,
   });
 
   factory LeaveBalance.fromJson(Map<String, dynamic> json) {
     return LeaveBalance(
-      annualLeave: json['annualLeave'] ?? 0,
-      sickLeave: json['sickLeave'] ?? 0,
-      personalLeave: json['personalLeave'] ?? 0,
-      usedAnnualLeave: json['usedAnnualLeave'] ?? 0,
-      usedSickLeave: json['usedSickLeave'] ?? 0,
-      usedPersonalLeave: json['usedPersonalLeave'] ?? 0,
+      employeeId: json['employeeId'] ?? '',
+      employeeName: json['employeeName'] ?? '',
+      year: json['year'] ?? DateTime.now().year,
+      eligible: json['eligible'] ?? true,
+      monthsWithCompany: json['monthsWithCompany'] ?? 0,
+      balances: (json['balances'] as List<dynamic>?)
+              ?.map((balance) => LeaveTypeBalance.fromJson(balance))
+              .toList() ??
+          [],
+      summary: LeaveSummary.fromJson(json['summary'] ?? {}),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'annualLeave': annualLeave,
-      'sickLeave': sickLeave,
-      'personalLeave': personalLeave,
-      'usedAnnualLeave': usedAnnualLeave,
-      'usedSickLeave': usedSickLeave,
-      'usedPersonalLeave': usedPersonalLeave,
+      'employeeId': employeeId,
+      'employeeName': employeeName,
+      'year': year,
+      'eligible': eligible,
+      'monthsWithCompany': monthsWithCompany,
+      'balances': balances.map((balance) => balance.toJson()).toList(),
+      'summary': summary.toJson(),
     };
   }
 
-  // Additional properties for UI compatibility
-  double get vacationLeave => annualLeave.toDouble();
-  double get leaveWithoutPay => personalLeave.toDouble();
+  // Helper methods for UI compatibility
+  LeaveTypeBalance? getLeaveTypeByName(String name) {
+    return balances.firstWhere(
+      (balance) => balance.leaveTypeName.toLowerCase().contains(name.toLowerCase()),
+      orElse: () => LeaveTypeBalance.empty(),
+    );
+  }
+
+  // Legacy properties for backward compatibility
+  double get annualLeave => getLeaveTypeByName('Annual')?.remaining.toDouble() ?? 0.0;
+  double get sickLeave => getLeaveTypeByName('ป่วย')?.remaining.toDouble() ?? 0.0;
+  double get personalLeave => getLeaveTypeByName('ลา (โดยไม่ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
+  double get vacationLeave => annualLeave;
+  double get leaveWithoutPay => personalLeave;
   double get maternityLeave => 0.0;
-  double get leaveOfAbsencePaid => 0.0;
+  double get leaveOfAbsencePaid => getLeaveTypeByName('ลากิจ(ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
   double get emergency => 0.0;
+}
+
+class LeaveTypeBalance {
+  final String leaveTypeId;
+  final String leaveTypeName;
+  final int totalAllocated;
+  final int used;
+  final int remaining;
+  final bool isPaid;
+  final bool isActive;
+  final int percentageUsed;
+
+  LeaveTypeBalance({
+    required this.leaveTypeId,
+    required this.leaveTypeName,
+    required this.totalAllocated,
+    required this.used,
+    required this.remaining,
+    required this.isPaid,
+    required this.isActive,
+    required this.percentageUsed,
+  });
+
+  factory LeaveTypeBalance.fromJson(Map<String, dynamic> json) {
+    return LeaveTypeBalance(
+      leaveTypeId: json['leaveTypeId'] ?? '',
+      leaveTypeName: json['leaveTypeName'] ?? '',
+      totalAllocated: int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
+      used: json['used'] ?? 0,
+      remaining: json['remaining'] ?? 0,
+      isPaid: json['isPaid'] ?? false,
+      isActive: json['isActive'] ?? true,
+      percentageUsed: json['percentageUsed'] ?? 0,
+    );
+  }
+
+  factory LeaveTypeBalance.empty() {
+    return LeaveTypeBalance(
+      leaveTypeId: '',
+      leaveTypeName: '',
+      totalAllocated: 0,
+      used: 0,
+      remaining: 0,
+      isPaid: false,
+      isActive: false,
+      percentageUsed: 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'leaveTypeId': leaveTypeId,
+      'leaveTypeName': leaveTypeName,
+      'totalAllocated': totalAllocated,
+      'used': used,
+      'remaining': remaining,
+      'isPaid': isPaid,
+      'isActive': isActive,
+      'percentageUsed': percentageUsed,
+    };
+  }
+}
+
+class LeaveSummary {
+  final int totalLeaveTypes;
+  final int totalDaysAllocated;
+  final int totalDaysUsed;
+  final int totalDaysRemaining;
+
+  LeaveSummary({
+    required this.totalLeaveTypes,
+    required this.totalDaysAllocated,
+    required this.totalDaysUsed,
+    required this.totalDaysRemaining,
+  });
+
+  factory LeaveSummary.fromJson(Map<String, dynamic> json) {
+    return LeaveSummary(
+      totalLeaveTypes: json['totalLeaveTypes'] ?? 0,
+      totalDaysAllocated: int.tryParse(json['totalDaysAllocated']?.toString() ?? '0') ?? 0,
+      totalDaysUsed: json['totalDaysUsed'] ?? 0,
+      totalDaysRemaining: json['totalDaysRemaining'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalLeaveTypes': totalLeaveTypes,
+      'totalDaysAllocated': totalDaysAllocated,
+      'totalDaysUsed': totalDaysUsed,
+      'totalDaysRemaining': totalDaysRemaining,
+    };
+  }
 }
 
 class LeaveRequest {

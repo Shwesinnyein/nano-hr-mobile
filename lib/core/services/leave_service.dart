@@ -219,21 +219,32 @@ class LeaveService {
     }
   }
 
-  // Get leave balance (return available days since API endpoint doesn't exist)
+  // Get leave balance from API
   Future<Map<String, dynamic>> getLeaveBalance(String employeeId) async {
     try {
-      return {
-        'success': true,
-        'message': 'Leave balance retrieved successfully',
-        'data': {
-          'annualLeave': 6, // 6 days available
-          'sickLeave': 30, // 30 days available
-          'personalLeave': 3, // 3 days available
-          'usedAnnualLeave': 0, // 0 days used
-          'usedSickLeave': 0, // 0 days used
-          'usedPersonalLeave': 0, // 0 days used
-        },
-      };
+      final stopwatch = Stopwatch()..start();
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/leave/balance/$employeeId',
+      );
+
+      stopwatch.stop();
+      print('📊 Leave Balance API: ${stopwatch.elapsedMilliseconds}ms');
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get leave balance: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
     } catch (e) {
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
