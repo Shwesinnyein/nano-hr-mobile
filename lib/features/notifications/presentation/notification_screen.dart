@@ -36,8 +36,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     _currentUserId = authService.currentEmployeeId;
     if (_currentUserId != null) {
       _loadNotifications();
-      // Also refresh the badge count
-      ref.read(notificationProvider.notifier).refreshUnreadCount();
+      // Skip separate badge count refresh to reduce API calls
+      // The badge count will be updated when notifications are loaded
     } else {
       setState(() {
         _isLoading = false;
@@ -75,6 +75,14 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             _notifications = filteredNotifications;
             _isLoading = false;
           });
+
+          // Update badge count based on loaded notifications
+          final unreadCount = filteredNotifications
+              .where((n) => !n.isRead)
+              .length;
+          ref
+              .read(notificationProvider.notifier)
+              .updateUnreadCount(unreadCount);
         } catch (parseError) {
           setState(() {
             _error = 'Error parsing notifications: $parseError';

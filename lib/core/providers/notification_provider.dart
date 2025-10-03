@@ -105,6 +105,11 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
     await _loadUnreadCount();
   }
 
+  // Update unread count directly (for performance optimization)
+  void updateUnreadCount(int count) {
+    state = state.copyWith(unreadCount: count, isLoading: false);
+  }
+
   // Mark notification as read (decrease count)
   void markAsRead() {
     if (state.unreadCount > 0) {

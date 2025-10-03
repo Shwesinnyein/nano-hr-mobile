@@ -5,6 +5,25 @@ import '../api/api_endpoints.dart';
 class NotificationService {
   final Dio _dio = Dio();
 
+  // Cache for notifications
+  static Map<String, List<dynamic>> _notificationCache = {};
+  static DateTime? _cacheTimestamp;
+  static const int _cacheExpiryMinutes = 5;
+
+  // Check if cache is valid
+  bool _isCacheValid() {
+    if (_cacheTimestamp == null) return false;
+    final now = DateTime.now();
+    final difference = now.difference(_cacheTimestamp!).inMinutes;
+    return difference < _cacheExpiryMinutes;
+  }
+
+  // Clear cache
+  void clearCache() {
+    _notificationCache.clear();
+    _cacheTimestamp = null;
+  }
+
   // Get all notifications for a user
   Future<Map<String, dynamic>> getNotifications({
     required String employeeId,
@@ -13,6 +32,15 @@ class NotificationService {
     bool? unreadOnly,
   }) async {
     try {
+      // Check cache first
+      if (_isCacheValid() && _notificationCache.containsKey(employeeId)) {
+        print('🔔 Notification API: Using cached data for $employeeId');
+        return {
+          'success': true,
+          'data': _notificationCache[employeeId],
+          'message': 'Cached notifications',
+        };
+      }
       final endpoint =
           '${ApiEndpoints.baseUrl}${ApiEndpoints.getUserNotifications}/$employeeId';
       print(
@@ -56,7 +84,16 @@ class NotificationService {
           }
         } else if (response.data is Map) {
           print('🔔 Notification API: Response is already a Map');
-          return Map<String, dynamic>.from(response.data);
+          final result = Map<String, dynamic>.from(response.data);
+
+          // Cache the result
+          if (result['data'] is List) {
+            _notificationCache[employeeId] = result['data'];
+            _cacheTimestamp = DateTime.now();
+            print('🔔 Notification API: Cached notifications for $employeeId');
+          }
+
+          return result;
         } else {
           print(
             '🔔 Notification API: Unexpected response type: ${response.data.runtimeType}',
