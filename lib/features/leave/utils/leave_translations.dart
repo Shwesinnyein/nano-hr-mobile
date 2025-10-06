@@ -188,6 +188,21 @@ class LeaveTranslations {
 
   static String no(WidgetRef ref) => ref.t('ไม่', 'No');
 
+  // Search and filter translations
+  static String searchByEmployeeLeaveTypeReason(WidgetRef ref) => ref.t(
+    'ค้นหาตามชื่อพนักงาน ประเภทการลา หรือเหตุผล...',
+    'Search by employee, leave type, or reason...',
+  );
+
+  static String noPendingRequests(WidgetRef ref) =>
+      ref.t('ไม่มีคำขอที่รอดำเนินการ', 'No pending requests');
+
+  static String noApprovedRequests(WidgetRef ref) =>
+      ref.t('ไม่มีคำขอที่อนุมัติแล้ว', 'No approved requests');
+
+  static String noRejectedRequests(WidgetRef ref) =>
+      ref.t('ไม่มีคำขอที่ปฏิเสธแล้ว', 'No rejected requests');
+
   // Helper method to translate leave type names dynamically
   static String translateLeaveTypeName(WidgetRef ref, String typeName) {
     final name = typeName.toLowerCase();

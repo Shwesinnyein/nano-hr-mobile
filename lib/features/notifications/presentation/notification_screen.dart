@@ -96,10 +96,50 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         });
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error loading notifications: $e';
-        _isLoading = false;
-      });
+      print('🔔 Notification Screen: Error loading notifications: $e');
+
+      // Try to use cached data if available
+      final cachedData = NotificationService.notificationCache[_currentUserId!];
+      if (cachedData != null && cachedData.isNotEmpty) {
+        print('🔔 Notification Screen: Using cached data as fallback');
+        try {
+          final notificationResponse = NotificationResponse.fromJson({
+            'success': true,
+            'data': cachedData,
+            'message': 'Using cached data',
+          });
+
+          final filteredNotifications = _filterNotifications(
+            notificationResponse.notifications,
+            _currentUserId!,
+          );
+
+          setState(() {
+            _notifications = filteredNotifications;
+            _isLoading = false;
+            _error = 'Using cached data - API connection issue';
+          });
+
+          // Update badge count based on cached notifications
+          final unreadCount = filteredNotifications
+              .where((n) => !n.isRead)
+              .length;
+          ref
+              .read(notificationProvider.notifier)
+              .updateUnreadCount(unreadCount);
+        } catch (parseError) {
+          setState(() {
+            _error =
+                'Error loading notifications: $e (cached data also failed)';
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _error = 'Error loading notifications: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 

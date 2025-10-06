@@ -6,6 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/leave_service.dart';
 import '../data/leave_repository.dart';
+import '../utils/leave_translations.dart';
 
 class LeaveApprovalScreen extends ConsumerStatefulWidget {
   const LeaveApprovalScreen({super.key});
@@ -15,18 +16,73 @@ class LeaveApprovalScreen extends ConsumerStatefulWidget {
       _LeaveApprovalScreenState();
 }
 
-class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
+class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
+    with TickerProviderStateMixin {
   List<NotificationModel> _pending = [];
-  List<NotificationModel> _recent = [];
   bool _loading = true;
   String? _error;
   // Cache of live details keyed by leaveId
   final Map<String, Map<String, dynamic>> _leaveDetails = {};
 
+  // Local cache for processed requests (approved/rejected by current user)
+  final Map<String, Map<String, dynamic>> _processedRequests = {};
+
+  // Employee leave data
+  List<Map<String, dynamic>> _employeeLeaves = [];
+  bool _loadingEmployeeLeaves = false;
+
+  // Tab controller for the new tabs
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+
+  // Search functionality
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPending());
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    });
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllLeaveRequests();
+      _loadEmployeeLeaves();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Filter leave requests based on search query
+  List<NotificationModel> _filterLeaveRequests(
+    List<NotificationModel> requests,
+  ) {
+    if (_searchQuery.isEmpty) return requests;
+
+    return requests.where((request) {
+      final employeeName =
+          request.data['employeeName']?.toString().toLowerCase() ?? '';
+      final leaveType =
+          request.data['leaveTypeName']?.toString().toLowerCase() ?? '';
+      final reason = request.data['reason']?.toString().toLowerCase() ?? '';
+
+      return employeeName.contains(_searchQuery) ||
+          leaveType.contains(_searchQuery) ||
+          reason.contains(_searchQuery);
+    }).toList();
   }
 
   // Determine user level based on position name
@@ -52,6 +108,111 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
 
     // Default to manager (most common case)
     return 'manager';
+  }
+
+  // Load employee leaves based on user role
+  Future<void> _loadEmployeeLeaves() async {
+    final auth = ref.read(authServiceProvider);
+    final currentEmployeeId = auth.currentEmployeeId;
+    if (currentEmployeeId == null) return;
+
+    setState(() {
+      _loadingEmployeeLeaves = true;
+    });
+
+    try {
+      final leaveService = LeaveService();
+      final userLevel = _getUserLevel(auth);
+
+      List<Map<String, dynamic>> allEmployeeLeaves = [];
+
+      // For Employee Leaves tab, show ONLY leave requests that this user has processed
+      // (approved or rejected) - not pending ones they haven't touched
+      try {
+        // Get all employee leaves first
+        final allLeaves = await leaveService.getAllEmployeeLeaves();
+
+        // Filter to show only leaves that this user has processed
+        allEmployeeLeaves = allLeaves.where((leave) {
+          final approvalHistory =
+              leave['approvalHistory'] as List<dynamic>? ?? [];
+
+          // Check if this user has processed this leave request
+          final hasProcessedByUser = approvalHistory.any((history) {
+            final historyUserId = history['userId']?.toString() ?? '';
+            final historyLevel = history['level']?.toString() ?? '';
+
+            // Match by user ID and appropriate level
+            if (historyUserId == currentEmployeeId) {
+              // For team-lead, check if they processed as team-lead
+              if (userLevel == 'team-lead' && historyLevel == 'team-lead') {
+                return true;
+              }
+              // For manager, check if they processed as manager
+              if (userLevel == 'manager' && historyLevel == 'manager') {
+                return true;
+              }
+              // For hr, check if they processed as hr
+              if (userLevel == 'hr' && historyLevel == 'hr') {
+                return true;
+              }
+              // For approver, check if they processed as approver
+              if (userLevel == 'approver' && historyLevel == 'approver') {
+                return true;
+              }
+            }
+            return false;
+          });
+
+          print('🔍 Leave ID: ${leave['id']}');
+          print('  - User Level: $userLevel');
+          print('  - Approval History: $approvalHistory');
+          print('  - Has Processed: $hasProcessedByUser');
+
+          return hasProcessedByUser;
+        }).toList();
+
+        print('🔍 Employee Leaves Filter Results:');
+        print('  - User Level: $userLevel');
+        print('  - All leaves: ${allLeaves.length}');
+        print('  - Filtered processed leaves: ${allEmployeeLeaves.length}');
+      } catch (e) {
+        print('Error getting processed leaves: $e');
+        // Fallback to empty list if error
+        allEmployeeLeaves = [];
+      }
+
+      // The API already provides employee details, no need to enhance
+      setState(() {
+        _employeeLeaves = allEmployeeLeaves;
+        _loadingEmployeeLeaves = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingEmployeeLeaves = false;
+      });
+      print('Error loading employee leaves: $e');
+    }
+  }
+
+  // Filter employee leaves based on search query
+  List<Map<String, dynamic>> _filterEmployeeLeaves(
+    List<Map<String, dynamic>> leaves,
+  ) {
+    if (_searchQuery.isEmpty) return leaves;
+
+    return leaves.where((leave) {
+      final employeeName =
+          leave['employeeName']?.toString().toLowerCase() ?? '';
+      final leaveType = leave['leaveTypeName']?.toString().toLowerCase() ?? '';
+      final reason = leave['reason']?.toString().toLowerCase() ?? '';
+      final status = leave['status']?.toString().toLowerCase() ?? '';
+
+      return employeeName.contains(_searchQuery) ||
+          leaveType.contains(_searchQuery) ||
+          reason.contains(_searchQuery) ||
+          status.contains(_searchQuery);
+    }).toList();
   }
 
   Widget _detailRow(String label, dynamic value) {
@@ -93,7 +254,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     );
   }
 
-  Future<void> _loadPending() async {
+  Future<void> _loadAllLeaveRequests() async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) {
@@ -110,84 +271,59 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     });
 
     try {
-      // Determine user level (manager/hr/approver) based on user role or permissions
       final userLevel = _getUserLevel(auth);
-
-      if (userLevel == 'team-lead') {}
-
-      // Fetch leave requests that need approval based on user level and permissions
       final leaveService = LeaveService();
 
-      // All users (HR, managers, approvers) should use the approval endpoint
-      // The backend now correctly handles HR requests with approved_manager status
+      // Load all leave requests for the user
       List<Map<String, dynamic>> leaveRequests;
       try {
-        leaveRequests = await leaveService.getLeaveRequestsForApproval(
+        leaveRequests = await leaveService.getAllLeaveRequestsForApproval(
           userLevel,
           currentEmployeeId,
         );
-
-        if (leaveRequests.isEmpty) {
-          print('🔍 DEBUG: 3. User filtering issue');
-        } else {
-          for (int i = 0; i < leaveRequests.length; i++) {
-            final req = leaveRequests[i];
-          }
-        }
       } catch (e) {
         leaveRequests = [];
       }
 
-      for (int i = 0; i < leaveRequests.length; i++) {
-        final request = leaveRequests[i];
-      }
-
-      // Filter pending leave requests directly
-      final List<Map<String, dynamic>> pendingRequests = [];
-
+      // Filter out current user's own requests
+      final List<Map<String, dynamic>> teamRequests = [];
       for (final leaveRequest in leaveRequests) {
         if (leaveRequest['employeeId'] != currentEmployeeId) {
-          pendingRequests.add(leaveRequest);
-        } else {
-          print(
-            '❌ DEBUG: Skipping this request (same user: ${leaveRequest['employeeId']})',
-          );
+          teamRequests.add(leaveRequest);
         }
       }
 
+      // Convert to notification models
+      final List<NotificationModel> pendingList = [];
+
+      // Add all API requests (these are pending or need action)
+      for (final request in teamRequests) {
+        final notification = NotificationModel.fromJson({
+          'id': request['id'] ?? '',
+          'userId': currentEmployeeId,
+          'senderId': request['employeeId'] ?? '',
+          'title': 'Leave Request',
+          'message':
+              'Leave request from ${request['employeeName'] ?? 'Unknown'}',
+          'type': 'leave_request',
+          'data': request,
+          'createdAt': request['createdAt'] ?? DateTime.now().toIso8601String(),
+          'updatedAt': request['updatedAt'] ?? DateTime.now().toIso8601String(),
+          'isRead': true,
+        });
+        pendingList.add(notification);
+      }
+
       setState(() {
-        _pending = pendingRequests
-            .map(
-              (request) => NotificationModel(
-                id: request['id'] ?? '',
-                title: 'Leave Request',
-                message:
-                    'New leave request from ${request['employeeName'] ?? 'Employee'}',
-                type: 'leave_request',
-                userId: currentEmployeeId,
-                senderId: request['employeeId'],
-                data: request,
-                createdAt:
-                    DateTime.tryParse(request['createdAt'] ?? '') ??
-                    DateTime.now(),
-                updatedAt: DateTime.now(),
-                isRead: false,
-              ),
-            )
-            .toList();
-        _recent = [];
+        _pending = pendingList;
         _loading = false;
       });
     } catch (e) {
       setState(() {
         _loading = false;
-        _error = 'Error loading approvals: $e';
+        _error = 'Failed to load leave requests: $e';
       });
     }
-  }
-
-  Future<void> _refresh() async {
-    await _loadPending();
   }
 
   @override
@@ -202,8 +338,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Team Leave Approvals',
+        title: Text(
+          LeaveTranslations.leaveApproval(ref),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -216,73 +352,435 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
           icon: Icon(Icons.arrow_back, color: AppTheme.kOnBackground),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppTheme.kOnBackground),
+            onPressed: _loadAllLeaveRequests,
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(100),
+          child: Column(
+            children: [
+              // Search bar
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.kSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.kNanoGold.withOpacity(0.3),
+                  ),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: LeaveTranslations.searchByEmployeeLeaveTypeReason(
+                      ref,
+                    ),
+                    hintStyle: TextStyle(
+                      color: AppTheme.kOnSurface.withOpacity(0.6),
+                    ),
+                    prefixIcon: Icon(Icons.search, color: AppTheme.kNanoGold),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.clear,
+                              color: AppTheme.kOnSurface.withOpacity(0.6),
+                            ),
+                            onPressed: () {
+                              _searchController.clear();
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+              // Tabs
+              TabBar(
+                controller: _tabController,
+                indicatorColor: AppTheme.kNanoGold,
+                labelColor: AppTheme.kNanoGold,
+                unselectedLabelColor: AppTheme.kOnSurface.withOpacity(0.6),
+                isScrollable: false,
+                tabAlignment: TabAlignment.fill,
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.pending_actions, size: 16),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            LeaveTranslations.pending(ref),
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_pending.isNotEmpty) ...[
+                          const SizedBox(width: 2),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.kNanoGold,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_pending.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.people, size: 16),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Employee Leaves',
+                            style: const TextStyle(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
-      body: _buildLeaveApprovalContent(),
-    );
-  }
-
-  Widget _buildLeaveApprovalContent() {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          _buildPendingApprovals(),
-          const SizedBox(height: 24),
-          _buildRecentApprovals(),
+          _buildLeaveApprovalContent(_filterLeaveRequests(_pending)),
+          _buildEmployeeLeaveListContent(),
         ],
       ),
     );
   }
 
-  Widget _buildPendingApprovals() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Pending Approvals',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+  Widget _buildEmployeeLeaveListContent() {
+    return RefreshIndicator(
+      onRefresh: _loadEmployeeLeaves,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_loadingEmployeeLeaves)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+                ),
               ),
+            )
+          else if (_employeeLeaves.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No employee leave records found',
+                style: TextStyle(color: AppTheme.kOnSurface.withOpacity(0.7)),
+              ),
+            )
+          else
+            ..._filterEmployeeLeaves(
+              _employeeLeaves,
+            ).map((leave) => _buildEmployeeLeaveCard(leave)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaveApprovalContent(List<NotificationModel> leaveRequests) {
+    return RefreshIndicator(
+      onRefresh: _loadAllLeaveRequests,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+                ),
+              ),
+            )
+          else if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                _error!,
+                style: TextStyle(color: AppTheme.errorColor),
+              ),
+            )
+          else if (leaveRequests.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                _currentTabIndex == 0
+                    ? LeaveTranslations.noPendingRequests(ref)
+                    : 'No employee leave records found',
+                style: TextStyle(color: AppTheme.kOnSurface.withOpacity(0.7)),
+              ),
+            )
+          else
+            ...leaveRequests.map((n) => _buildPendingApprovalCard(n)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmployeeLeaveCard(Map<String, dynamic> leave) {
+    print('🔍 Employee Leave Card - Raw data: $leave');
+    print('🔍 employeeName: ${leave['employeeName']}');
+    print('🔍 firstName: ${leave['firstName']}');
+    print('🔍 positionName: ${leave['positionName']}');
+
+    // Try to get employee name from multiple possible fields
+    final employeeName =
+        leave['employeeName']?.toString() ??
+        leave['firstName']?.toString() ??
+        leave['name']?.toString() ??
+        'Employee ${leave['employeeId']?.toString() ?? 'Unknown'}';
+
+    final employeeId = leave['employeeId']?.toString() ?? '';
+    final leaveType = leave['leaveTypeName']?.toString() ?? 'Unknown Type';
+
+    // Try to get dates from multiple possible fields
+    final startDate =
+        leave['startDate']?.toString() ??
+        leave['fromDate']?.toString() ??
+        leave['date']?.toString() ??
+        '';
+    final endDate =
+        leave['endDate']?.toString() ??
+        leave['toDate']?.toString() ??
+        leave['date']?.toString() ??
+        '';
+
+    final totalDays = leave['totalDays']?.toString() ?? '0';
+    final reason = leave['reason']?.toString() ?? '';
+    final status = leave['status']?.toString() ?? 'pending';
+    final positionName =
+        leave['positionName']?.toString() ??
+        leave['position']?.toString() ??
+        '';
+    final branchName =
+        leave['branchName']?.toString() ?? leave['branch']?.toString() ?? '';
+
+    Color statusColor;
+    String statusText;
+
+    switch (status.toLowerCase()) {
+      case 'approved':
+        statusColor = AppTheme.successColor;
+        statusText = 'Approved';
+        break;
+      case 'rejected':
+        statusColor = AppTheme.errorColor;
+        statusText = 'Rejected';
+        break;
+      default:
+        statusColor = AppTheme.warningColor;
+        statusText = 'Pending';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.kNanoGold.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppTheme.kNanoGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(Icons.person, color: AppTheme.kNanoGold, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Employee name
+                    Text(
+                      employeeName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Employee ID and Position
+                    Text(
+                      '${employeeId.isNotEmpty ? employeeId : 'ID: Unknown'} • ${positionName.isNotEmpty ? positionName : 'Position: Unknown'}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Branch
+                    if (branchName.isNotEmpty)
+                      Text(
+                        branchName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Leave details
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
             ),
-          )
-        else if (_error != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(_error!, style: TextStyle(color: AppTheme.errorColor)),
-          )
-        else if (_pending.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No pending requests',
-              style: TextStyle(color: AppTheme.kOnSurface.withOpacity(0.7)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.event_note, size: 16, color: AppTheme.kNanoGold),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        leaveType,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$totalDays day${totalDays != '1' ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.kNanoGold,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.date_range, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${startDate.isNotEmpty ? startDate : 'N/A'} - ${endDate.isNotEmpty ? endDate : 'N/A'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (reason.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.note, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          reason,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          )
-        else
-          ..._pending.map((n) => _buildPendingApprovalCard(n)),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildPendingApprovalCard(NotificationModel notification) {
-    // Extract clean leave type from title (remove "New Leave Request from..." prefix)
-    final rawTitle = notification.title;
-    final leaveType = rawTitle.contains('New Leave Request from')
-        ? rawTitle.split('New Leave Request from').last.trim()
-        : rawTitle;
-
     // Try multiple sources for employee name
     String employeeName = '';
     if (notification.data['employeeName'] != null &&
@@ -894,130 +1392,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
     );
   }
 
-  Widget _buildRecentApprovals() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Recent Approvals',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
-              ),
-            ),
-          )
-        else if (_recent.isEmpty)
-          Text(
-            'No recent approvals',
-            style: TextStyle(color: AppTheme.kOnSurface.withOpacity(0.7)),
-          )
-        else
-          ..._recent.map((n) => _buildRecentApprovalCard(n)),
-      ],
-    );
-  }
-
-  Widget _buildRecentApprovalCard(NotificationModel notification) {
-    final approved = notification.type == 'leave_approved';
-    final status = approved ? 'Approved' : 'Rejected';
-    final statusColor = approved ? Colors.green : Colors.red;
-    final employeeName = notification.data['employeeName'] ?? '';
-    final leaveType = notification.title.isNotEmpty
-        ? notification.title
-        : 'Leave Request';
-    final duration = notification.data['duration']?.toString() ?? '';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.2), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                approved ? Icons.check_circle : Icons.cancel,
-                color: statusColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    leaveType,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${employeeName.isNotEmpty ? employeeName : (notification.senderId ?? '')}${duration.isNotEmpty ? ' • $duration' : ''}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: statusColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                status,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: statusColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _confirmDecision({
     required NotificationModel notification,
     required bool approve,
@@ -1130,7 +1504,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
             backgroundColor: AppTheme.warningColor,
           ),
         );
-        await _loadPending();
+        await _loadAllLeaveRequests();
         return;
       }
     }
@@ -1152,17 +1526,32 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
             : 'Leave request rejected.',
       );
 
-      // Clear leave data cache to ensure fresh data
-      final auth = ref.read(authServiceProvider);
-      final currentEmployeeId = auth.currentEmployeeId;
-      if (currentEmployeeId != null) {
-        // Clear cache for all employees since approval affects balance
-        LeaveController.clearAllCache();
-        // Refresh the leave controller data
-        ref.refresh(leaveControllerProvider(currentEmployeeId));
+      // Store the processed request in local cache
+      final leaveId =
+          notification.data['leaveRequestId'] ??
+          notification.data['leaveId'] ??
+          notification.data['id'] ??
+          '';
+
+      if (leaveId.isNotEmpty) {
+        final processedRequest = Map<String, dynamic>.from(notification.data);
+        processedRequest['status'] = approve ? 'approved' : 'rejected';
+        processedRequest['approvedBy'] = approve ? approverId : null;
+        processedRequest['rejectedBy'] = !approve ? approverId : null;
+        processedRequest['updatedAt'] = DateTime.now().toIso8601String();
+
+        _processedRequests[leaveId] = processedRequest;
       }
 
-      await _loadPending();
+      // Clear leave data cache to ensure fresh data
+      // Clear cache for all employees since approval affects balance
+      LeaveController.clearAllCache();
+      // Refresh the leave controller data
+      ref.invalidate(leaveControllerProvider(approverId));
+
+      // Refresh both pending requests and employee leaves
+      await _loadAllLeaveRequests();
+      await _loadEmployeeLeaves();
     } else {
       // Fallback: try the alternate endpoint once
       final alt = await service.approveOrRejectLeave(
@@ -1178,7 +1567,20 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen> {
               ? 'Leave request approved successfully!'
               : 'Leave request rejected.',
         );
-        await _loadPending();
+
+        // Store the processed request in local cache
+        if (leaveId.isNotEmpty) {
+          final processedRequest = Map<String, dynamic>.from(notification.data);
+          processedRequest['status'] = approve ? 'approved' : 'rejected';
+          processedRequest['approvedBy'] = approve ? approverId : null;
+          processedRequest['rejectedBy'] = !approve ? approverId : null;
+          processedRequest['updatedAt'] = DateTime.now().toIso8601String();
+
+          _processedRequests[leaveId] = processedRequest;
+        }
+
+        await _loadAllLeaveRequests();
+        await _loadEmployeeLeaves();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -416,4 +416,131 @@ class LeaveService {
       return [];
     }
   }
+
+  // Get all leave requests for approval (including approved and rejected)
+  Future<List<Map<String, dynamic>>> getAllLeaveRequestsForApproval(
+    String level,
+    String userId,
+  ) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // For now, just get pending requests since the API doesn't have separate endpoints
+      // The approval screen will manage the state of approved/rejected requests locally
+      final pendingRequests = await getLeaveRequestsForApproval(level, userId);
+
+      stopwatch.stop();
+      print(
+        '🌐 Leave API: All approval requests took ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      return pendingRequests;
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print('🌐 Leave API: Error response: ${e.response!.data}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error: $e');
+      return [];
+    }
+  }
+
+  // Get all employee leaves (for HR and Approvers)
+  Future<List<Map<String, dynamic>>> getAllEmployeeLeaves() async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      // Use the employee leave endpoint to get all leaves
+      final response = await _dio.get('${ApiEndpoints.baseUrl}/leave/all');
+
+      stopwatch.stop();
+      print(
+        '🌐 Leave API: All employee leaves took ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map && data['success'] == true && data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+
+      return [];
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print('🌐 Leave API: Error response: ${e.response!.data}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error: $e');
+      return [];
+    }
+  }
+
+  // Get employee leaves by branch (for Managers)
+  Future<List<Map<String, dynamic>>> getEmployeeLeavesByBranch(
+    String branchName,
+  ) async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/leave/branch/${Uri.encodeComponent(branchName)}',
+      );
+
+      stopwatch.stop();
+      print(
+        '🌐 Leave API: Branch employee leaves took ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map && data['success'] == true && data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+
+      return [];
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print('🌐 Leave API: Error response: ${e.response!.data}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error: $e');
+      return [];
+    }
+  }
+
+  // Get employee leaves by team (for Team Leads)
+  Future<List<Map<String, dynamic>>> getEmployeeLeavesByTeam() async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      final response = await _dio.get('${ApiEndpoints.baseUrl}/leave/team');
+
+      stopwatch.stop();
+      print(
+        '🌐 Leave API: Team employee leaves took ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map && data['success'] == true && data['data'] is List) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+
+      return [];
+    } on DioException catch (e) {
+      if (e.response != null) {
+        print('🌐 Leave API: Error response: ${e.response!.data}');
+      }
+      return [];
+    } catch (e) {
+      print('❌ Leave API: Unexpected error: $e');
+      return [];
+    }
+  }
 }

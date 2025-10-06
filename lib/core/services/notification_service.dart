@@ -5,10 +5,19 @@ import '../api/api_endpoints.dart';
 class NotificationService {
   final Dio _dio = Dio();
 
+  NotificationService() {
+    _dio.options.connectTimeout = const Duration(seconds: 30);
+    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.sendTimeout = const Duration(seconds: 30);
+  }
+
   // Cache for notifications
   static Map<String, List<dynamic>> _notificationCache = {};
   static DateTime? _cacheTimestamp;
   static const int _cacheExpiryMinutes = 5;
+
+  // Getter for cache access
+  static Map<String, List<dynamic>> get notificationCache => _notificationCache;
 
   // Check if cache is valid
   bool _isCacheValid() {
@@ -55,10 +64,21 @@ class NotificationService {
 
       print('🔔 Notification API: Query params: $queryParams');
 
-      final response = await _dio.get(
-        endpoint,
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-      );
+      final response = await _dio
+          .get(
+            endpoint,
+            queryParameters: queryParams.isNotEmpty ? queryParams : null,
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw DioException(
+                requestOptions: RequestOptions(path: endpoint),
+                type: DioExceptionType.connectionTimeout,
+                message: 'Request timeout after 30 seconds',
+              );
+            },
+          );
 
       print('🔔 Notification API: Response status: ${response.statusCode}');
       print('🔔 Notification API: Response headers: ${response.headers}');
