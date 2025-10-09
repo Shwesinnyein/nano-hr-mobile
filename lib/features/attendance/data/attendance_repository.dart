@@ -50,7 +50,13 @@ class AttendanceRepository {
     }
   }
 
-  Future<void> checkIn(String userId, Map<String, dynamic> employeeData) async {
+  Future<void> checkIn(
+    String userId,
+    Map<String, dynamic> employeeData, {
+    double? latitude,
+    double? longitude,
+    String? address,
+  }) async {
     try {
       final checkInData = {
         'employeeId': userId,
@@ -59,12 +65,23 @@ class AttendanceRepository {
         'positionName': employeeData['positionName'] ?? 'Employee',
         'company': employeeData['companyName'] ?? 'NANO-STORES',
         'companyName': employeeData['companyName'] ?? 'NANO-STORES',
-        'locationName': employeeData['locationName'] ?? 'Bangkok',
-        'location': employeeData['locationName'] ?? 'Bangkok',
+        'locationName': address ?? employeeData['locationName'] ?? 'Bangkok',
+        'location': address ?? employeeData['locationName'] ?? 'Bangkok',
         'branch': employeeData['branchName'] ?? 'Office',
         'branchName': employeeData['branchName'] ?? 'Office',
         'type': 'checkin',
       };
+
+      // Add GPS coordinates if provided
+      if (latitude != null) {
+        checkInData['latitude'] = latitude;
+      }
+      if (longitude != null) {
+        checkInData['longitude'] = longitude;
+      }
+      if (address != null) {
+        checkInData['address'] = address;
+      }
 
       await _attendanceService.checkInOut(checkInData);
     } catch (e) {
@@ -74,8 +91,11 @@ class AttendanceRepository {
 
   Future<void> checkOut(
     String userId,
-    Map<String, dynamic> employeeData,
-  ) async {
+    Map<String, dynamic> employeeData, {
+    double? latitude,
+    double? longitude,
+    String? address,
+  }) async {
     try {
       final statusResponse = await _attendanceService.getTodayAttendanceStatus(
         employeeId: userId,
@@ -107,7 +127,7 @@ class AttendanceRepository {
         'employeeId': checkInRecord['employeeId'], // Use existing employeeId
         'employeeName':
             checkInRecord['employeeName'], // Use existing employeeName
-        'location': checkInRecord['location'], // Use existing location
+        'location': address ?? checkInRecord['location'], // Use new address if provided
         'branch': checkInRecord['branch'], // Use existing branch
         'branchName': checkInRecord['branchName'], // Use existing branchName
         'type': 'checkout', // Change type to checked_out
@@ -119,6 +139,17 @@ class AttendanceRepository {
         'createdAt': checkInRecord['createdAt'], // Keep existing createdAt
         'updatedAt': timestamp, // Update updatedAt with Thailand time
       };
+
+      // Add GPS coordinates if provided for checkout
+      if (latitude != null) {
+        checkOutData['checkOutLatitude'] = latitude;
+      }
+      if (longitude != null) {
+        checkOutData['checkOutLongitude'] = longitude;
+      }
+      if (address != null) {
+        checkOutData['checkOutAddress'] = address;
+      }
 
       await _attendanceService.checkInOutWithRecordData(checkOutData);
     } catch (e) {
@@ -194,28 +225,50 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
     }
   }
 
-  Future<void> checkIn(Map<String, dynamic> employeeData) async {
+  Future<void> checkIn(
+    Map<String, dynamic> employeeData, {
+    double? latitude,
+    double? longitude,
+    String? address,
+  }) async {
     try {
       final employeeId = _authService.currentEmployeeId;
       if (employeeId == null) {
         throw Exception('No employee ID found, user not logged in');
       }
 
-      await _repository.checkIn(employeeId, employeeData);
+      await _repository.checkIn(
+        employeeId,
+        employeeData,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
+      );
       await load(); // Reload data after check-in
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> checkOut(Map<String, dynamic> employeeData) async {
+  Future<void> checkOut(
+    Map<String, dynamic> employeeData, {
+    double? latitude,
+    double? longitude,
+    String? address,
+  }) async {
     try {
       final employeeId = _authService.currentEmployeeId;
       if (employeeId == null) {
         throw Exception('No employee ID found, user not logged in');
       }
 
-      await _repository.checkOut(employeeId, employeeData);
+      await _repository.checkOut(
+        employeeId,
+        employeeData,
+        latitude: latitude,
+        longitude: longitude,
+        address: address,
+      );
       await load(); // Reload data after check-out
     } catch (e) {
       rethrow;

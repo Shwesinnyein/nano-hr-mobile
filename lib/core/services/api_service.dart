@@ -347,24 +347,37 @@ class ApiService {
     required String branch,
     required String branchName,
     required String type, // 'checkin' or 'checkout'
+    double? latitude,
+    double? longitude,
+    String? address,
   }) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.checkInOut,
-        data: {
-          'employeeId': employeeId,
-          'employeeName': employeeName,
-          'position': position,
-          'positionName': positionName,
-          'company': company,
-          'companyName': companyName,
-          'locationName': locationName,
-          'location': location,
-          'branch': branch,
-          'branchName': branchName,
-          'type': type,
-        },
-      );
+      final data = <String, dynamic>{
+        'employeeId': employeeId,
+        'employeeName': employeeName,
+        'position': position,
+        'positionName': positionName,
+        'company': company,
+        'companyName': companyName,
+        'locationName': locationName,
+        'location': location,
+        'branch': branch,
+        'branchName': branchName,
+        'type': type,
+      };
+
+      // Add GPS coordinates if provided
+      if (latitude != null) {
+        data['latitude'] = latitude;
+      }
+      if (longitude != null) {
+        data['longitude'] = longitude;
+      }
+      if (address != null) {
+        data['address'] = address;
+      }
+
+      final response = await _dio.post(ApiEndpoints.checkInOut, data: data);
 
       if (response.statusCode == 200) {
         return {

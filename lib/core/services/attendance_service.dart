@@ -50,6 +50,9 @@ class AttendanceService {
         branch: data['branch'],
         branchName: data['branchName'],
         type: data['type'],
+        latitude: data['latitude'],
+        longitude: data['longitude'],
+        address: data['address'],
       );
 
       if (response['success'] == true) {

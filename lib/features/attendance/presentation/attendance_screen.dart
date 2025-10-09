@@ -10,6 +10,9 @@ import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
+import 'check_in_confirmation_screen.dart';
+import '../../../core/services/location_service.dart';
+import '../../../core/services/branch_location_service.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -23,6 +26,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Map<String, dynamic>? _employeeProfile;
   Map<String, dynamic>? _attendanceStatus;
   bool _isLoadingStatus = false;
+
+  // Location tracking
+  final LocationService _locationService = LocationService();
+  Map<String, dynamic>? _currentLocation;
+  bool _isLoadingLocation = false;
+  String? _locationError;
 
   String fmt(DateTime dt) => DateFormat('HH:mm').format(dt.toLocal());
   String fmtDate(DateTime dt) =>
@@ -103,6 +112,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
+      _loadCurrentLocation();
     });
   }
 
@@ -148,6 +158,32 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (mounted) {
         setState(() {
           _isLoadingStatus = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationError = null;
+    });
+
+    try {
+      final locationData = await _locationService
+          .getCurrentLocationWithAddress();
+
+      if (mounted) {
+        setState(() {
+          _currentLocation = locationData;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _locationError = e.toString();
+          _isLoadingLocation = false;
         });
       }
     }
@@ -442,8 +478,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Location
+          // Office Location
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
@@ -454,16 +491,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.location_on,
                   color: Colors.white.withOpacity(0.9),
-                  size: 16,
+                  size: 18,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Text(
-                  '${_employeeProfile?['companyName'] ?? 'NANO-STORES'} - ${_employeeProfile?['locationName'] ?? 'Office'}',
+                  _getLocationDisplayText(),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 14,
@@ -473,6 +510,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
           const SizedBox(height: 20),
           // Check in/out status card
           _buildStatusCard(state),
@@ -749,20 +787,122 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     dynamic controller,
   ) async {
     try {
-      await controller.toggleCheck();
+      // If location not loaded yet, try to get it now
+      if (_currentLocation == null && !_isLoadingLocation) {
+        await _loadCurrentLocation();
+      }
 
-      // Refresh attendance status after successful action
-      await _refreshAttendanceStatus();
+      // First, determine if this is a check-in or check-out
+      final authService = ref.read(authServiceProvider);
+      final employeeId = authService.currentEmployeeId;
 
-      // Show success message
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Attendance updated successfully!'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+      if (employeeId == null) {
+        throw Exception('No employee ID found');
+      }
+
+      // Get employee profile data
+      final profileResponse = await authService.getEmployeeProfile();
+      if (profileResponse['success'] != true) {
+        throw Exception('Failed to get employee profile');
+      }
+
+      final employeeProfile = profileResponse['employee'];
+      final employeeData = {
+        'fullName':
+            '${employeeProfile['firstName'] ?? ''} ${employeeProfile['lastName'] ?? ''}'
+                .trim(),
+        'positionName': employeeProfile['positionName'] ?? '',
+        'companyName': employeeProfile['companyName'] ?? '',
+        'locationName': employeeProfile['locationName'] ?? '',
+        'branchName': employeeProfile['branchName'] ?? '',
+      };
+
+      // Check current status
+      final apiService = ref.read(apiServiceProvider);
+      final statusResponse = await apiService.getTodayAttendanceStatus(
+        employeeId: employeeId,
+      );
+
+      bool isCheckOut = false;
+      if (statusResponse['success'] == true) {
+        final status = statusResponse['status'];
+        if (status == 'checked_in') {
+          isCheckOut = true;
+        } else if (status == 'checked_out') {
+          throw Exception('You have already checked out today');
+        }
+      }
+
+      // Use pre-loaded location or navigate to confirmation screen to get it
+      Map<String, dynamic>? result;
+
+      if (_currentLocation != null) {
+        // Location already available, show quick confirmation
+        if (context.mounted) {
+          result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CheckInConfirmationScreen(
+                employeeData: employeeData,
+                isCheckOut: isCheckOut,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Location not available, confirmation screen will get it
+        if (context.mounted) {
+          result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CheckInConfirmationScreen(
+                employeeData: employeeData,
+                isCheckOut: isCheckOut,
+              ),
+            ),
+          );
+        }
+      }
+
+      // If user confirmed, proceed with check-in/out
+      if (result != null && result['confirmed'] == true) {
+        final latitude = result['latitude'] as double?;
+        final longitude = result['longitude'] as double?;
+        final address = result['address'] as String?;
+
+        if (isCheckOut) {
+          await controller.checkOut(
+            employeeData,
+            latitude: latitude,
+            longitude: longitude,
+            address: address,
+          );
+        } else {
+          await controller.checkIn(
+            employeeData,
+            latitude: latitude,
+            longitude: longitude,
+            address: address,
+          );
+        }
+
+        // Refresh attendance status after successful action
+        await _refreshAttendanceStatus();
+
+        // Show success message
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                isCheckOut
+                    ? 'Checked out successfully!'
+                    : 'Checked in successfully!',
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     } catch (e) {
       // Show error message
@@ -785,6 +925,39 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
   void _refreshAttendance(WidgetRef ref) {
     ref.invalidate(attendanceControllerProvider);
+  }
+
+  String _getLocationDisplayText() {
+    // If we have GPS location, find the nearest branch
+    if (_currentLocation != null) {
+      final latitude = _currentLocation!['latitude'] as double;
+      final longitude = _currentLocation!['longitude'] as double;
+
+      // Find nearest branch
+      final nearestBranchInfo = BranchLocationService.getNearestBranchInfo(
+        latitude,
+        longitude,
+      );
+
+      if (nearestBranchInfo != null) {
+        final branchName = nearestBranchInfo['branchName'] as String;
+
+        // Show only branch name (without distance)
+        return branchName;
+      }
+
+      // If outside branch radius, show the actual address from reverse geocoding
+      final address = _currentLocation!['address'] as String?;
+      if (address != null && address.isNotEmpty) {
+        return address; // Show full address when not near any branch
+      }
+
+      // Last resort fallback - show "Detecting location..."
+      return 'Detecting location...';
+    }
+
+    // Fallback to profile location if no GPS data
+    return '${_employeeProfile?['companyName'] ?? 'NANO-STORES'} - ${_employeeProfile?['locationName'] ?? 'Office'}';
   }
 
   Widget _buildViewDetailsButton(
@@ -1163,22 +1336,22 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
                 // Check In time
                 ...[
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.login,
-                      color: AppTheme.kNanoGold,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Check In: ${_formatTimeOnly(entry.checkInAt)}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.login,
+                        color: AppTheme.kNanoGold,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Check In: ${_formatTimeOnly(entry.checkInAt)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
 
                 // Check Out time
                 if (entry.checkOutAt != null) ...[
@@ -1200,9 +1373,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   children: [
                     const Icon(Icons.location_on, color: Colors.grey, size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Location: ${entry.location}',
-                      style: const TextStyle(fontSize: 16),
+                    Expanded(
+                      child: Text(
+                        'Location: ${entry.location}',
+                        style: const TextStyle(fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
                   ],
                 ),
