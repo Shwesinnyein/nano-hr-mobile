@@ -26,6 +26,9 @@ class ApiEndpoints {
   // Approval endpoints for different levels
   static String getLeaveRequestsForApproval(String level, String userId) =>
       '/leave/approval/pending?level=$level&userId=$userId';
+  // Leave history endpoint for employee leaves tab
+  static String getLeaveHistory(String userId) =>
+      '/leave/history?userId=$userId';
   // GET /leave/{leaveId}
   static String leaveDetails(String leaveId) => '/leave/$leaveId';
   // Leave approval endpoints (server supports either path)

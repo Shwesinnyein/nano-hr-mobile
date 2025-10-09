@@ -126,60 +126,70 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       List<Map<String, dynamic>> allEmployeeLeaves = [];
 
-      // For Employee Leaves tab, show ONLY leave requests that this user has processed
-      // (approved or rejected) - not pending ones they haven't touched
+      // For Employee Leaves tab, use the leave history API which provides
+      // all leave requests that this user has processed (approved or rejected)
       try {
-        // Get all employee leaves first
-        final allLeaves = await leaveService.getAllEmployeeLeaves();
+        // Use the leave history API which already filters by user and includes
+        // proper employee details and approval history
+        allEmployeeLeaves = await leaveService.getLeaveHistory(
+          currentEmployeeId,
+        );
 
-        // Filter to show only leaves that this user has processed
-        allEmployeeLeaves = allLeaves.where((leave) {
-          final approvalHistory =
-              leave['approvalHistory'] as List<dynamic>? ?? [];
-
-          // Check if this user has processed this leave request
-          final hasProcessedByUser = approvalHistory.any((history) {
-            final historyUserId = history['userId']?.toString() ?? '';
-            final historyLevel = history['level']?.toString() ?? '';
-
-            // Match by user ID and appropriate level
-            if (historyUserId == currentEmployeeId) {
-              // For team-lead, check if they processed as team-lead
-              if (userLevel == 'team-lead' && historyLevel == 'team-lead') {
-                return true;
-              }
-              // For manager, check if they processed as manager
-              if (userLevel == 'manager' && historyLevel == 'manager') {
-                return true;
-              }
-              // For hr, check if they processed as hr
-              if (userLevel == 'hr' && historyLevel == 'hr') {
-                return true;
-              }
-              // For approver, check if they processed as approver
-              if (userLevel == 'approver' && historyLevel == 'approver') {
-                return true;
-              }
-            }
-            return false;
-          });
-
-          print('🔍 Leave ID: ${leave['id']}');
-          print('  - User Level: $userLevel');
-          print('  - Approval History: $approvalHistory');
-          print('  - Has Processed: $hasProcessedByUser');
-
-          return hasProcessedByUser;
-        }).toList();
-
-        print('🔍 Employee Leaves Filter Results:');
+        print('🔍 Employee Leaves from History API:');
         print('  - User Level: $userLevel');
-        print('  - All leaves: ${allLeaves.length}');
-        print('  - Filtered processed leaves: ${allEmployeeLeaves.length}');
+        print('  - User ID: $currentEmployeeId');
+        print('  - Total leaves: ${allEmployeeLeaves.length}');
+
+        // Log sample data to verify structure
+        if (allEmployeeLeaves.isNotEmpty) {
+          final sample = allEmployeeLeaves.first;
+          print('  - Sample leave data: ${sample.keys.toList()}');
+          print('  - Employee name: ${sample['employeeName']}');
+          print('  - First name: ${sample['firstName']}');
+          print('  - Position: ${sample['positionName']}');
+          print('  - Approval history: ${sample['approvalHistory']}');
+          print('  - Status: ${sample['status']}');
+          print('  - Status name: ${sample['statusName']}');
+        } else {
+          print('  - No leave history found for user $currentEmployeeId');
+          print(
+            '  - This might mean the user has not processed any leave requests yet',
+          );
+          print(
+            '  - The user needs to approve or reject some leave requests first',
+          );
+        }
       } catch (e) {
-        print('Error getting processed leaves: $e');
-        // Fallback to empty list if error
-        allEmployeeLeaves = [];
+        print('Error getting leave history: $e');
+        print('  - API Error details: $e');
+
+        // Fallback: Try to get processed leaves from the approval API
+        try {
+          print(
+            '  - Trying fallback: Getting processed leaves from approval API',
+          );
+          final processedLeaves = await leaveService
+              .getLeaveRequestsForApproval(userLevel, currentEmployeeId);
+
+          // Filter to only show leaves that this user has actually processed
+          allEmployeeLeaves = processedLeaves.where((leave) {
+            final approvalHistory =
+                leave['approvalHistory'] as List<dynamic>? ?? [];
+            return approvalHistory.any((history) {
+              final historyUserId = history['userId']?.toString() ?? '';
+              final historyLevel = history['level']?.toString() ?? '';
+              return historyUserId == currentEmployeeId &&
+                  historyLevel == userLevel;
+            });
+          }).toList();
+
+          print(
+            '  - Fallback result: ${allEmployeeLeaves.length} processed leaves',
+          );
+        } catch (fallbackError) {
+          print('  - Fallback also failed: $fallbackError');
+          allEmployeeLeaves = [];
+        }
       }
 
       // The API already provides employee details, no need to enhance
@@ -495,11 +505,35 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
               ),
             )
           else if (_employeeLeaves.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No employee leave records found',
-                style: TextStyle(color: AppTheme.kOnSurface.withOpacity(0.7)),
+            Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.history,
+                    size: 64,
+                    color: Colors.grey.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Processed Leave Records',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.kOnSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You haven\'t processed any leave requests yet.\nApprove or reject some requests in the Pending tab to see them here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.kOnSurface.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             )
           else
@@ -582,6 +616,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     final totalDays = leave['totalDays']?.toString() ?? '0';
     final reason = leave['reason']?.toString() ?? '';
     final status = leave['status']?.toString() ?? 'pending';
+    final statusName = leave['statusName']?.toString() ?? '';
     final positionName =
         leave['positionName']?.toString() ??
         leave['position']?.toString() ??
@@ -589,21 +624,25 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     final branchName =
         leave['branchName']?.toString() ?? leave['branch']?.toString() ?? '';
 
+    // Debug logging for status
+    print('🔍 Status Debug:');
+    print('  - status: $status');
+    print('  - statusName: $statusName');
+
     Color statusColor;
     String statusText;
 
-    switch (status.toLowerCase()) {
-      case 'approved':
-        statusColor = AppTheme.successColor;
-        statusText = 'Approved';
-        break;
-      case 'rejected':
-        statusColor = AppTheme.errorColor;
-        statusText = 'Rejected';
-        break;
-      default:
-        statusColor = AppTheme.warningColor;
-        statusText = 'Pending';
+    // Handle various approval statuses
+    if (status.toLowerCase().contains('approved')) {
+      statusColor = AppTheme.successColor;
+      // Use the actual status name from API if available, otherwise show "Approved"
+      statusText = statusName.isNotEmpty ? statusName : 'Approved';
+    } else if (status.toLowerCase().contains('rejected')) {
+      statusColor = AppTheme.errorColor;
+      statusText = statusName.isNotEmpty ? statusName : 'Rejected';
+    } else {
+      statusColor = AppTheme.warningColor;
+      statusText = statusName.isNotEmpty ? statusName : 'Pending';
     }
 
     return Container(
@@ -1444,6 +1483,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     bool approve,
     String note,
   ) async {
+    final totalStopwatch = Stopwatch()..start();
+    print(
+      '⏱️ APPROVAL FLOW: Starting ${approve ? "approve" : "reject"} process',
+    );
+
     final auth = ref.read(authServiceProvider);
     final approverId = auth.currentEmployeeId;
     if (approverId == null) return;
@@ -1460,7 +1504,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
     final service = LeaveService();
     // Verify current status first - but allow HR to act on manager-approved requests
+    print('⏱️ APPROVAL FLOW: Step 1 - Fetching leave details');
+    final detailsStopwatch = Stopwatch()..start();
     final details = await service.getLeaveDetails(leaveId);
+    detailsStopwatch.stop();
+    print(
+      '⏱️ APPROVAL FLOW: Step 1 completed in ${detailsStopwatch.elapsedMilliseconds}ms',
+    );
     if (details['success'] == true) {
       final currentStatus =
           details['leaveRequest']?['status'] ??
@@ -1509,6 +1559,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       }
     }
     // Prefer the status endpoint; backend also supports approval path
+    print('⏱️ APPROVAL FLOW: Step 2 - Sending approval request to API');
+    final approvalStopwatch = Stopwatch()..start();
     final status = approve ? 'approved' : 'rejected';
     final userRole = _getUserLevel(auth);
     final res = await service.updateLeaveStatus(
@@ -1517,6 +1569,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       approverId: approverId,
       userRole: userRole,
       note: note,
+    );
+    approvalStopwatch.stop();
+    print(
+      '⏱️ APPROVAL FLOW: Step 2 completed in ${approvalStopwatch.elapsedMilliseconds}ms',
     );
 
     if (res['success'] == true) {
@@ -1545,6 +1601,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       // Clear leave data cache to ensure fresh data
       // Clear cache for all employees since approval affects balance
+      print('⏱️ APPROVAL FLOW: Step 3 - Refreshing UI data');
+      final refreshStopwatch = Stopwatch()..start();
       LeaveController.clearAllCache();
       // Refresh the leave controller data
       ref.invalidate(leaveControllerProvider(approverId));
@@ -1552,6 +1610,23 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       // Refresh both pending requests and employee leaves
       await _loadAllLeaveRequests();
       await _loadEmployeeLeaves();
+      refreshStopwatch.stop();
+      print(
+        '⏱️ APPROVAL FLOW: Step 3 completed in ${refreshStopwatch.elapsedMilliseconds}ms',
+      );
+
+      totalStopwatch.stop();
+      print(
+        '⏱️ APPROVAL FLOW: TOTAL TIME: ${totalStopwatch.elapsedMilliseconds}ms',
+      );
+      print('⏱️ APPROVAL FLOW: Breakdown:');
+      print(
+        '   - Get leave details: ${detailsStopwatch.elapsedMilliseconds}ms',
+      );
+      print(
+        '   - API approval call: ${approvalStopwatch.elapsedMilliseconds}ms',
+      );
+      print('   - UI refresh: ${refreshStopwatch.elapsedMilliseconds}ms');
     } else {
       // Fallback: try the alternate endpoint once
       final alt = await service.approveOrRejectLeave(
