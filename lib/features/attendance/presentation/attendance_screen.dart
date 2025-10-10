@@ -491,7 +491,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.location_on,
@@ -499,12 +499,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   size: 18,
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  _getLocationDisplayText(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    _getLocationDisplayText(),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

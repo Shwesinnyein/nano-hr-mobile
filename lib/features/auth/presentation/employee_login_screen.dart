@@ -55,11 +55,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     String password,
     String confirmPassword,
   ) async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final authService = ref.read(authServiceProvider);
-
-      // Show loading
-      _showLoadingSnackBar('Verifying employee email...');
 
       // Check if email exists in employee system
       final emailCheckResult = await authService.checkEmailExists(email);
@@ -118,15 +119,22 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         // Show API error message directly
         _showErrorSnackBar(e.toString());
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _performLogin(String email, String password) async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       final authService = ref.read(authServiceProvider);
-
-      // Show loading
-      _showLoadingSnackBar('Authenticating...');
 
       // Login using API
       final result = await authService.signInWithEmailAndPassword(
@@ -155,6 +163,12 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (mounted) {
         // Show API error message directly
         _showErrorSnackBar(e.toString());
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -205,157 +219,160 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFc7a27b), // Your specified color
-              const Color(0xFFb8956b), // Slightly darker shade
-              const Color(0xFFa0855a), // Even darker for depth
-            ],
-            stops: const [0.0, 0.5, 1.0],
+      resizeToAvoidBottomInset: true,
+      body: SingleChildScrollView(
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFFc7a27b), // Your specified color
+                const Color(0xFFb8956b), // Slightly darker shade
+                const Color(0xFFa0855a), // Even darker for depth
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Language Switch in top right
-              Padding(
-                padding: const EdgeInsets.only(top: 16.0, right: 24.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [_buildLanguageSwitch()],
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Language Switch in top right
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0, right: 24.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [_buildLanguageSwitch()],
+                  ),
                 ),
-              ),
-              // Main content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 10),
+                // Main content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 10),
 
-                      // Modern Logo Section
-                      _buildModernLogo(),
+                        // Modern Logo Section
+                        _buildModernLogo(),
 
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                      // Modern Card Container
-                      Container(
-                        width: double.infinity,
-                        constraints: BoxConstraints(maxWidth: 400),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 30,
-                              offset: const Offset(0, 15),
-                            ),
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Column(
-                            children: [
-                              // Modern Mode Indicator
-                              _buildModernModeIndicator(),
-
-                              const SizedBox(height: 20),
-
-                              // Modern Form Fields
-                              _buildModernTextField(
-                                controller: _email,
-                                label: _t(
-                                  ref,
-                                  'อีเมลพนักงาน',
-                                  'Employee Email',
-                                ),
-                                icon: Icons.email_outlined,
-                                keyboardType: TextInputType.emailAddress,
+                        // Modern Card Container
+                        Container(
+                          width: double.infinity,
+                          constraints: BoxConstraints(maxWidth: 400),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
                               ),
-
-                              const SizedBox(height: 16),
-
-                              _buildModernTextField(
-                                controller: _password,
-                                label: _t(ref, 'รหัสผ่าน', 'Password'),
-                                icon: Icons.lock_outline,
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_rounded
-                                        : Icons.visibility_rounded,
-                                    color: Colors.grey[600],
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
                               ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(32.0),
+                            child: Column(
+                              children: [
+                                // Modern Mode Indicator
+                                _buildModernModeIndicator(),
 
-                              // Confirm Password field (only show in registration mode)
-                              if (_showRegistration) ...[
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
+
+                                // Modern Form Fields
                                 _buildModernTextField(
-                                  controller: _confirmPassword,
+                                  controller: _email,
                                   label: _t(
                                     ref,
-                                    'ยืนยันรหัสผ่าน',
-                                    'Confirm Password',
+                                    'อีเมลพนักงาน',
+                                    'Employee Email',
                                   ),
+                                  icon: Icons.email_outlined,
+                                  keyboardType: TextInputType.emailAddress,
+                                ),
+
+                                const SizedBox(height: 16),
+
+                                _buildModernTextField(
+                                  controller: _password,
+                                  label: _t(ref, 'รหัสผ่าน', 'Password'),
                                   icon: Icons.lock_outline,
-                                  obscureText: _obscureConfirmPassword,
+                                  obscureText: _obscurePassword,
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      _obscureConfirmPassword
+                                      _obscurePassword
                                           ? Icons.visibility_off_rounded
                                           : Icons.visibility_rounded,
                                       color: Colors.grey[600],
                                     ),
                                     onPressed: () {
                                       setState(() {
-                                        _obscureConfirmPassword =
-                                            !_obscureConfirmPassword;
+                                        _obscurePassword = !_obscurePassword;
                                       });
                                     },
                                   ),
                                 ),
+
+                                // Confirm Password field (only show in registration mode)
+                                if (_showRegistration) ...[
+                                  const SizedBox(height: 16),
+                                  _buildModernTextField(
+                                    controller: _confirmPassword,
+                                    label: _t(
+                                      ref,
+                                      'ยืนยันรหัสผ่าน',
+                                      'Confirm Password',
+                                    ),
+                                    icon: Icons.lock_outline,
+                                    obscureText: _obscureConfirmPassword,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirmPassword
+                                            ? Icons.visibility_off_rounded
+                                            : Icons.visibility_rounded,
+                                        color: Colors.grey[600],
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          _obscureConfirmPassword =
+                                              !_obscureConfirmPassword;
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                ],
+
+                                const SizedBox(height: 24),
+
+                                // Modern 3D Button
+                                _buildModern3DButton(),
+
+                                const SizedBox(height: 24),
+
+                                // Modern Toggle Button
+                                _buildModernToggleButton(),
                               ],
-
-                              const SizedBox(height: 24),
-
-                              // Modern 3D Button
-                              _buildModern3DButton(),
-
-                              const SizedBox(height: 24),
-
-                              // Modern Toggle Button
-                              _buildModernToggleButton(),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 30),
-                    ],
+                        const SizedBox(height: 30),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -585,7 +602,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: _showRegistration ? _handleRegistration : _handleLogin,
+        onPressed: _isLoading
+            ? null
+            : (_showRegistration ? _handleRegistration : _handleLogin),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
