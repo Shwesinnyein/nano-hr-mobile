@@ -3,7 +3,7 @@
     "short_name": "nano_hr_mobile",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#1C1C1E",
     "theme_color": "#C19A6B",
     "description": "A new Flutter project.",
     "orientation": "portrait-primary",

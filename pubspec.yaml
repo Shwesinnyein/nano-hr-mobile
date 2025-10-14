@@ -110,9 +110,9 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/nano-store-dark.png"
+  image_path: "assets/icon/nano-icon-square.png"
   web:
     generate: true
-    image_path: "assets/icon/nano-store-dark.png"
-    background_color: "#ffffff"
+    image_path: "assets/icon/nano-icon-square.png"
+    background_color: "#1C1C1E"
     theme_color: "#C19A6B"

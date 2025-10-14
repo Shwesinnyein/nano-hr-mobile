@@ -17,7 +17,7 @@ class BranchLocation {
 class BranchLocationService {
   // Maximum distance (in kilometers) to consider a branch as "nearby"
   // 0.5 km = 500 meters, 1.0 km = 1000 meters, etc.
-  static const double maxBranchRadius = 0.3; // 500 meters
+  static const double maxBranchRadius = 0.1; // 500 meters
 
   // Define your 7 branches with their coordinates
   static final List<BranchLocation> branches = [
