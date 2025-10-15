@@ -44,42 +44,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   // Helper method to get button text and state based on attendance status
   // Helper method to get button text and state based on attendance status
   Map<String, dynamic> _getButtonState(List<Attendance> entries) {
-    final todayEntries = entries.where((entry) {
-      final entryDate = DateTime(
-        entry.checkInAt.year,
-        entry.checkInAt.month,
-        entry.checkInAt.day,
-      );
-      final today = DateTime(
-        DateTime.now().year,
-        DateTime.now().month,
-        DateTime.now().day,
-      );
-      return entryDate.isAtSameMomentAs(today);
-    }).toList();
+    // Use API attendance data directly instead of filtering local entries
+    final attendanceData = _shiftData?['attendanceData'] as List?;
+    final latestRecord = attendanceData?.isNotEmpty == true
+        ? attendanceData!.first
+        : null;
+    final hasCheckedIn = latestRecord?['checkInAt'] != null;
+    final hasCheckedOut = latestRecord?['checkOutAt'] != null;
 
-    // Determine status from attendance data
-    final hasCheckedIn = todayEntries.isNotEmpty;
-    final hasCheckedOut =
-        todayEntries.isNotEmpty && todayEntries.last.checkOutAt != null;
+    print('🔍 Button State Debug:');
+    print('  - latestRecord: $latestRecord');
+    print('  - checkInAt: ${latestRecord?['checkInAt']}');
+    print('  - checkOutAt: ${latestRecord?['checkOutAt']}');
+    print('  - hasCheckedIn: $hasCheckedIn');
+    print('  - hasCheckedOut: $hasCheckedOut');
 
-    // Use API status data if available, otherwise fall back to attendance data
-    String? apiStatus = _attendanceStatus?['status'];
-    bool isCheckedInFromAPI = apiStatus == 'checked_in';
-    bool isCheckedOutFromAPI = apiStatus == 'checked_out';
-
-    // If we have API data (even if empty), trust it over local data
-    final finalHasCheckedIn = _attendanceStatus != null
-        ? isCheckedInFromAPI
-        : _shiftData != null
-        ? false // API data exists but no attendance, so not checked in
-        : hasCheckedIn; // Only use local data if no API data at all
-
-    final finalHasCheckedOut = _attendanceStatus != null
-        ? isCheckedOutFromAPI
-        : _shiftData != null
-        ? false // API data exists but no attendance, so not checked out
-        : hasCheckedOut;
+    // Use actual check-in/check-out times to determine button state
+    final finalHasCheckedIn = hasCheckedIn;
+    final finalHasCheckedOut = hasCheckedOut;
 
     final bool canCheckIn = !finalHasCheckedIn;
     final bool canCheckOut = finalHasCheckedIn && !finalHasCheckedOut;
@@ -293,13 +275,31 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
           // Update attendance status from shift data
           if (_shiftData?['attendanceData'] != null) {
+            final attendanceData = _shiftData!['attendanceData'];
+            final hasAttendanceData = attendanceData.isNotEmpty;
+            final latestRecord = hasAttendanceData ? attendanceData[0] : null;
+
+            // Determine status based on attendance data
+            String status = 'not_checked_in';
+            if (hasAttendanceData && latestRecord != null) {
+              if (latestRecord['checkInAt'] != null &&
+                  latestRecord['checkOutAt'] == null) {
+                status = 'checked_in';
+              } else if (latestRecord['checkInAt'] != null &&
+                  latestRecord['checkOutAt'] != null) {
+                status = 'checked_out';
+              }
+            }
+
             _attendanceStatus = {
               'success': true,
-              'data': _shiftData!['attendanceData'],
-              'record': _shiftData!['attendanceData'].isNotEmpty
-                  ? _shiftData!['attendanceData'][0]
-                  : null,
+              'status': status,
+              'data': attendanceData,
+              'record': latestRecord,
             };
+
+            print('🔄 Refreshed attendance status: $status');
+            print('🔄 Attendance record: $latestRecord');
           }
         });
       }
@@ -905,32 +905,22 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         'branchName': employeeProfile['branchName'] ?? '',
       };
 
-      // Check current status using existing data or API fallback
+      // Check current status using API attendance data directly
       bool isCheckOut = false;
 
-      // First try to use existing attendance status from shift data
-      if (_attendanceStatus != null) {
-        final status = _attendanceStatus!['status'];
-        if (status == 'checked_in') {
-          isCheckOut = true;
-        } else if (status == 'checked_out') {
+      // Use the same logic as button state - check actual attendance data
+      final attendanceData = _shiftData?['attendanceData'] as List?;
+      if (attendanceData?.isNotEmpty == true) {
+        final latestRecord = attendanceData!.first;
+        final hasCheckedIn = latestRecord['checkInAt'] != null;
+        final hasCheckedOut = latestRecord['checkOutAt'] != null;
+
+        if (hasCheckedIn && !hasCheckedOut) {
+          isCheckOut = true; // Can check out
+        } else if (hasCheckedIn && hasCheckedOut) {
           throw Exception('You have already checked out today');
         }
-      } else {
-        // Fallback to API call if no existing data
-        final apiService = ref.read(apiServiceProvider);
-        final statusResponse = await apiService.getTodayAttendanceStatus(
-          employeeId: employeeId,
-        );
-
-        if (statusResponse['success'] == true) {
-          final status = statusResponse['status'];
-          if (status == 'checked_in') {
-            isCheckOut = true;
-          } else if (status == 'checked_out') {
-            throw Exception('You have already checked out today');
-          }
-        }
+        // If !hasCheckedIn, isCheckOut remains false (can check in)
       }
 
       // Use pre-loaded location or navigate to confirmation screen to get it
@@ -988,6 +978,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
         // Refresh attendance status after successful action
         await _refreshAttendanceStatus();
+
+        // Also refresh the attendance controller to get latest data
+        ref.invalidate(attendanceControllerProvider);
 
         // Show success message
         if (context.mounted) {
@@ -1569,7 +1562,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Date
+                // Date and Status
                 Row(
                   children: [
                     const Icon(
@@ -1583,6 +1576,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(entry),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _getAttendanceStatus(entry),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -1644,6 +1657,66 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         );
       },
     );
+  }
+
+  String _getAttendanceStatus(Attendance entry) {
+    // Get working hours from shift data
+    final shiftData = _shiftData?['shiftData'] as List?;
+    if (shiftData?.isNotEmpty == true) {
+      final shift = shiftData!.first;
+      final startTime = shift['startTime'] as String?;
+
+      if (startTime != null) {
+        // Parse start time (format: "09:00")
+        final startTimeParts = startTime.split(':');
+        if (startTimeParts.length == 2) {
+          final startHour = int.parse(startTimeParts[0]);
+          final startMinute = int.parse(startTimeParts[1]);
+
+          // Compare check-in time with start time
+          final checkInTime = entry.checkInAt;
+          final checkInHour = checkInTime.hour;
+          final checkInMinute = checkInTime.minute;
+
+          // Calculate minutes difference
+          final checkInMinutes = checkInHour * 60 + checkInMinute;
+          final startMinutes = startHour * 60 + startMinute;
+          final difference = checkInMinutes - startMinutes;
+
+          if (difference <= 0) {
+            return 'On Time';
+          } else if (difference <= 15) {
+            return 'In Time';
+          } else if (difference <= 30) {
+            return 'Late';
+          } else {
+            return 'Late';
+          }
+        }
+      }
+    }
+
+    // Fallback status based on check-out
+    return entry.checkOutAt != null ? 'Completed' : 'In Progress';
+  }
+
+  Color _getStatusColor(Attendance entry) {
+    final status = _getAttendanceStatus(entry);
+
+    switch (status) {
+      case 'On Time':
+        return Colors.green;
+      case 'Late':
+        return Colors.orange;
+      case 'Very Late':
+        return Colors.red;
+      case 'Completed':
+        return Colors.blue;
+      case 'In Progress':
+        return AppTheme.kNanoGold;
+      default:
+        return Colors.grey;
+    }
   }
 }
 
