@@ -3,6 +3,7 @@ class ApiEndpoints {
 
   // Auth endpoints
   static const String loginUser = '/auth/login-user';
+  static const String loginUserMobile = '/auth/mobile-login';
   static const String registerUser = '/auth/register-user';
   static const String checkEmailExists = '/auth/check-email';
 

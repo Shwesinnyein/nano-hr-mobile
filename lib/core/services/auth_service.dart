@@ -94,6 +94,63 @@ class AuthService {
     }
   }
 
+  // Sign in with email and password using mobile API (new endpoint)
+  Future<Map<String, dynamic>> signInWithEmailAndPasswordMobile(
+    String email,
+    String password,
+  ) async {
+    try {
+      // Call mobile login API directly
+      final response = await _apiService.loginUserMobile(
+        email: email,
+        password: password,
+      );
+
+      print('🔍 API Response: $response');
+      print(
+        '🔍 Success field: ${response['success']} (type: ${response['success'].runtimeType})',
+      );
+
+      if (response['success'] == true) {
+        final employeeData = response['employee'];
+        final token = response['token'];
+
+        _currentUserId = employeeData['authId'] ?? employeeData['id'] ?? email;
+        _currentEmployeeId = employeeData['id'] ?? employeeData['uid'];
+
+        // Store employee name and position information
+        _currentEmployeeFirstName =
+            employeeData['firstName'] ?? employeeData['first_name'];
+        _currentEmployeeLastName =
+            employeeData['lastName'] ?? employeeData['last_name'];
+        _currentEmployeeName =
+            '${_currentEmployeeFirstName ?? ''} ${_currentEmployeeLastName ?? ''}'
+                .trim();
+        _currentPositionName =
+            employeeData['positionName'] ??
+            employeeData['position_name'] ??
+            employeeData['jobTitle'] ??
+            employeeData['job_title'];
+
+        return {
+          'success': true,
+          'message': response['message'] ?? 'Mobile login successful',
+          'employee': employeeData,
+          'token': token, // Include token in response
+        };
+      } else {
+        // Throw exception for failed login so it gets caught by the UI
+        throw Exception(response['message'] ?? 'Login failed');
+      }
+    } catch (e) {
+      // If it's already an Exception with the message, just rethrow it
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Login failed: ${e.toString()}');
+    }
+  }
+
   // Check if email already exists
   Future<Map<String, dynamic>> checkEmailExists(String email) async {
     try {

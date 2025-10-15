@@ -47,7 +47,8 @@ class AuthRepository {
         final userData = response['data'] as Map<String, dynamic>;
         final userId = userData['authId'] ?? userData['id'] ?? email;
         final employeeId = userData['id'] ?? userData['uid'];
-        final token = userData['token'] ?? userData['accessToken'];
+        final token =
+            response['token'] ?? userData['token'] ?? userData['accessToken'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_kLoggedInKey, true);
@@ -62,6 +63,66 @@ class AuthRepository {
         _authService.setCurrentEmployeeId(employeeId);
       } else {
         throw Exception(response['message'] ?? 'Login failed');
+      }
+    } catch (e) {
+      await _clearLoginState();
+      rethrow;
+    }
+  }
+
+  Future<void> loginMobile({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      print('🔐 Starting mobile login for: $email');
+      final response = await _authService.signInWithEmailAndPasswordMobile(
+        email,
+        password,
+      );
+
+      print('📡 Login response: $response');
+
+      if (response['success'] == true && response['employee'] != null) {
+        print('🔍 Login response employee data: ${response['employee']}');
+        final userData = response['employee'] as Map<String, dynamic>;
+        final userId = userData['authId'] ?? userData['id'] ?? email;
+        final employeeId = userData['id'] ?? userData['uid'];
+        final token =
+            response['token'] ?? userData['token'] ?? userData['accessToken'];
+
+        print('🔑 Extracted data:');
+        print('  - userId: $userId');
+        print('  - employeeId: $employeeId');
+        print(
+          '  - token: ${token != null ? '${token.substring(0, token.length > 20 ? 20 : token.length)}...' : 'null'}',
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kLoggedInKey, true);
+        await prefs.setString(_kUserId, userId);
+        await prefs.setString(_kEmployeeId, employeeId);
+        if (token != null) {
+          await prefs.setString(_kUserToken, token);
+          print('✅ Token stored successfully');
+        } else {
+          print('❌ No token to store');
+        }
+
+        // Store profile image URL
+        final profileImageUrl = userData['profileImage'];
+        if (profileImageUrl != null) {
+          await prefs.setString('user_profile_image', profileImageUrl);
+          print('🖼️ Profile image stored: $profileImageUrl');
+        } else {
+          print('❌ No profile image URL found');
+        }
+
+        // Update auth service with both user ID and employee ID
+        _authService.setCurrentUser(userId);
+        _authService.setCurrentEmployeeId(employeeId);
+      } else {
+        throw Exception(response['message'] ?? 'Mobile login failed');
       }
     } catch (e) {
       await _clearLoginState();
@@ -125,6 +186,18 @@ class AuthController extends StateNotifier<AsyncValue<bool>> {
       _controller.add(true);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> loginMobile(String email, String password) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repo.loginMobile(email: email, password: password);
+      state = const AsyncValue.data(true);
+      _controller.add(true);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      rethrow; // Re-throw the exception so the UI can catch it
     }
   }
 

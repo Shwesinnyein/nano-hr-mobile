@@ -106,6 +106,23 @@ class AttendanceService {
     }
   }
 
+  // Get shift data with filter
+  Future<Map<String, dynamic>> getShiftDataWithFilter({
+    required String employeeId,
+    required String date,
+  }) async {
+    try {
+      final response = await _apiService.getShiftDataWithFilter(
+        employeeId: employeeId,
+        date: date,
+      );
+
+      return response;
+    } catch (e) {
+      throw Exception('Failed to get shift data: ${e.toString()}');
+    }
+  }
+
   // Get attendance history
   Future<List<Map<String, dynamic>>> getAttendanceHistory(
     String employeeId,

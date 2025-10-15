@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_endpoints.dart';
 
 class ApiService {
@@ -15,6 +16,62 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+        },
+      ),
+    );
+
+    // Add authentication interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+           onRequest: (options, handler) async {
+             // Add authentication token if available
+             try {
+               final prefs = await SharedPreferences.getInstance();
+               final token = prefs.getString('user_token');
+               print('🔍 Token check for ${options.path}:');
+               print('  - Token exists: ${token != null}');
+               print('  - Token length: ${token?.length ?? 0}');
+               print(
+                 '  - Token preview: ${token != null ? '${token.substring(0, token.length > 20 ? 20 : token.length)}...' : 'null'}',
+               );
+               print('  - Full request URL: ${options.baseUrl}${options.path}');
+
+               if (token != null && token.isNotEmpty) {
+                 options.headers['Authorization'] = 'Bearer $token';
+                 print('🔐 Added JWT token to request: ${options.path}');
+               } else {
+                 print('⚠️ No JWT token found for request: ${options.path}');
+               }
+             } catch (e) {
+               print('❌ Error getting token: $e');
+               // Ignore token errors, continue without auth
+             }
+             handler.next(options);
+           },
+      ),
+    );
+
+    // Add token expiration handling interceptor
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (error, handler) async {
+          // Handle 401 Unauthorized (token expired)
+          if (error.response?.statusCode == 401) {
+            try {
+              // Clear stored login data
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('logged_in', false);
+              await prefs.remove('user_token');
+              await prefs.remove('user_id');
+              await prefs.remove('employee_id');
+
+              // You could also trigger a logout event here
+              print('🔄 Token expired - user needs to login again');
+            } catch (e) {
+              print('❌ Error clearing expired token: $e');
+            }
+          }
+          handler.next(error);
         },
       ),
     );
@@ -177,6 +234,38 @@ class ApiService {
     }
   }
 
+  // Login user with mobile API (new endpoint)
+  Future<Map<String, dynamic>> loginUserMobile({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.loginUserMobile,
+        data: {'email': email, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        // Return the API response directly
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Mobile login failed: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // Return the API error response directly
+        return e.response!.data;
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   // Get employee profile
   Future<Map<String, dynamic>> getEmployeeProfile({
     required String employeeId,
@@ -265,6 +354,45 @@ class ApiService {
       if (e.response != null) {
         // Return the API error response directly
         return e.response!.data;
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Get shift data with filter
+  Future<Map<String, dynamic>> getShiftDataWithFilter({
+    required String employeeId,
+    required String date,
+  }) async {
+    try {
+      print(
+        '🔐 Getting shift data with filter for employee: $employeeId, date: $date',
+      );
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/employee/shift-data/filter',
+        queryParameters: {'employeeId': employeeId, 'date': date},
+      );
+
+      if (response.statusCode == 200) {
+        // Return the API response directly since it already has the correct structure
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get shift data: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return {
+          'success': false,
+          'message': e.response?.data['message'] ?? 'Failed to get shift data',
+          'error': e.response?.data,
+        };
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/providers/language_provider.dart';
+import '../data/auth_repository.dart' as auth_repo;
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
   const EmployeeLoginScreen({super.key});
@@ -21,6 +22,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   bool _obscureConfirmPassword = true;
   bool _showRegistration = false;
   bool _isLoading = false;
+  bool _useMobileAPI = true; // Always use mobile API
 
   // Translation helper method using global state
   String _t(WidgetRef ref, String thaiText, String englishText) {
@@ -72,9 +74,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
 
       // If email doesn't exist in system, show error
       if (emailCheckResult['exists'] == false) {
-        _showErrorSnackBar(
-          'Email not found in system. Please contact HR to add your email to the employee database.',
-        );
+        _showErrorSnackBar('Email not found in system. Please contact HR.');
         return;
       }
 
@@ -134,30 +134,32 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     });
 
     try {
+      final authController = ref.read(auth_repo.authStateProvider.notifier);
+
+      // Login using mobile API via auth repository (which handles token storage)
+      await authController.loginMobile(email, password);
+
+      // If we reach here, login was successful (authController throws exception on failure)
+      print('✅ Login successful, navigating to attendance screen');
+
+      // Check auth state
       final authService = ref.read(authServiceProvider);
+      print('🔍 Auth state check:');
+      print('  - isAuthenticated: ${authService.isAuthenticated}');
+      print('  - currentUserId: ${authService.currentUserId}');
+      print('  - currentEmployeeId: ${authService.currentEmployeeId}');
 
-      // Login using API
-      final result = await authService.signInWithEmailAndPassword(
-        email,
-        password,
-      );
-
-      if (result['success'] == true) {
+      if (mounted) {
         // The auth service already sets the user ID and employee ID correctly
         // No need to override it with a dummy ID
 
         // Success - show message first, then navigate
+        _showSuccessSnackBar('Login successful!');
+        // Add delay to ensure user sees the success message before navigation
+        await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) {
-          _showSuccessSnackBar('Login successful!');
-          // Add delay to ensure user sees the success message before navigation
-          await Future.delayed(const Duration(milliseconds: 1500));
-          if (mounted) {
-            context.go('/attendance');
-          }
+          context.go('/attendance');
         }
-      } else {
-        // Show API error message directly
-        _showErrorSnackBar(result['message'] ?? 'Login failed');
       }
     } catch (e) {
       if (mounted) {
