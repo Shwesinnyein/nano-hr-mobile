@@ -203,6 +203,126 @@ class LeaveTranslations {
   static String noRejectedRequests(WidgetRef ref) =>
       ref.t('ไม่มีคำขอที่ปฏิเสธแล้ว', 'No rejected requests');
 
+  // Additional error messages
+  static String pleaseSelectFromDateFirst(WidgetRef ref) =>
+      ref.t('กรุณาเลือกวันที่เริ่มต้นก่อน', 'Please select from date first');
+
+  static String errorPickingImage(WidgetRef ref) =>
+      ref.t('เกิดข้อผิดพลาดในการเลือกรูปภาพ', 'Error picking image');
+
+  static String fileSizeTooLarge(WidgetRef ref) =>
+      ref.t('ขนาดไฟล์ต้องไม่เกิน 10MB', 'File size must be less than 10MB');
+
+  static String imageAdded(WidgetRef ref) =>
+      ref.t('เพิ่มรูปภาพเรียบร้อยแล้ว', 'Image added');
+
+  static String errorAddingImage(WidgetRef ref) =>
+      ref.t('เกิดข้อผิดพลาดในการเพิ่มรูปภาพ', 'Error adding image');
+
+  static String pleaseSelectDates(WidgetRef ref) => ref.t(
+    'กรุณาเลือกวันที่เริ่มต้นและสิ้นสุด',
+    'Please select from and to dates',
+  );
+
+  static String pleaseSelectDateTime(WidgetRef ref) => ref.t(
+    'กรุณาเลือกวันที่ เวลาเริ่มต้น และเวลาสิ้นสุด',
+    'Please select date, start time, and end time',
+  );
+
+  static String endTimeMustBeAfterStartTime(WidgetRef ref) => ref.t(
+    'เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น',
+    'End time must be after start time',
+  );
+
+  static String pleaseProvideReason(WidgetRef ref) =>
+      ref.t('กรุณาระบุเหตุผลในการลา', 'Please provide a reason for leave');
+
+  static String employeeNotFound(WidgetRef ref) =>
+      ref.t('ไม่พบข้อมูลพนักงาน', 'Employee not found');
+
+  static String errorSubmittingRequest(WidgetRef ref) =>
+      ref.t('เกิดข้อผิดพลาดในการส่งคำขอลา', 'Error submitting leave request');
+
+  // Additional leave list translations
+  static String fromDate(WidgetRef ref) => ref.t('จาก:', 'From:');
+
+  static String toDate(WidgetRef ref) => ref.t('ถึง:', 'To:');
+
+  static String totalDaysLabel(WidgetRef ref) =>
+      ref.t('จำนวนวันทั้งหมด:', 'Total Days:');
+
+  static String attachmentsLabel(WidgetRef ref) =>
+      ref.t('เอกสารแนบ', 'Attachments');
+
+  static String createdLabel(WidgetRef ref) => ref.t('สร้างเมื่อ:', 'Created:');
+
+  static String dayUnit(WidgetRef ref) => ref.t('วัน', 'day');
+
+  static String daysUnit(WidgetRef ref) => ref.t('วัน', 'days');
+
+  // Leave request screen translations
+  static String leaveRequestTitle(WidgetRef ref) =>
+      ref.t('คำขอลา', 'Leave Request');
+
+  static String durationType(WidgetRef ref) =>
+      ref.t('ประเภทระยะเวลา', 'Duration Type');
+
+  static String daily(WidgetRef ref) => ref.t('รายวัน', 'Daily');
+
+  static String hourly(WidgetRef ref) => ref.t('รายชั่วโมง', 'Hourly');
+
+  static String workingShift(WidgetRef ref) =>
+      ref.t('กะการทำงาน', 'Working Shift');
+
+  static String leavePeriod(WidgetRef ref) =>
+      ref.t('ระยะเวลาลา', 'Leave Period');
+
+  static String leaveDate(WidgetRef ref) => ref.t('วันที่ลา', 'Leave Date');
+
+  static String fromDateField(WidgetRef ref) =>
+      ref.t('วันที่เริ่มต้น', 'From Date');
+
+  static String toDateField(WidgetRef ref) => ref.t('วันที่สิ้นสุด', 'To Date');
+
+  static String date(WidgetRef ref) => ref.t('วันที่', 'Date');
+
+  static String timePeriod(WidgetRef ref) => ref.t('ช่วงเวลา', 'Time Period');
+
+  static String startTime(WidgetRef ref) => ref.t('เวลาเริ่มต้น', 'Start Time');
+
+  static String endTime(WidgetRef ref) => ref.t('เวลาสิ้นสุด', 'End Time');
+
+  static String selectTime(WidgetRef ref) => ref.t('เลือกเวลา', 'Select time');
+
+  static String selectDate(WidgetRef ref) =>
+      ref.t('เลือกวันที่', 'Select date');
+
+  static String reasonField(WidgetRef ref) => ref.t('เหตุผล', 'Reason');
+
+  static String reasonHint(WidgetRef ref) => ref.t(
+    'กรุณาระบุเหตุผลในการขอลาของคุณ...',
+    'Please provide a reason for your leave request...',
+  );
+
+  static String supportingImage(WidgetRef ref) =>
+      ref.t('รูปภาพประกอบ (ไม่บังคับ)', 'Supporting Image (Optional)');
+
+  static String takePhoto(WidgetRef ref) => ref.t('ถ่ายรูป', 'Take Photo');
+
+  static String gallery(WidgetRef ref) => ref.t('แกลเลอรี่', 'Gallery');
+
+  static String submitLeaveRequest(WidgetRef ref) =>
+      ref.t('ส่งคำขอลา', 'Submit Leave Request');
+
+  static String fillAllRequiredFields(WidgetRef ref) =>
+      ref.t('กรุณากรอกข้อมูลที่จำเป็นทั้งหมด', 'Fill all required fields');
+
+  static String unknownEmployee(WidgetRef ref) =>
+      ref.t('พนักงานไม่ทราบชื่อ', 'Unknown Employee');
+
+  static String failedToSubmitRequest(WidgetRef ref) =>
+      ref.t('ไม่สามารถส่งคำขอลาได้', 'Failed to submit leave request');
+
   // Helper method to translate leave type names dynamically
   static String translateLeaveTypeName(WidgetRef ref, String typeName) {
     final name = typeName.toLowerCase();

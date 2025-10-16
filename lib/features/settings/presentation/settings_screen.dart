@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../employee/presentation/employee_list_screen.dart';
+import '../../attendance/presentation/employee_attendance_history_screen.dart';
+import '../../attendance/presentation/attendance_history_screen.dart';
 import '../../auth/data/auth_repository.dart' as auth;
 import '../../../core/providers/language_provider.dart';
 import '../../../core/utils/translation_helper.dart';
@@ -32,36 +34,36 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSettingsSection(ref.t('องค์กร', 'Organization'), [
-              _buildSettingsItem(
-                ref.t('ข้อมูลบริษัท', 'Company Information'),
-                ref.t(
-                  'ดูรายละเอียดบริษัทและนโยบาย',
-                  'View company details and policies',
-                ),
-                Icons.business,
-                () => _showComingSoon(
-                  context,
-                  ref.t('ข้อมูลบริษัท', 'Company Information'),
-                ),
-              ),
-              _buildSettingsItem(
-                ref.t('โครงสร้างแผนก', 'Department Structure'),
-                ref.t('ดูลำดับชั้นองค์กร', 'View organizational hierarchy'),
-                Icons.account_tree,
-                () => _showComingSoon(
-                  context,
-                  ref.t('โครงสร้างแผนก', 'Department Structure'),
-                ),
-              ),
-              _buildSettingsItem(
-                ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
-                ref.t('เรียกดูรายชื่อพนักงาน', 'Browse employee contacts'),
-                Icons.contacts,
-                () => _showComingSoon(
-                  context,
-                  ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
-                ),
-              ),
+              // _buildSettingsItem(
+              //   ref.t('ข้อมูลบริษัท', 'Company Information'),
+              //   ref.t(
+              //     'ดูรายละเอียดบริษัทและนโยบาย',
+              //     'View company details and policies',
+              //   ),
+              //   Icons.business,
+              //   () => _showComingSoon(
+              //     context,
+              //     ref.t('ข้อมูลบริษัท', 'Company Information'),
+              //   ),
+              // ),
+              // _buildSettingsItem(
+              //   ref.t('โครงสร้างแผนก', 'Department Structure'),
+              //   ref.t('ดูลำดับชั้นองค์กร', 'View organizational hierarchy'),
+              //   Icons.account_tree,
+              //   () => _showComingSoon(
+              //     context,
+              //     ref.t('โครงสร้างแผนก', 'Department Structure'),
+              //   ),
+              // ),
+              // _buildSettingsItem(
+              //   ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
+              //   ref.t('เรียกดูรายชื่อพนักงาน', 'Browse employee contacts'),
+              //   Icons.contacts,
+              //   () => _showComingSoon(
+              //     context,
+              //     ref.t('ไดเรกทอรีพนักงาน', 'Employee Directory'),
+              //   ),
+              // ),
               _buildSettingsItem(
                 ref.t('รายชื่อพนักงาน', 'Employee List'),
                 ref.t(
@@ -73,100 +75,74 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ]),
             const SizedBox(height: 24),
-            _buildSettingsSection('Attendance', [
+            _buildSettingsSection(ref.t('การเข้างาน', 'Attendance'), [
               _buildSettingsItem(
-                'Attendance History',
-                'View your attendance records',
+                ref.t('ประวัติการเข้างาน', 'Attendance History'),
+                ref.t(
+                  'ดูประวัติการเข้างานของคุณ',
+                  'View your attendance records',
+                ),
                 Icons.history,
-                () => _showComingSoon(context, 'Attendance History'),
+                () => _navigateToAttendanceHistory(context),
               ),
               _buildSettingsItem(
-                'Time Tracking',
-                'Check in/out and break times',
-                Icons.access_time,
-                () => _showComingSoon(context, 'Time Tracking'),
+                ref.t(
+                  'ประวัติการเข้างานของพนักงาน',
+                  'Attendance History by Employee',
+                ),
+                ref.t(
+                  'ดูประวัติการเข้างานของพนักงานทั้งหมด',
+                  'View attendance records for all employees',
+                ),
+                Icons.people_alt,
+                () => _navigateToEmployeeAttendanceHistory(context),
               ),
+              // _buildSettingsItem(
+              //   ref.t('ติดตามเวลา', 'Time Tracking'),
+              //   ref.t('เช็คอิน/เช็คเอาท์และเวลาพัก', 'Check in/out and break times'),
+              //   Icons.access_time,
+              //   () => _showComingSoon(context, ref.t('ติดตามเวลา', 'Time Tracking')),
+              // ),
               _buildSettingsItem(
-                'Attendance Reports',
-                'Generate attendance reports',
+                ref.t('รายงานการเข้างาน', 'Attendance Reports'),
+                ref.t('สร้างรายงานการเข้างาน', 'Generate attendance reports'),
                 Icons.assessment,
-                () => _showComingSoon(context, 'Attendance Reports'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('รายงานการเข้างาน', 'Attendance Reports'),
+                ),
               ),
             ]),
             const SizedBox(height: 24),
-            _buildSettingsSection('Time Management', [
+            _buildSettingsSection(ref.t('การเงิน', 'Financial'), [
               _buildSettingsItem(
-                'Adjust Time',
-                'Request time adjustments',
-                Icons.schedule,
-                () => _showComingSoon(context, 'Adjust Time'),
-              ),
-              _buildSettingsItem(
-                'Work Schedule',
-                'View and manage work hours',
-                Icons.calendar_month,
-                () => _showComingSoon(context, 'Work Schedule'),
-              ),
-              _buildSettingsItem(
-                'Time Off Requests',
-                'Submit time off requests',
-                Icons.event_busy,
-                () => _showComingSoon(context, 'Time Off Requests'),
-              ),
-            ]),
-            const SizedBox(height: 24),
-            _buildSettingsSection('Communication', [
-              _buildSettingsItem(
-                'Announcements',
-                'View company announcements',
-                Icons.campaign,
-                () => _showComingSoon(context, 'Announcements'),
-              ),
-            ]),
-            const SizedBox(height: 24),
-            _buildSettingsSection('Work Management', [
-              _buildSettingsItem(
-                'OT Request',
-                'Submit overtime requests',
-                Icons.work_outline,
-                () => _showComingSoon(context, 'OT Request'),
-              ),
-              _buildSettingsItem(
-                'Task Management',
-                'View and manage tasks',
-                Icons.task_alt,
-                () => _showComingSoon(context, 'Task Management'),
-              ),
-              _buildSettingsItem(
-                'Project Tracking',
-                'Track project progress',
-                Icons.track_changes,
-                () => _showComingSoon(context, 'Project Tracking'),
-              ),
-            ]),
-            const SizedBox(height: 24),
-            _buildSettingsSection('Financial', [
-              _buildSettingsItem(
-                'Payroll',
-                'View salary and payslips',
+                ref.t('เงินเดือน', 'Payroll'),
+                ref.t(
+                  'ดูเงินเดือนและใบรับเงินเดือน',
+                  'View salary and payslips',
+                ),
                 Icons.account_balance_wallet,
-                () => _showComingSoon(context, 'Payroll'),
+                () => _showComingSoon(context, ref.t('เงินเดือน', 'Payroll')),
               ),
             ]),
             const SizedBox(height: 24),
-            _buildSettingsSection('Support', [
+            _buildSettingsSection(ref.t('การสนับสนุน', 'Support'), [
               _buildSettingsItem(
-                'Problem Report',
-                'Report issues and problems',
+                ref.t('รายงานปัญหา', 'Problem Report'),
+                ref.t('รายงานปัญหาและข้อผิดพลาด', 'Report issues and problems'),
                 Icons.report_problem,
-                () => _showComingSoon(context, 'Problem Report'),
+                () => _showComingSoon(
+                  context,
+                  ref.t('รายงานปัญหา', 'Problem Report'),
+                ),
               ),
 
               _buildSettingsItem(
-                'Contact IT',
-                'Contact IT support',
+                ref.t('ติดต่อ IT', 'Contact IT'),
+                ref.t('ติดต่อฝ่ายสนับสนุน IT', 'Contact IT support'),
                 Icons.support_agent,
-                () => _showComingSoon(context, 'Contact IT'),
+                () =>
+                    _showComingSoon(context, ref.t('ติดต่อ IT', 'Contact IT')),
               ),
             ]),
             const SizedBox(height: 24),
@@ -716,6 +692,22 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const EmployeeListScreen()),
+    );
+  }
+
+  void _navigateToEmployeeAttendanceHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EmployeeAttendanceHistoryScreen(),
+      ),
+    );
+  }
+
+  void _navigateToAttendanceHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AttendanceHistoryScreen()),
     );
   }
 

@@ -169,46 +169,215 @@ class _AttendanceHistoryScreenState
   }
 
   String _getMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
+    final isThai = ref.watch(languageProvider);
+    if (isThai) {
+      const months = [
+        'มกราคม',
+        'กุมภาพันธ์',
+        'มีนาคม',
+        'เมษายน',
+        'พฤษภาคม',
+        'มิถุนายน',
+        'กรกฎาคม',
+        'สิงหาคม',
+        'กันยายน',
+        'ตุลาคม',
+        'พฤศจิกายน',
+        'ธันวาคม',
+      ];
+      return months[month - 1];
+    } else {
+      const months = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      return months[month - 1];
+    }
   }
 
   void _showMonthYearPicker() {
+    int selectedYear = _selectedYear;
+    int selectedMonth = _selectedMonth;
+    final isThai = ref.watch(languageProvider);
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Month & Year'),
-        content: SizedBox(
-          width: 300,
-          height: 300,
-          child: YearPicker(
-            firstDate: DateTime(2020),
-            lastDate: DateTime.now(),
-            selectedDate: DateTime(_selectedYear, _selectedMonth),
-            onChanged: (date) {
-              setState(() {
-                _selectedYear = date.year;
-                _selectedMonth = date.month;
-              });
-              Navigator.pop(context);
-              _loadAttendanceHistory();
-            },
-          ),
-        ),
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(isThai ? 'เลือกเดือนและปี' : 'Select Month & Year'),
+              content: SizedBox(
+                width: 350,
+                height: 400,
+                child: Column(
+                  children: [
+                    // Year Selection
+                    Text(
+                      isThai ? 'ปี' : 'Year',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 150,
+                      child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 2.5,
+                            ),
+                        itemCount: 10,
+                        itemBuilder: (context, index) {
+                          final year = DateTime.now().year - index;
+                          final isSelected = year == selectedYear;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedYear = year;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.kNanoGold
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  year.toString(),
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Month Selection
+                    Text(
+                      isThai ? 'เดือน' : 'Month',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 150,
+                      child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 2.5,
+                            ),
+                        itemCount: 12,
+                        itemBuilder: (context, index) {
+                          final month = index + 1;
+                          final monthNames = isThai
+                              ? [
+                                  'ม.ค.',
+                                  'ก.พ.',
+                                  'มี.ค.',
+                                  'เม.ย.',
+                                  'พ.ค.',
+                                  'มิ.ย.',
+                                  'ก.ค.',
+                                  'ส.ค.',
+                                  'ก.ย.',
+                                  'ต.ค.',
+                                  'พ.ย.',
+                                  'ธ.ค.',
+                                ]
+                              : [
+                                  'Jan',
+                                  'Feb',
+                                  'Mar',
+                                  'Apr',
+                                  'May',
+                                  'Jun',
+                                  'Jul',
+                                  'Aug',
+                                  'Sep',
+                                  'Oct',
+                                  'Nov',
+                                  'Dec',
+                                ];
+                          final isSelected = month == selectedMonth;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedMonth = month;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppTheme.kNanoGold
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  monthNames[index],
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(isThai ? 'ยกเลิก' : 'Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedYear = selectedYear;
+                      _selectedMonth = selectedMonth;
+                    });
+                    Navigator.of(context).pop();
+                    _loadAttendanceHistory();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.kNanoGold,
+                  ),
+                  child: Text(
+                    isThai ? 'ตกลง' : 'OK',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

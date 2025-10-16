@@ -8,6 +8,7 @@ import '../../../core/widgets/animated_fade_in.dart';
 import '../../../core/services/auth_service.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
+import '../utils/leave_translations.dart';
 
 class LeaveListScreen extends ConsumerStatefulWidget {
   const LeaveListScreen({super.key});
@@ -63,8 +64,8 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Leave List',
+        title: Text(
+          LeaveTranslations.leaveHistory(ref),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -93,8 +94,8 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
               ),
               loading: () => _buildSkeletonLoading(),
               error: (error, stack) => ErrorStateWidget(
-                message: 'Failed to load leave requests. Please try again.',
-                actionText: 'Retry',
+                message: LeaveTranslations.errorLoadingLeaveData(ref),
+                actionText: LeaveTranslations.retry(ref),
                 onAction: _refreshData,
               ),
             ),
@@ -267,7 +268,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
               Icon(Icons.list_alt, color: AppTheme.kNanoWhite, size: 24),
               const SizedBox(width: 8),
               Text(
-                'Leave Summary',
+                LeaveTranslations.leaveHistory(ref),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -280,14 +281,26 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryItem('Total', totalRequests, Icons.calendar_today),
               _buildSummaryItem(
-                'Approved',
+                LeaveTranslations.allRequests(ref),
+                totalRequests,
+                Icons.calendar_today,
+              ),
+              _buildSummaryItem(
+                LeaveTranslations.approved(ref),
                 approvedRequests,
                 Icons.check_circle,
               ),
-              _buildSummaryItem('Pending', pendingRequests, Icons.pending),
-              _buildSummaryItem('Rejected', rejectedRequests, Icons.cancel),
+              _buildSummaryItem(
+                LeaveTranslations.pending(ref),
+                pendingRequests,
+                Icons.pending,
+              ),
+              _buildSummaryItem(
+                LeaveTranslations.rejected(ref),
+                rejectedRequests,
+                Icons.cancel,
+              ),
             ],
           ),
         ],
@@ -343,7 +356,8 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       final startDate = DateTime.parse(request.startDate!);
       final endDate = DateTime.parse(request.endDate!);
       final daysDifference = endDate.difference(startDate).inDays + 1;
-      durationText = '$daysDifference day${daysDifference > 1 ? 's' : ''}';
+      durationText =
+          '$daysDifference ${daysDifference > 1 ? LeaveTranslations.daysUnit(ref) : LeaveTranslations.dayUnit(ref)}';
     } else {
       durationText = 'N/A';
     }
@@ -443,7 +457,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'From: ${_formatDate(DateTime.parse(request.startDate!))}',
+                        '${LeaveTranslations.fromDate(ref)} ${_formatDate(DateTime.parse(request.startDate!))}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -457,7 +471,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       Icon(Icons.event, size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'To: ${_formatDate(DateTime.parse(request.endDate!))}',
+                        '${LeaveTranslations.toDate(ref)} ${_formatDate(DateTime.parse(request.endDate!))}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -473,7 +487,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'From: ${_formatDate(DateTime.parse(request.fromDate!))}',
+                        '${LeaveTranslations.fromDate(ref)} ${_formatDate(DateTime.parse(request.fromDate!))}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -487,7 +501,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       Icon(Icons.event, size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        'To: ${_formatDate(DateTime.parse(request.toDate!))}',
+                        '${LeaveTranslations.toDate(ref)} ${_formatDate(DateTime.parse(request.toDate!))}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -568,7 +582,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     Icon(Icons.calendar_today, size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'Total Days: ${request.totalDays}',
+                      '${LeaveTranslations.totalDaysLabel(ref)} ${request.totalDays}',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnSurface.withOpacity(0.8),
@@ -615,7 +629,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     Icon(Icons.schedule, size: 16, color: Colors.grey),
                     const SizedBox(width: 8),
                     Text(
-                      'Created: ${request.createdAt}',
+                      '${LeaveTranslations.createdLabel(ref)} ${request.createdAt}',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.kOnSurface.withOpacity(0.6),
@@ -649,7 +663,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
             Icon(Icons.attach_file, size: 16, color: AppTheme.kNanoGold),
             const SizedBox(width: 8),
             Text(
-              'Attachments (${attachments.length})',
+              '${LeaveTranslations.attachmentsLabel(ref)} (${attachments.length})',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
@@ -929,7 +943,9 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                       ),
                       if (request.totalDays != null)
                         _buildDetailRow(
-                          'Total Days',
+                          LeaveTranslations.totalDaysLabel(
+                            ref,
+                          ).replaceAll(':', ''),
                           '${request.totalDays}',
                           Icons.calendar_view_week,
                         ),
@@ -1022,7 +1038,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
             Icon(Icons.attach_file, size: 20, color: AppTheme.kNanoGold),
             const SizedBox(width: 8),
             Text(
-              'Attachments (${attachments.length})',
+              '${LeaveTranslations.attachmentsLabel(ref)} (${attachments.length})',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

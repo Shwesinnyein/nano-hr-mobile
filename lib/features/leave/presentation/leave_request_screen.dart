@@ -8,6 +8,7 @@ import '../../../core/services/file_utils.dart';
 import '../../../core/services/leave_service.dart';
 import '../../../core/models/attachment_model.dart';
 import '../data/leave_repository.dart';
+import '../utils/leave_translations.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
@@ -53,8 +54,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       appBar: AppBar(
         title: Text(
           widget.leaveTypeName.isNotEmpty
-              ? '${widget.leaveTypeName} Request'
-              : '${_capitalizeFirst(widget.leaveType)} Leave Request',
+              ? '${widget.leaveTypeName} ${LeaveTranslations.leaveRequestTitle(ref)}'
+              : '${_capitalizeFirst(widget.leaveType)} ${LeaveTranslations.leaveRequestTitle(ref)}',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -158,7 +159,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Leave Request',
+                  LeaveTranslations.leaveRequestTitle(ref),
                   style: TextStyle(
                     fontSize: 14,
                     color: AppTheme.kNanoWhite.withOpacity(0.8),
@@ -177,7 +178,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Duration Type',
+          LeaveTranslations.durationType(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -190,7 +191,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             Expanded(
               child: _buildDurationOption(
                 'daily',
-                'Daily',
+                LeaveTranslations.daily(ref),
                 Icons.calendar_today,
               ),
             ),
@@ -198,7 +199,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             Expanded(
               child: _buildDurationOption(
                 'hourly',
-                'Hourly',
+                LeaveTranslations.hourly(ref),
                 Icons.access_time,
               ),
             ),
@@ -217,7 +218,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Working Shift',
+          LeaveTranslations.workingShift(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -316,7 +317,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _durationType == 'daily' ? 'Leave Period' : 'Leave Date',
+          _durationType == 'daily'
+              ? LeaveTranslations.leavePeriod(ref)
+              : LeaveTranslations.leaveDate(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -329,7 +332,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             children: [
               Expanded(
                 child: _buildDateField(
-                  'From Date',
+                  LeaveTranslations.fromDateField(ref),
                   _fromDate,
                   Icons.calendar_today,
                   () => _selectFromDate(),
@@ -338,7 +341,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildDateField(
-                  'To Date',
+                  LeaveTranslations.toDateField(ref),
                   _toDate,
                   Icons.event,
                   () => _selectToDate(),
@@ -348,7 +351,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           ),
         ] else ...[
           _buildDateField(
-            'Date',
+            LeaveTranslations.date(ref),
             _selectedDate,
             Icons.calendar_today,
             () => _selectDate(),
@@ -365,7 +368,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Time Period',
+          LeaveTranslations.timePeriod(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -377,7 +380,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           children: [
             Expanded(
               child: _buildTimeField(
-                'Start Time',
+                LeaveTranslations.startTime(ref),
                 _startTime,
                 Icons.access_time,
                 () => _selectStartTime(),
@@ -386,7 +389,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildTimeField(
-                'End Time',
+                LeaveTranslations.endTime(ref),
                 _endTime,
                 Icons.schedule,
                 () => _selectEndTime(),
@@ -430,7 +433,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    time != null ? time.format(context) : 'Select time',
+                    time != null
+                        ? time.format(context)
+                        : LeaveTranslations.selectTime(ref),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -483,7 +488,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             Text(
               date != null
                   ? '${date.day}/${date.month}/${date.year}'
-                  : 'Select date',
+                  : LeaveTranslations.selectDate(ref),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -501,7 +506,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Reason',
+          LeaveTranslations.reasonField(ref),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -521,7 +526,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             onChanged: (value) =>
                 setState(() {}), // Trigger rebuild when text changes
             decoration: InputDecoration(
-              hintText: 'Please provide a reason for your leave request...',
+              hintText: LeaveTranslations.reasonHint(ref),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),
               prefixIcon: Icon(Icons.edit_note, color: AppTheme.kNanoGold),
@@ -540,7 +545,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Supporting Image (Optional)',
+              LeaveTranslations.supportingImage(ref),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -561,7 +566,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             Expanded(
               child: _buildUploadButton(
                 icon: Icons.camera_alt,
-                label: 'Take Photo',
+                label: LeaveTranslations.takePhoto(ref),
                 onTap: () => _pickImage(ImageSource.camera),
               ),
             ),
@@ -569,7 +574,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             Expanded(
               child: _buildUploadButton(
                 icon: Icons.photo_library,
-                label: 'Gallery',
+                label: LeaveTranslations.gallery(ref),
                 onTap: () => _pickImage(ImageSource.gallery),
               ),
             ),
@@ -735,7 +740,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           disabledForegroundColor: AppTheme.kNanoWhite.withOpacity(0.7),
         ),
         child: Text(
-          isValid ? 'Submit Leave Request' : 'Fill all required fields',
+          isValid
+              ? LeaveTranslations.submitLeaveRequest(ref)
+              : LeaveTranslations.fillAllRequiredFields(ref),
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
@@ -762,7 +769,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   void _selectToDate() async {
     if (_fromDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select from date first')),
+        SnackBar(
+          content: Text(LeaveTranslations.pleaseSelectFromDateFirst(ref)),
+        ),
       );
       return;
     }
@@ -823,9 +832,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         print('📸 No file selected');
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${LeaveTranslations.errorPickingImage(ref)}: $e'),
+        ),
+      );
     }
   }
 
@@ -835,7 +846,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       final double fileSizeMB = FileUtils.getFileSizeInMB(file);
       if (fileSizeMB > 10) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('File size must be less than 10MB')),
+          SnackBar(content: Text(LeaveTranslations.fileSizeTooLarge(ref))),
         );
         return;
       }
@@ -857,14 +868,18 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Image added: ${attachment.fileName}'),
+          content: Text(
+            '${LeaveTranslations.imageAdded(ref)}: ${attachment.fileName}',
+          ),
           backgroundColor: AppTheme.successColor,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error adding image: ${e.toString()}'),
+          content: Text(
+            '${LeaveTranslations.errorAddingImage(ref)}: ${e.toString()}',
+          ),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -882,16 +897,14 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     if (_durationType == 'daily') {
       if (_fromDate == null || _toDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select from and to dates')),
+          SnackBar(content: Text(LeaveTranslations.pleaseSelectDates(ref))),
         );
         return;
       }
     } else {
       if (_selectedDate == null || _startTime == null || _endTime == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select date, start time, and end time'),
-          ),
+          SnackBar(content: Text(LeaveTranslations.pleaseSelectDateTime(ref))),
         );
         return;
       }
@@ -901,7 +914,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           (_startTime!.hour == _endTime!.hour &&
               _startTime!.minute >= _endTime!.minute)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('End time must be after start time')),
+          SnackBar(
+            content: Text(LeaveTranslations.endTimeMustBeAfterStartTime(ref)),
+          ),
         );
         return;
       }
@@ -909,7 +924,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
     if (_reason.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please provide a reason for leave')),
+        SnackBar(content: Text(LeaveTranslations.pleaseProvideReason(ref))),
       );
       return;
     }
@@ -932,9 +947,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
       if (currentEmployeeId == null) {
         Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Employee not found')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(LeaveTranslations.employeeNotFound(ref))),
+        );
         return;
       }
 
@@ -946,7 +961,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
       final requestData = {
         'employeeId': currentEmployeeId,
-        'employeeName': currentEmployeeName ?? 'Unknown Employee',
+        'employeeName':
+            currentEmployeeName ?? LeaveTranslations.unknownEmployee(ref),
         'firstName': currentEmployeeFirstName ?? '',
         'lastName': currentEmployeeLastName ?? '',
         'positionName': currentPositionName ?? '',
@@ -1010,7 +1026,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         }
       } else {
         throw Exception(
-          response['message'] ?? 'Failed to submit leave request',
+          response['message'] ?? LeaveTranslations.failedToSubmitRequest(ref),
         );
       }
 
@@ -1035,7 +1051,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error submitting leave request: ${e.toString()}'),
+            content: Text(
+              '${LeaveTranslations.errorSubmittingRequest(ref)}: ${e.toString()}',
+            ),
             backgroundColor: AppTheme.errorColor,
           ),
         );
