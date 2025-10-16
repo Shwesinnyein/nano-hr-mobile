@@ -11,7 +11,7 @@ class ApiEndpoints {
   static const String checkInOut = '/attendance/check-in-out';
   static const String attendanceHistory = '/attendance/history';
   static const String attendanceStatus = '/attendance/status';
-  static const String attendanceList = '/attendance';
+  static const String attendanceList = '/attendance/history';
 
   // Employee endpoints
   static const String employeeProfile =

@@ -19,6 +19,7 @@ class Attendance {
     required this.isAutoCheckout,
     this.employeeName,
     this.duration,
+    this.status,
   });
 
   final String id;
@@ -38,6 +39,7 @@ class Attendance {
   final bool isAutoCheckout;
   final String? employeeName;
   final String? duration;
+  final String? status;
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic dateValue) {
@@ -169,6 +171,7 @@ class Attendance {
       isAutoCheckout: isAutoCheckout,
       employeeName: json['employeeName']?.toString(),
       duration: json['duration']?.toString(),
+      status: json['status']?.toString(),
     );
   }
 
@@ -191,6 +194,7 @@ class Attendance {
       'isAutoCheckout': isAutoCheckout,
       'employeeName': employeeName,
       'duration': duration,
+      'status': status,
     };
   }
 

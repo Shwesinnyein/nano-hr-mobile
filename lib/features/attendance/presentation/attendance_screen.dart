@@ -1254,7 +1254,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'View Details',
+                'View Attendance History',
                 style: TextStyle(
                   color: AppTheme.kNanoGold,
                   fontSize: 16,
@@ -1660,44 +1660,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getAttendanceStatus(Attendance entry) {
-    // Get working hours from shift data
-    final shiftData = _shiftData?['shiftData'] as List?;
-    if (shiftData?.isNotEmpty == true) {
-      final shift = shiftData!.first;
-      final startTime = shift['startTime'] as String?;
-
-      if (startTime != null) {
-        // Parse start time (format: "09:00")
-        final startTimeParts = startTime.split(':');
-        if (startTimeParts.length == 2) {
-          final startHour = int.parse(startTimeParts[0]);
-          final startMinute = int.parse(startTimeParts[1]);
-
-          // Compare check-in time with start time
-          final checkInTime = entry.checkInAt;
-          final checkInHour = checkInTime.hour;
-          final checkInMinute = checkInTime.minute;
-
-          // Calculate minutes difference
-          final checkInMinutes = checkInHour * 60 + checkInMinute;
-          final startMinutes = startHour * 60 + startMinute;
-          final difference = checkInMinutes - startMinutes;
-
-          if (difference <= 0) {
-            return 'On Time';
-          } else if (difference <= 15) {
-            return 'In Time';
-          } else if (difference <= 30) {
-            return 'Late';
-          } else {
-            return 'Late';
-          }
-        }
-      }
+    if (entry.status != null && entry.status!.isNotEmpty) {
+      return _formatStatusText(entry.status!);
     }
+    return 'Unknown';
+  }
 
-    // Fallback status based on check-out
-    return entry.checkOutAt != null ? 'Completed' : 'In Progress';
+  String _formatStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'late':
+        return 'Late';
+      case 'on_time':
+      case 'ontime':
+        return 'On Time';
+      case 'early':
+        return 'Early';
+      case 'in_time':
+        return 'In Time';
+      default:
+        return status;
+    }
   }
 
   Color _getStatusColor(Attendance entry) {
@@ -1706,14 +1688,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     switch (status) {
       case 'On Time':
         return Colors.green;
-      case 'Late':
+      case 'In Time':
         return Colors.orange;
-      case 'Very Late':
+      case 'Late':
         return Colors.red;
-      case 'Completed':
+      case 'Early':
         return Colors.blue;
-      case 'In Progress':
-        return AppTheme.kNanoGold;
+
       default:
         return Colors.grey;
     }
