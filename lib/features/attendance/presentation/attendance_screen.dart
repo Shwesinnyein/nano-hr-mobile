@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nano_hr_mobile/features/attendance/data/attendance_model.dart';
 import '../data/attendance_repository.dart';
 import '../../../core/services/auth_service.dart';
@@ -12,7 +11,6 @@ import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
-import 'check_in_confirmation_screen.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
 
@@ -34,9 +32,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   final LocationService _locationService = LocationService();
   Map<String, dynamic>? _currentLocation;
   bool _isLoadingLocation = false;
+
+  // Modal loading state
+  bool _isModalLoading = false;
   // String? _locationError; // Removed unused variable
 
-  // Performance optimization: Cache button state to prevent recalculation
+  // Performance optimization: Cache button state to prevent r_refreshAttendanceStatusecalculation
   Map<String, dynamic>? _cachedButtonState;
   DateTime? _lastButtonStateUpdate;
   static const Duration _buttonStateCacheTimeout = Duration(seconds: 30);
@@ -789,11 +790,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     dynamic controller,
   ) async {
     try {
-      // If location not loaded yet, try to get it now
-      if (_currentLocation == null && !_isLoadingLocation) {
-        await _loadCurrentLocation();
-      }
-
       // First, determine if this is a check-in or check-out
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
@@ -841,35 +837,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         // If !hasCheckedIn, isCheckOut remains false (can check in)
       }
 
-      // Use pre-loaded location or navigate to confirmation screen to get it
+      // Show simple modal for quick confirmation
       Map<String, dynamic>? result;
 
-      if (_currentLocation != null) {
-        // Location already available, show quick confirmation
-        if (context.mounted) {
-          result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CheckInConfirmationScreen(
-                employeeData: employeeData,
-                isCheckOut: isCheckOut,
-              ),
-            ),
-          );
-        }
-      } else {
-        // Location not available, confirmation screen will get it
-        if (context.mounted) {
-          result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CheckInConfirmationScreen(
-                employeeData: employeeData,
-                isCheckOut: isCheckOut,
-              ),
-            ),
-          );
-        }
+      if (context.mounted) {
+        result = await _showCheckInOutModal(context, isCheckOut);
       }
 
       // If user confirmed, proceed with check-in/out
@@ -894,11 +866,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           );
         }
 
-        // Refresh attendance status after successful action
+        // Update local state immediately to avoid loading
         await _refreshAttendanceStatus();
-
-        // Also refresh the attendance controller to get latest data
-        ref.invalidate(attendanceControllerProvider);
 
         // Show success message
         if (context.mounted) {
@@ -932,6 +901,165 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         );
       }
     }
+  }
+
+  // Simple modal for check-in/out confirmation
+  Future<Map<String, dynamic>?> _showCheckInOutModal(
+    BuildContext context,
+    bool isCheckOut,
+  ) async {
+    // Reset loading state
+    _isModalLoading = false;
+
+    final currentTime = DateTime.now();
+    final timeString = DateFormat('HH:mm').format(currentTime);
+
+    // Use pre-loaded location (much faster)
+    final location = _currentLocation;
+
+    return await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Icon
+                    Icon(
+                      isCheckOut ? Icons.logout : Icons.login,
+                      size: 48,
+                      color: isCheckOut ? Colors.orange : Colors.green,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Title
+                    Text(
+                      isCheckOut ? 'Check Out' : 'Check In',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Time display
+                    Text(
+                      'Time: $timeString',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Cancel button
+                        Expanded(
+                          child: TextButton(
+                            onPressed: _isModalLoading
+                                ? null
+                                : () {
+                                    Navigator.of(context).pop(null);
+                                  },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Colors.black87,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Confirm button
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isModalLoading
+                                ? null
+                                : () async {
+                                    setModalState(() {
+                                      _isModalLoading = true;
+                                    });
+
+                                    // If no location, try to get it quickly in background
+                                    if (location == null &&
+                                        !_isLoadingLocation) {
+                                      _loadCurrentLocation(); // Don't await - run in background
+                                    }
+
+                                    // Brief loading to show feedback
+                                    await Future.delayed(
+                                      const Duration(milliseconds: 200),
+                                    );
+
+                                    Navigator.of(context).pop({
+                                      'confirmed': true,
+                                      'latitude': location?['latitude'],
+                                      'longitude': location?['longitude'],
+                                      'address':
+                                          location?['address'] ??
+                                          'Location will be updated',
+                                    });
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _isModalLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    isCheckOut ? 'Check Out' : 'Check In',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _refreshAttendance(WidgetRef ref) {
@@ -1010,18 +1138,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   // Removed unused method _buildProfileImageWithStoredData
-
-  Future<String?> _getStoredProfileImageUrl() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('user_profile_image');
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error getting stored profile image: $e');
-      }
-      return null;
-    }
-  }
 
   Widget _buildProfileImageFallback() {
     final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
