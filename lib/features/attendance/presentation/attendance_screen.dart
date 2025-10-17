@@ -13,6 +13,7 @@ import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart'; // Removed to prevent crashes
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -36,6 +37,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   // Modal loading state
   bool _isModalLoading = false;
   // String? _locationError; // Removed unused variable
+
+  // Google Maps controller (removed to prevent crashes)
+  // GoogleMapController? _mapController;
 
   // Performance optimization: Cache button state to prevent r_refreshAttendanceStatusecalculation
   Map<String, dynamic>? _cachedButtonState;
@@ -579,7 +583,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.1),
+            blurRadius: 5,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: state.when(
         data: (entries) {
@@ -713,9 +729,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.kNanoGold.withOpacity(0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+                  color: AppTheme.kNanoGold.withOpacity(0.4),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -734,6 +755,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(buttonState['icon'], color: Colors.white, size: 24),
+                  const SizedBox(width: 8),
+                  Icon(Icons.gps_fixed, color: Colors.white, size: 16),
                   const SizedBox(width: 12),
                   Text(
                     buttonState['text'],
@@ -1211,56 +1234,415 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        width: double.infinity,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: AppTheme.kNanoGold.withOpacity(0.3),
-            width: 1,
+      child: Row(
+        children: [
+          // GPS Button
+          Expanded(
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: AppTheme.kNanoGold.withOpacity(0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  // GPS/Location functionality
+                  _showLocationInfo(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.gps_fixed, color: AppTheme.kNanoGold, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'GPS',
+                      style: TextStyle(
+                        color: AppTheme.kNanoGold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+          const SizedBox(width: 12),
+          // View Attendance History Button
+          Expanded(
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: AppTheme.kNanoGold.withOpacity(0.3),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  _showAttendanceDetails(context, state);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.visibility_outlined,
+                      color: AppTheme.kNanoGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'History',
+                      style: TextStyle(
+                        color: AppTheme.kNanoGold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // GPS/Location info method with map modal
+  void _showLocationInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(Icons.gps_fixed, color: AppTheme.kNanoGold, size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      'GPS Location',
+                      style: TextStyle(
+                        color: AppTheme.kNanoGold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              // Map Content
+              Expanded(child: _buildMapContent()),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMapContent() {
+    if (_currentLocation == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.location_off, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Location not available',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please enable GPS and try again',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ],
         ),
-        child: ElevatedButton(
-          onPressed: () {
-            _showAttendanceDetails(context, state);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
+      );
+    }
+
+    final latitude = _currentLocation!['latitude'] as double;
+    final longitude = _currentLocation!['longitude'] as double;
+    final address = _currentLocation!['address'] as String?;
+
+    return Column(
+      children: [
+        // Enhanced Map View (Stable Version)
+        Expanded(
+          flex: 3,
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
               borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.grey[300]!),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Map Pattern Background
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.blue[50]!, Colors.green[50]!],
+                    ),
+                  ),
+                ),
+                // Grid Pattern Overlay
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    image: const DecorationImage(
+                      image: AssetImage('assets/icon/nano-icon-square.png'),
+                      opacity: 0.05,
+                      scale: 0.3,
+                    ),
+                  ),
+                ),
+                // Content
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Location Pin Icon
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.kNanoGold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(50),
+                          border: Border.all(
+                            color: AppTheme.kNanoGold.withOpacity(0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.location_on,
+                          size: 48,
+                          color: AppTheme.kNanoGold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your Location',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.kNanoGold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Lat: ${latitude.toStringAsFixed(6)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        'Lng: ${longitude.toStringAsFixed(6)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.kNanoGold.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.kNanoGold.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'Map View',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.kNanoGold,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Corner Decoration
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.my_location,
+                      size: 16,
+                      color: AppTheme.kNanoGold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.visibility_outlined,
-                color: AppTheme.kNanoGold,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'View Attendance History',
-                style: TextStyle(
-                  color: AppTheme.kNanoGold,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+        ),
+        // Location details
+        Expanded(
+          flex: 2,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Location Details',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.kNanoGold,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                _buildLocationDetailRow(
+                  '📍',
+                  'Address',
+                  address ?? 'Not available',
+                ),
+                const SizedBox(height: 12),
+                _buildLocationDetailRow(
+                  '🌐',
+                  'Latitude',
+                  latitude.toStringAsFixed(6),
+                ),
+                const SizedBox(height: 12),
+                _buildLocationDetailRow(
+                  '🌐',
+                  'Longitude',
+                  longitude.toStringAsFixed(6),
+                ),
+                const SizedBox(height: 12),
+                _buildLocationDetailRow('🕐', 'Last Updated', 'Just now'),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildLocationDetailRow(String icon, String label, String value) {
+    return Row(
+      children: [
+        Text(icon, style: const TextStyle(fontSize: 16)),
+        const SizedBox(width: 12),
+        Text(
+          '$label:',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
