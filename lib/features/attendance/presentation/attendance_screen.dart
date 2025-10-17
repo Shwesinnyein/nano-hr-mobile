@@ -1435,7 +1435,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     return Column(
       children: [
-        // Enhanced Map View (Stable Version)
+        // Beautiful Map View (Stable Version)
         Expanded(
           flex: 3,
           child: Container(
