@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../api/api_endpoints.dart';
 
 class LeaveService {
@@ -27,7 +28,11 @@ class LeaveService {
       LogInterceptor(
         requestBody: true,
         responseBody: true,
-        logPrint: (obj) => print('🌐 Leave API: $obj'),
+        logPrint: (obj) {
+          if (kDebugMode) {
+            print('🌐 Leave API: $obj');
+          }
+        },
       ),
     );
   }
@@ -177,7 +182,9 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error response: ${e.response!.data}');
+        }
       }
       return [];
     } catch (e) {
@@ -203,9 +210,11 @@ class LeaveService {
           return [];
         }
       } else {
-        print(
-          '❌ Leave API: Failed to get requests - Status: ${response.statusCode}',
-        );
+        if (kDebugMode) {
+          print(
+            '❌ Leave API: Failed to get requests - Status: ${response.statusCode}',
+          );
+        }
         return [];
       }
     } on DioException catch (e) {
@@ -229,7 +238,6 @@ class LeaveService {
       );
 
       stopwatch.stop();
-      print('📊 Leave Balance API: ${stopwatch.elapsedMilliseconds}ms');
 
       if (response.statusCode == 200) {
         return response.data;
@@ -275,7 +283,9 @@ class LeaveService {
             ),
           );
         } else {
-          print('❌ Leave API: File does not exist: ${file.path}');
+          if (kDebugMode) {
+            print('❌ Leave API: File does not exist: ${file.path}');
+          }
         }
       }
 
@@ -322,39 +332,29 @@ class LeaveService {
         if (note != null && note.isNotEmpty) 'note': note,
       };
 
-      print('⏱️ Leave API: Starting approval request for $leaveId');
-
       final response = await _dio.put(
         ApiEndpoints.leaveStatus(leaveId),
         data: payload,
       );
 
       stopwatch.stop();
-      print(
-        '⏱️ Leave API: Approval request completed in ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
         // Clear cache after successful approval/rejection
         clearApprovalCache();
         return response.data;
       } else {
-        print(
-          '❌ Leave API: Approval failed with status ${response.statusCode}',
-        );
         return {
           'success': false,
           'message': 'Failed to update status: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
-      print('❌ Leave API: DioException during approval: ${e.message}');
       if (e.response != null) {
         return Map<String, dynamic>.from(e.response!.data);
       }
       return {'success': false, 'message': 'Network error: ${e.message}'};
     } catch (e) {
-      print('❌ Leave API: Unexpected error during approval: $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -378,41 +378,29 @@ class LeaveService {
         if (note != null && note.isNotEmpty) 'note': note,
       };
 
-      print('⏱️ Leave API: Starting approval request (alternate) for $leaveId');
-
       final response = await _dio.put(
         ApiEndpoints.leaveApproval(leaveId),
         data: payload,
       );
 
       stopwatch.stop();
-      print(
-        '⏱️ Leave API: Approval request (alternate) completed in ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
         // Clear cache after successful approval/rejection
         clearApprovalCache();
         return response.data;
       } else {
-        print(
-          '❌ Leave API: Approval (alternate) failed with status ${response.statusCode}',
-        );
         return {
           'success': false,
           'message': 'Failed to update approval: ${response.statusCode}',
         };
       }
     } on DioException catch (e) {
-      print(
-        '❌ Leave API: DioException during approval (alternate): ${e.message}',
-      );
       if (e.response != null) {
         return Map<String, dynamic>.from(e.response!.data);
       }
       return {'success': false, 'message': 'Network error: ${e.message}'};
     } catch (e) {
-      print('❌ Leave API: Unexpected error during approval (alternate): $e');
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
@@ -436,13 +424,16 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        print('❌ Leave API: DioException - ${e.response!.data}');
+        if (kDebugMode) {
+          print('❌ Leave API: DioException - ${e.response!.data}');
+        }
       } else {
-        print('❌ Leave API: Network error - ${e.message}');
+        if (kDebugMode) {
+          print('❌ Leave API: Network error - ${e.message}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error - $e');
       return [];
     }
   }
@@ -460,18 +451,19 @@ class LeaveService {
       final pendingRequests = await getLeaveRequestsForApproval(level, userId);
 
       stopwatch.stop();
-      print(
-        '🌐 Leave API: All approval requests took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       return pendingRequests;
     } on DioException catch (e) {
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error response: ${e.response!.data}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error: $e');
+      if (kDebugMode) {
+        print('❌ Leave API: Unexpected error: $e');
+      }
       return [];
     }
   }
@@ -485,9 +477,6 @@ class LeaveService {
       final response = await _dio.get('${ApiEndpoints.baseUrl}/leave/all');
 
       stopwatch.stop();
-      print(
-        '🌐 Leave API: All employee leaves took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -499,11 +488,15 @@ class LeaveService {
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error response: ${e.response!.data}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error: $e');
+      if (kDebugMode) {
+        print('❌ Leave API: Unexpected error: $e');
+      }
       return [];
     }
   }
@@ -520,9 +513,6 @@ class LeaveService {
       );
 
       stopwatch.stop();
-      print(
-        '🌐 Leave API: Branch employee leaves took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -534,11 +524,15 @@ class LeaveService {
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error response: ${e.response!.data}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error: $e');
+      if (kDebugMode) {
+        print('❌ Leave API: Unexpected error: $e');
+      }
       return [];
     }
   }
@@ -551,9 +545,6 @@ class LeaveService {
       final response = await _dio.get('${ApiEndpoints.baseUrl}/leave/team');
 
       stopwatch.stop();
-      print(
-        '🌐 Leave API: Team employee leaves took ${stopwatch.elapsedMilliseconds}ms',
-      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -565,11 +556,15 @@ class LeaveService {
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error response: ${e.response!.data}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error: $e');
+      if (kDebugMode) {
+        print('❌ Leave API: Unexpected error: $e');
+      }
       return [];
     }
   }
@@ -581,41 +576,46 @@ class LeaveService {
 
       final url =
           '${ApiEndpoints.baseUrl}${ApiEndpoints.getLeaveHistory(userId)}';
-      print('🌐 Leave API: Calling leave history endpoint: $url');
+      if (kDebugMode) {
+        print('🌐 Leave API: Calling leave history endpoint: $url');
+      }
 
       final response = await _dio.get(url);
 
       stopwatch.stop();
-      print(
-        '🌐 Leave API: Leave history for $userId took ${stopwatch.elapsedMilliseconds}ms',
-      );
-      print('🌐 Leave API: Response status: ${response.statusCode}');
-      print('🌐 Leave API: Response data: ${response.data}');
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data is Map && data['success'] == true && data['data'] is List) {
           final leaves = List<Map<String, dynamic>>.from(data['data']);
-          print('🌐 Leave API: Found ${leaves.length} leave records');
+
           if (leaves.isNotEmpty) {
-            print('🌐 Leave API: Sample record: ${leaves.first.keys.toList()}');
+            if (kDebugMode) {
+              print(
+                '🌐 Leave API: Sample record: ${leaves.first.keys.toList()}',
+              );
+            }
           }
           return leaves;
         } else {
-          print('🌐 Leave API: Invalid response format: $data');
+          if (kDebugMode) {
+            print('🌐 Leave API: Invalid response format: $data');
+          }
         }
       }
 
       return [];
     } on DioException catch (e) {
-      print('🌐 Leave API: DioException for leave history: $e');
       if (e.response != null) {
-        print('🌐 Leave API: Error response: ${e.response!.data}');
-        print('🌐 Leave API: Error status: ${e.response!.statusCode}');
+        if (kDebugMode) {
+          print('🌐 Leave API: Error status: ${e.response!.statusCode}');
+        }
       }
       return [];
     } catch (e) {
-      print('❌ Leave API: Unexpected error in leave history: $e');
+      if (kDebugMode) {
+        print('❌ Leave API: Unexpected error in leave history: $e');
+      }
       return [];
     }
   }

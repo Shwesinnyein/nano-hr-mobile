@@ -96,12 +96,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         });
       }
     } catch (e) {
-      print('🔔 Notification Screen: Error loading notifications: $e');
-
-      // Try to use cached data if available
       final cachedData = NotificationService.notificationCache[_currentUserId!];
       if (cachedData != null && cachedData.isNotEmpty) {
-        print('🔔 Notification Screen: Using cached data as fallback');
         try {
           final notificationResponse = NotificationResponse.fromJson({
             'success': true,
@@ -469,7 +465,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                print('🔔 Debug: Manual notification refresh triggered');
                 _refreshNotifications();
               },
               child: const Text('Debug: Refresh Notifications'),

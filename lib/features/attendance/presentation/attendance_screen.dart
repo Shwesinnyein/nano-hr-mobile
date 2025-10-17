@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,7 +34,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   final LocationService _locationService = LocationService();
   Map<String, dynamic>? _currentLocation;
   bool _isLoadingLocation = false;
-  String? _locationError;
+  // String? _locationError; // Removed unused variable
+
+  // Performance optimization: Cache button state to prevent recalculation
+  Map<String, dynamic>? _cachedButtonState;
+  DateTime? _lastButtonStateUpdate;
+  static const Duration _buttonStateCacheTimeout = Duration(seconds: 30);
 
   String fmt(DateTime dt) => DateFormat('HH:mm').format(dt.toLocal());
   String fmtDate(DateTime dt) =>
@@ -42,8 +48,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       DateFormat('MMM dd, yyyy HH:mm').format(dt.toLocal());
 
   // Helper method to get button text and state based on attendance status
-  // Helper method to get button text and state based on attendance status
+  // Performance optimized with caching to prevent unnecessary recalculations
   Map<String, dynamic> _getButtonState(List<Attendance> entries) {
+    // Check if we can use cached button state
+    if (_cachedButtonState != null &&
+        _lastButtonStateUpdate != null &&
+        DateTime.now().difference(_lastButtonStateUpdate!) <
+            _buttonStateCacheTimeout) {
+      return _cachedButtonState!;
+    }
+
     // Use API attendance data directly instead of filtering local entries
     final attendanceData = _shiftData?['attendanceData'] as List?;
     final latestRecord = attendanceData?.isNotEmpty == true
@@ -52,19 +66,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final hasCheckedIn = latestRecord?['checkInAt'] != null;
     final hasCheckedOut = latestRecord?['checkOutAt'] != null;
 
-    print('🔍 Button State Debug:');
-    print('  - latestRecord: $latestRecord');
-    print('  - checkInAt: ${latestRecord?['checkInAt']}');
-    print('  - checkOutAt: ${latestRecord?['checkOutAt']}');
-    print('  - hasCheckedIn: $hasCheckedIn');
-    print('  - hasCheckedOut: $hasCheckedOut');
-
-    // Use actual check-in/check-out times to determine button state
-    final finalHasCheckedIn = hasCheckedIn;
-    final finalHasCheckedOut = hasCheckedOut;
-
-    final bool canCheckIn = !finalHasCheckedIn;
-    final bool canCheckOut = finalHasCheckedIn && !finalHasCheckedOut;
+    final bool canCheckIn = !hasCheckedIn;
+    final bool canCheckOut = hasCheckedIn && !hasCheckedOut;
 
     String buttonText;
     IconData buttonIcon;
@@ -89,12 +92,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       isEnabled = false;
     }
 
-    return {
+    final buttonState = {
       'text': buttonText,
       'icon': buttonIcon,
       'colors': buttonColors,
       'enabled': isEnabled,
     };
+
+    // Cache the result
+    _cachedButtonState = buttonState;
+    _lastButtonStateUpdate = DateTime.now();
+
+    return buttonState;
   }
 
   @override
@@ -107,17 +116,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    print('🚀 _loadInitialData started');
-
     if (_employeeProfile != null &&
         _attendanceStatus != null &&
         _shiftData != null) {
-      print('✅ Data already loaded, returning early');
       return;
     }
 
     try {
-      print('📱 Setting loading state to true');
       setState(() {
         _isLoadingStatus = true;
       });
@@ -126,12 +131,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final apiService = ref.read(apiServiceProvider);
       final employeeId = authService.currentEmployeeId;
 
-      print('🔍 Auth check:');
-      print('  - employeeId: $employeeId');
-      print('  - isAuthenticated: ${authService.isAuthenticated}');
-
       if (employeeId == null) {
-        print('❌ No employee ID found');
         setState(() {
           _isLoadingStatus = false;
         });
@@ -143,20 +143,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-      print('📅 Calling API with:');
-      print('  - employeeId: $employeeId');
-      print('  - date: $dateString');
-
       // Only call getShiftDataWithFilter - it provides all needed data
       final shiftDataResponse = await apiService.getShiftDataWithFilter(
         employeeId: employeeId,
         date: dateString,
       );
-
-      print('📡 API Response received:');
-      print('  - success: ${shiftDataResponse['success']}');
-      print('  - message: ${shiftDataResponse['message']}');
-      print('  - response keys: ${shiftDataResponse.keys}');
 
       if (mounted) {
         setState(() {
@@ -167,9 +158,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             // Extract employee profile from shift data
             if (_shiftData?['employee'] != null) {
               _employeeProfile = _shiftData!['employee'];
-              print('👤 Extracted Employee Profile: $_employeeProfile');
-            } else {
-              print('❌ No employee data in shift response');
             }
 
             // Extract attendance status from shift data
@@ -183,25 +171,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               };
             }
 
-            print('🔍 RAW API Response: $shiftDataResponse');
-            print('📊 Shift Data: $_shiftData');
-            print('📊 Employee from Shift: ${_getEmployeeFromShiftData()}');
-            print('📊 Working Hours: ${_getWorkingHoursDisplay()}');
-            print('📊 Today Attendance: ${_getTodayAttendanceFromShiftData()}');
-            print('📊 Employee Profile: $_employeeProfile');
-            print('📊 Attendance Status: $_attendanceStatus');
-            print('📊 Employee Name: ${_getEmployeeName()}');
-          } else {
-            print('❌ Shift Data Error: ${shiftDataResponse['message']}');
+            // Clear cached button state when data changes
+            _cachedButtonState = null;
+            _lastButtonStateUpdate = null;
           }
           _isLoadingStatus = false;
         });
       }
     } catch (e) {
-      print('❌ Error loading initial data: $e');
-      print('❌ Error type: ${e.runtimeType}');
-      print('❌ Stack trace: ${StackTrace.current}');
-
       if (mounted) {
         setState(() {
           _isLoadingStatus = false;
@@ -221,7 +198,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Future<void> _loadCurrentLocation() async {
     setState(() {
       _isLoadingLocation = true;
-      _locationError = null;
     });
 
     try {
@@ -237,7 +213,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _locationError = e.toString();
+          // _locationError = e.toString(); // Removed unused variable
           _isLoadingLocation = false;
         });
       }
@@ -297,10 +273,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               'data': attendanceData,
               'record': latestRecord,
             };
-
-            print('🔄 Refreshed attendance status: $status');
-            print('🔄 Attendance record: $latestRecord');
           }
+
+          // Clear cached button state when data changes
+          _cachedButtonState = null;
+          _lastButtonStateUpdate = null;
         });
       }
     } catch (e) {
@@ -605,76 +582,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: state.when(
         data: (entries) {
-          final todayEntries = entries.where((entry) {
-            final entryDate = DateTime(
-              entry.checkInAt.year,
-              entry.checkInAt.month,
-              entry.checkInAt.day,
-            );
-            final today = DateTime(
-              DateTime.now().year,
-              DateTime.now().month,
-              DateTime.now().day,
-            );
-            return entryDate.isAtSameMomentAs(today);
-          }).toList();
+          // Optimized: Use cached attendance data instead of complex calculations
+          final attendanceData = _shiftData?['attendanceData'] as List?;
+          final latestRecord = attendanceData?.isNotEmpty == true
+              ? attendanceData!.first
+              : null;
 
-          // Get attendance status from multiple sources
-          String? apiStatus = _attendanceStatus?['status'];
-          bool isCheckedInFromAPI = apiStatus == 'checked_in';
-          bool isCheckedOutFromAPI = apiStatus == 'checked_out';
+          final hasCheckedIn = latestRecord?['checkInAt'] != null;
+          final hasCheckedOut = latestRecord?['checkOutAt'] != null;
 
-          // Also check shift data for today's attendance
-          final todayShiftAttendance = _getTodayAttendanceFromShiftData();
-          bool isCheckedInFromShift = todayShiftAttendance != null;
-          bool isCheckedOutFromShift =
-              todayShiftAttendance?['checkOutAt'] != null;
-
-          bool hasApiRecord =
-              _attendanceStatus != null && _attendanceStatus!['record'] != null;
-          bool hasShiftRecord = todayShiftAttendance != null;
-
-          // Always trust API data over local data - if API says no attendance, show no attendance
-          final finalHasCheckedIn = hasApiRecord
-              ? isCheckedInFromAPI
-              : hasShiftRecord
-              ? isCheckedInFromShift
-              : false; // No API attendance data = not checked in
-
-          final finalHasCheckedOut = hasApiRecord
-              ? isCheckedOutFromAPI
-              : hasShiftRecord
-              ? isCheckedOutFromShift
-              : false; // No API attendance data = not checked out
-
-          print('🔍 Attendance Status Debug:');
-          print('  - hasApiRecord: $hasApiRecord');
-          print('  - hasShiftRecord: $hasShiftRecord');
-          print('  - isCheckedInFromAPI: $isCheckedInFromAPI');
-          print('  - isCheckedInFromShift: $isCheckedInFromShift');
-          print('  - isCheckedOutFromAPI: $isCheckedOutFromAPI');
-          print('  - isCheckedOutFromShift: $isCheckedOutFromShift');
-          print('  - finalHasCheckedIn: $finalHasCheckedIn');
-          print('  - finalHasCheckedOut: $finalHasCheckedOut');
-
-          String? checkInTime;
-          String? checkOutTime;
-
-          // Priority 1: Use attendance status API data
-          if (_attendanceStatus != null &&
-              _attendanceStatus!['record'] != null) {
-            final record = _attendanceStatus!['record'];
-            checkInTime = record['checkInAt']?.toString();
-            checkOutTime = record['checkOutAt']?.toString();
-          }
-
-          // Priority 2: Use shift data attendance times
-          if (checkInTime == null && todayShiftAttendance != null) {
-            checkInTime = todayShiftAttendance['checkInAt']?.toString();
-            checkOutTime = todayShiftAttendance['checkOutAt']?.toString();
-          }
-
-          // No fallback to local data - only use API data
+          final checkInTime = latestRecord?['checkInAt']?.toString();
+          final checkOutTime = latestRecord?['checkOutAt']?.toString();
 
           return Column(
             children: [
@@ -687,9 +605,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  finalHasCheckedIn && !finalHasCheckedOut
+                  hasCheckedIn && !hasCheckedOut
                       ? Icons.login
-                      : finalHasCheckedIn && finalHasCheckedOut
+                      : hasCheckedIn && hasCheckedOut
                       ? Icons.logout
                       : Icons.access_time,
                   color: Colors.white,
@@ -1021,40 +939,30 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getWorkingHoursDisplay() {
-    print('🔍 Debug Working Hours:');
-    print('  - _shiftData: $_shiftData');
-
     if (_shiftData != null && _shiftData!['shiftData'] != null) {
       final shiftDataList = _shiftData!['shiftData'] as List;
-      print('  - shiftDataList: $shiftDataList');
-      print('  - shiftDataList.length: ${shiftDataList.length}');
 
       if (shiftDataList.isNotEmpty) {
         final shift = shiftDataList.first;
         final startTime = shift['startTime'];
         final endTime = shift['endTime'];
-        print('  - startTime: $startTime');
-        print('  - endTime: $endTime');
+
         return 'Working Hours: $startTime - $endTime';
       } else {
-        print('  - shiftDataList is empty');
+        if (kDebugMode) {
+          print('⚠️ Shift data list is empty');
+        }
       }
     } else {
-      print('  - _shiftData is null or shiftData key is null');
+      if (kDebugMode) {
+        print('⚠️ Shift data is null or missing shiftData key');
+      }
     }
 
     return 'Working Hours: Not Available'; // No fallback - use only API data
   }
 
-  Map<String, dynamic>? _getTodayAttendanceFromShiftData() {
-    if (_shiftData != null && _shiftData!['attendanceData'] != null) {
-      final attendanceDataList = _shiftData!['attendanceData'] as List;
-      if (attendanceDataList.isNotEmpty) {
-        return attendanceDataList.first;
-      }
-    }
-    return null;
-  }
+  // Removed unused method _getTodayAttendanceFromShiftData
 
   Map<String, dynamic>? _getEmployeeFromShiftData() {
     if (_shiftData != null && _shiftData!['employee'] != null) {
@@ -1080,10 +988,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
     final profileImageUrl = employeeProfile?['profileImage'];
 
-    print('🖼️ Profile Image Debug:');
-    print('  - employeeProfile: $employeeProfile');
-    print('  - profileImageUrl: $profileImageUrl');
-
     if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
       return Image.network(
         profileImageUrl,
@@ -1105,40 +1009,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  Widget _buildProfileImageWithStoredData() {
-    return FutureBuilder<String?>(
-      future: _getStoredProfileImageUrl(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData &&
-            snapshot.data != null &&
-            snapshot.data!.isNotEmpty) {
-          return Image.network(
-            snapshot.data!,
-            width: 50,
-            height: 50,
-            fit: BoxFit.cover,
-            cacheWidth: 100,
-            cacheHeight: 100,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return _buildProfileImageFallback();
-            },
-            errorBuilder: (context, error, stackTrace) {
-              return _buildProfileImageFallback();
-            },
-          );
-        }
-        return _buildProfileImageFallback();
-      },
-    );
-  }
+  // Removed unused method _buildProfileImageWithStoredData
 
   Future<String?> _getStoredProfileImageUrl() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('user_profile_image');
     } catch (e) {
-      print('❌ Error getting stored profile image: $e');
+      if (kDebugMode) {
+        print('❌ Error getting stored profile image: $e');
+      }
       return null;
     }
   }

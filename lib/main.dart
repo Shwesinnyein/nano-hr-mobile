@@ -12,8 +12,14 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    print('❌ Firebase initialization error: $e');
+    // In release mode, we need to handle errors gracefully
+    debugPrint('❌ Firebase initialization error: $e');
   }
+
+  // Add error handling for the entire app
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('Flutter Error: ${details.exception}');
+  };
 
   runApp(const ProviderScope(child: App()));
 }

@@ -61,9 +61,6 @@ class EmployeeService {
         if (data is List && data.isNotEmpty) {
           return data.cast<Map<String, dynamic>>();
         } else {
-          // API returns empty list - use mock data as fallback for demo
-          print('📋 Employee API returned empty list, using mock data');
-          // Simulate pagination for mock data
           final startIndex = (page - 1) * limit;
           final endIndex = startIndex + limit;
           final paginatedMockData = MockDataService.mockEmployeeList
@@ -73,9 +70,6 @@ class EmployeeService {
           return paginatedMockData;
         }
       } else {
-        // API error - use mock data as fallback for demo
-        print('📋 Employee API error, using mock data: ${response['message']}');
-        // Simulate pagination for mock data
         final startIndex = (page - 1) * limit;
         final endIndex = startIndex + limit;
         final paginatedMockData = MockDataService.mockEmployeeList
@@ -85,9 +79,6 @@ class EmployeeService {
         return paginatedMockData;
       }
     } catch (e) {
-      // Exception - use mock data as fallback for demo
-      print('📋 Employee API exception, using mock data: $e');
-      // Simulate pagination for mock data
       final startIndex = (page - 1) * limit;
       final endIndex = startIndex + limit;
       final paginatedMockData = MockDataService.mockEmployeeList

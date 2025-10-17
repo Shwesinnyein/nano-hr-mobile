@@ -75,28 +75,17 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      print('🔐 Starting mobile login for: $email');
       final response = await _authService.signInWithEmailAndPasswordMobile(
         email,
         password,
       );
 
-      print('📡 Login response: $response');
-
       if (response['success'] == true && response['employee'] != null) {
-        print('🔍 Login response employee data: ${response['employee']}');
         final userData = response['employee'] as Map<String, dynamic>;
         final userId = userData['authId'] ?? userData['id'] ?? email;
         final employeeId = userData['id'] ?? userData['uid'];
         final token =
             response['token'] ?? userData['token'] ?? userData['accessToken'];
-
-        print('🔑 Extracted data:');
-        print('  - userId: $userId');
-        print('  - employeeId: $employeeId');
-        print(
-          '  - token: ${token != null ? '${token.substring(0, token.length > 20 ? 20 : token.length)}...' : 'null'}',
-        );
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_kLoggedInKey, true);
@@ -104,7 +93,6 @@ class AuthRepository {
         await prefs.setString(_kEmployeeId, employeeId);
         if (token != null) {
           await prefs.setString(_kUserToken, token);
-          print('✅ Token stored successfully');
         } else {
           print('❌ No token to store');
         }
@@ -113,7 +101,6 @@ class AuthRepository {
         final profileImageUrl = userData['profileImage'];
         if (profileImageUrl != null) {
           await prefs.setString('user_profile_image', profileImageUrl);
-          print('🖼️ Profile image stored: $profileImageUrl');
         } else {
           print('❌ No profile image URL found');
         }

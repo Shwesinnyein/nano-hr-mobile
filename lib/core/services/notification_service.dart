@@ -43,7 +43,6 @@ class NotificationService {
     try {
       // Check cache first
       if (_isCacheValid() && _notificationCache.containsKey(employeeId)) {
-        print('🔔 Notification API: Using cached data for $employeeId');
         return {
           'success': true,
           'data': _notificationCache[employeeId],
@@ -52,17 +51,11 @@ class NotificationService {
       }
       final endpoint =
           '${ApiEndpoints.baseUrl}${ApiEndpoints.getUserNotifications}/$employeeId';
-      print(
-        '🔔 Notification API: Getting notifications for employee: $employeeId',
-      );
-      print('🔔 Notification API: Endpoint: $endpoint');
 
       final queryParams = <String, dynamic>{};
       if (limit != null) queryParams['limit'] = limit;
       if (page != null) queryParams['page'] = page;
       if (unreadOnly != null) queryParams['unreadOnly'] = unreadOnly;
-
-      print('🔔 Notification API: Query params: $queryParams');
 
       final response = await _dio
           .get(
@@ -80,22 +73,13 @@ class NotificationService {
             },
           );
 
-      print('🔔 Notification API: Response status: ${response.statusCode}');
-      print('🔔 Notification API: Response headers: ${response.headers}');
-      print('🔔 Notification API: Response data: ${response.data}');
-      print(
-        '🔔 Notification API: Response data type: ${response.data.runtimeType}',
-      );
-
       if (response.statusCode == 200) {
         // Ensure response.data is a Map, not a String
         if (response.data is String) {
-          print('🔔 Notification API: Response is String, parsing JSON...');
           try {
             final Map<String, dynamic> parsedData = jsonDecode(response.data);
             return parsedData;
           } catch (e) {
-            print('🔔 Notification API: JSON parsing error: $e');
             return {
               'success': false,
               'message': 'Failed to parse JSON response: $e',
@@ -103,21 +87,16 @@ class NotificationService {
             };
           }
         } else if (response.data is Map) {
-          print('🔔 Notification API: Response is already a Map');
           final result = Map<String, dynamic>.from(response.data);
 
           // Cache the result
           if (result['data'] is List) {
             _notificationCache[employeeId] = result['data'];
             _cacheTimestamp = DateTime.now();
-            print('🔔 Notification API: Cached notifications for $employeeId');
           }
 
           return result;
         } else {
-          print(
-            '🔔 Notification API: Unexpected response type: ${response.data.runtimeType}',
-          );
           return {
             'success': false,
             'message':
@@ -132,15 +111,8 @@ class NotificationService {
         };
       }
     } on DioException catch (e) {
-      print('🔔 Notification API: DioException - ${e.message}');
       if (e.response != null) {
-        print('🔔 Notification API: Error response: ${e.response!.data}');
-
-        // Handle 404 - notification endpoints might not exist yet
         if (e.response!.statusCode == 404) {
-          print(
-            '🔔 Notification API: Endpoint not found (404) - notification endpoints may not be implemented yet',
-          );
           return {
             'success': true,
             'message': 'No notifications found',
@@ -159,9 +131,6 @@ class NotificationService {
           try {
             return Map<String, dynamic>.from(jsonDecode(e.response!.data));
           } catch (parseError) {
-            print(
-              '🔔 Notification API: Error parsing error response: $parseError',
-            );
             return {
               'success': false,
               'message': 'Network error: ${e.message}',
@@ -185,7 +154,6 @@ class NotificationService {
         };
       }
     } catch (e) {
-      print('🔔 Notification API: Unexpected error - $e');
       return {'success': false, 'message': 'Unexpected error: $e', 'data': []};
     }
   }
@@ -233,11 +201,6 @@ class NotificationService {
     required String employeeId,
   }) async {
     try {
-      print(
-        '🔔 Notification API: Marking all notifications as read for employee: $employeeId',
-      );
-
-      // Get all unread notifications first
       final notificationsResponse = await getNotifications(
         employeeId: employeeId,
         unreadOnly: true,

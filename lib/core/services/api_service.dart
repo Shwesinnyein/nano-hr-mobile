@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../api/api_endpoints.dart';
 
 class ApiService {
@@ -23,31 +24,27 @@ class ApiService {
     // Add authentication interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
-           onRequest: (options, handler) async {
-             // Add authentication token if available
-             try {
-               final prefs = await SharedPreferences.getInstance();
-               final token = prefs.getString('user_token');
-               print('🔍 Token check for ${options.path}:');
-               print('  - Token exists: ${token != null}');
-               print('  - Token length: ${token?.length ?? 0}');
-               print(
-                 '  - Token preview: ${token != null ? '${token.substring(0, token.length > 20 ? 20 : token.length)}...' : 'null'}',
-               );
-               print('  - Full request URL: ${options.baseUrl}${options.path}');
+        onRequest: (options, handler) async {
+          // Add authentication token if available
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final token = prefs.getString('user_token');
 
-               if (token != null && token.isNotEmpty) {
-                 options.headers['Authorization'] = 'Bearer $token';
-                 print('🔐 Added JWT token to request: ${options.path}');
-               } else {
-                 print('⚠️ No JWT token found for request: ${options.path}');
-               }
-             } catch (e) {
-               print('❌ Error getting token: $e');
-               // Ignore token errors, continue without auth
-             }
-             handler.next(options);
-           },
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            } else {
+              if (kDebugMode) {
+                print('⚠️ No JWT token found for request: ${options.path}');
+              }
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              print('❌ Error getting token: $e');
+            }
+            // Ignore token errors, continue without auth
+          }
+          handler.next(options);
+        },
       ),
     );
 
@@ -64,11 +61,10 @@ class ApiService {
               await prefs.remove('user_token');
               await prefs.remove('user_id');
               await prefs.remove('employee_id');
-
-              // You could also trigger a logout event here
-              print('🔄 Token expired - user needs to login again');
             } catch (e) {
-              print('❌ Error clearing expired token: $e');
+              if (kDebugMode) {
+                print('❌ Error clearing expired token: $e');
+              }
             }
           }
           handler.next(error);
@@ -89,22 +85,23 @@ class ApiService {
           if (startTime != null) {
             final duration = DateTime.now().millisecondsSinceEpoch - startTime;
             if (duration > 2000) {
-              print(
-                '⚠️ SLOW API: ${response.requestOptions.path} took ${duration}ms',
-              );
+              if (kDebugMode) {
+                print(
+                  '⚠️ SLOW API: ${response.requestOptions.path} took ${duration}ms',
+                );
+              }
             } else {
-              print(
-                '✅ API: ${response.requestOptions.path} took ${duration}ms',
-              );
+              if (kDebugMode) {
+                print(
+                  '✅ API: ${response.requestOptions.path} took ${duration}ms',
+                );
+              }
             }
           }
           handler.next(response);
         },
         onError: (error, handler) {
-          final startTime = error.requestOptions.extra['startTime'] as int?;
-          if (startTime != null) {
-            final duration = DateTime.now().millisecondsSinceEpoch - startTime;
-          }
+          // Performance logging for errors (simplified)
           handler.next(error);
         },
       ),
@@ -368,10 +365,6 @@ class ApiService {
     required String date,
   }) async {
     try {
-      print(
-        '🔐 Getting shift data with filter for employee: $employeeId, date: $date',
-      );
-
       final response = await _dio.get(
         '${ApiEndpoints.baseUrl}/employee/shift-data/filter',
         queryParameters: {'employeeId': employeeId, 'date': date},

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,11 +13,14 @@ import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../core/widgets/main_layout.dart';
-import '../core/services/auth_service.dart';
+import '../features/auth/data/auth_repository.dart' as auth_repo;
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(auth_repo.authStateProvider.notifier).authStream,
+    ),
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const _SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const EmployeeLoginScreen()),
@@ -73,13 +77,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const LeaveApprovalScreen(),
       ),
     ],
-    redirect: (context, state) {
+    redirect: (context, state) async {
       // Redirect from splash to employee login
       if (state.matchedLocation == '/splash') return '/login';
 
-      // Check authentication for protected routes
-      final authService = ref.read(authServiceProvider);
-      final isAuthenticated = authService.isAuthenticated;
+      // Check authentication for protected routes using AuthRepository
+      final authState = ref.read(auth_repo.authStateProvider);
+      final isAuthenticated = authState.when(
+        data: (loggedIn) => loggedIn,
+        loading: () => false,
+        error: (_, __) => false,
+      );
 
       // List of protected routes that require authentication
       final protectedRoutes = [
@@ -98,10 +106,34 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
+      // If logged in and trying to access login page, redirect to attendance
+      if (isAuthenticated &&
+          (state.matchedLocation == '/login' ||
+              state.matchedLocation == '/employee-login')) {
+        return '/attendance';
+      }
+
       return null;
     },
   );
 });
+
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
+  }
+
+  late final StreamSubscription _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
 
 class _SplashScreen extends StatelessWidget {
   const _SplashScreen();

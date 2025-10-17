@@ -139,15 +139,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       // Login using mobile API via auth repository (which handles token storage)
       await authController.loginMobile(email, password);
 
-      // If we reach here, login was successful (authController throws exception on failure)
-      print('✅ Login successful, navigating to attendance screen');
-
-      // Check auth state
       final authService = ref.read(authServiceProvider);
-      print('🔍 Auth state check:');
-      print('  - isAuthenticated: ${authService.isAuthenticated}');
-      print('  - currentUserId: ${authService.currentUserId}');
-      print('  - currentEmployeeId: ${authService.currentEmployeeId}');
 
       if (mounted) {
         // The auth service already sets the user ID and employee ID correctly

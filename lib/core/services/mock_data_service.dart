@@ -300,17 +300,8 @@ class MockDataService {
         'data': attendanceRecord,
       };
     } else {
-      // Check out - update existing record
-      print(
-        '🔍 MockDataService: Looking for existing record for employeeId: ${data['employeeId']}, date: $today',
-      );
-      print(
-        '🔍 MockDataService: Available records: ${mockAttendanceData.map((r) => '${r['employeeId']}-${r['date']}').toList()}',
-      );
-
       if (existingRecordIndex != -1) {
         final existingRecord = mockAttendanceData[existingRecordIndex];
-        print('🔍 MockDataService: Found existing record: $existingRecord');
 
         final timeString =
             '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
@@ -334,14 +325,12 @@ class MockDataService {
               '${duration.inHours}h ${duration.inMinutes % 60}m';
         }
 
-        print('🔍 MockDataService: Updated record: $existingRecord');
         return {
           'success': true,
           'message': 'Check Out recorded successfully',
           'data': existingRecord,
         };
       } else {
-        print('❌ MockDataService: No existing record found for check-out');
         throw Exception('No check-in record found for today');
       }
     }

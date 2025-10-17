@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 
 class AuthService {
@@ -104,11 +105,6 @@ class AuthService {
       final response = await _apiService.loginUserMobile(
         email: email,
         password: password,
-      );
-
-      print('🔍 API Response: $response');
-      print(
-        '🔍 Success field: ${response['success']} (type: ${response['success'].runtimeType})',
       );
 
       if (response['success'] == true) {
@@ -224,7 +220,9 @@ class AuthService {
       // This will be called by the auth repository when checking login state
       // The actual restoration is handled in the auth repository
     } catch (e) {
-      print('❌ Failed to restore auth state: $e');
+      if (kDebugMode) {
+        print('❌ Failed to restore auth state: $e');
+      }
     }
   }
 

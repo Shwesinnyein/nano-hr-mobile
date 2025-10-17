@@ -135,7 +135,8 @@ class LeaveBalance {
       year: json['year'] ?? DateTime.now().year,
       eligible: json['eligible'] ?? true,
       monthsWithCompany: json['monthsWithCompany'] ?? 0,
-      balances: (json['balances'] as List<dynamic>?)
+      balances:
+          (json['balances'] as List<dynamic>?)
               ?.map((balance) => LeaveTypeBalance.fromJson(balance))
               .toList() ??
           [],
@@ -158,19 +159,25 @@ class LeaveBalance {
   // Helper methods for UI compatibility
   LeaveTypeBalance? getLeaveTypeByName(String name) {
     return balances.firstWhere(
-      (balance) => balance.leaveTypeName.toLowerCase().contains(name.toLowerCase()),
+      (balance) =>
+          balance.leaveTypeName.toLowerCase().contains(name.toLowerCase()),
       orElse: () => LeaveTypeBalance.empty(),
     );
   }
 
   // Legacy properties for backward compatibility
-  double get annualLeave => getLeaveTypeByName('Annual')?.remaining.toDouble() ?? 0.0;
-  double get sickLeave => getLeaveTypeByName('ป่วย')?.remaining.toDouble() ?? 0.0;
-  double get personalLeave => getLeaveTypeByName('ลา (โดยไม่ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
+  double get annualLeave =>
+      getLeaveTypeByName('Annual')?.remaining.toDouble() ?? 0.0;
+  double get sickLeave =>
+      getLeaveTypeByName('ป่วย')?.remaining.toDouble() ?? 0.0;
+  double get personalLeave =>
+      getLeaveTypeByName('ลา (โดยไม่ได้รับค่าจ้าง)')?.remaining.toDouble() ??
+      0.0;
   double get vacationLeave => annualLeave;
   double get leaveWithoutPay => personalLeave;
   double get maternityLeave => 0.0;
-  double get leaveOfAbsencePaid => getLeaveTypeByName('ลากิจ(ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
+  double get leaveOfAbsencePaid =>
+      getLeaveTypeByName('ลากิจ(ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
   double get emergency => 0.0;
 }
 
@@ -199,7 +206,8 @@ class LeaveTypeBalance {
     return LeaveTypeBalance(
       leaveTypeId: json['leaveTypeId'] ?? '',
       leaveTypeName: json['leaveTypeName'] ?? '',
-      totalAllocated: int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
+      totalAllocated:
+          int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
       used: json['used'] ?? 0,
       remaining: json['remaining'] ?? 0,
       isPaid: json['isPaid'] ?? false,
@@ -251,7 +259,8 @@ class LeaveSummary {
   factory LeaveSummary.fromJson(Map<String, dynamic> json) {
     return LeaveSummary(
       totalLeaveTypes: json['totalLeaveTypes'] ?? 0,
-      totalDaysAllocated: int.tryParse(json['totalDaysAllocated']?.toString() ?? '0') ?? 0,
+      totalDaysAllocated:
+          int.tryParse(json['totalDaysAllocated']?.toString() ?? '0') ?? 0,
       totalDaysUsed: json['totalDaysUsed'] ?? 0,
       totalDaysRemaining: json['totalDaysRemaining'] ?? 0,
     );
@@ -378,7 +387,6 @@ class LeaveRequest {
 
       return [];
     } catch (e) {
-      print('Error parsing attachments: $e');
       return [];
     }
   }

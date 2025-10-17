@@ -135,39 +135,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           currentEmployeeId,
         );
 
-        print('🔍 Employee Leaves from History API:');
-        print('  - User Level: $userLevel');
-        print('  - User ID: $currentEmployeeId');
-        print('  - Total leaves: ${allEmployeeLeaves.length}');
-
         // Log sample data to verify structure
         if (allEmployeeLeaves.isNotEmpty) {
           final sample = allEmployeeLeaves.first;
-          print('  - Sample leave data: ${sample.keys.toList()}');
-          print('  - Employee name: ${sample['employeeName']}');
-          print('  - First name: ${sample['firstName']}');
-          print('  - Position: ${sample['positionName']}');
-          print('  - Approval history: ${sample['approvalHistory']}');
-          print('  - Status: ${sample['status']}');
-          print('  - Status name: ${sample['statusName']}');
-        } else {
-          print('  - No leave history found for user $currentEmployeeId');
-          print(
-            '  - This might mean the user has not processed any leave requests yet',
-          );
-          print(
-            '  - The user needs to approve or reject some leave requests first',
-          );
-        }
+        } else {}
       } catch (e) {
-        print('Error getting leave history: $e');
-        print('  - API Error details: $e');
-
-        // Fallback: Try to get processed leaves from the approval API
         try {
-          print(
-            '  - Trying fallback: Getting processed leaves from approval API',
-          );
           final processedLeaves = await leaveService
               .getLeaveRequestsForApproval(userLevel, currentEmployeeId);
 
@@ -182,12 +155,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   historyLevel == userLevel;
             });
           }).toList();
-
-          print(
-            '  - Fallback result: ${allEmployeeLeaves.length} processed leaves',
-          );
         } catch (fallbackError) {
-          print('  - Fallback also failed: $fallbackError');
           allEmployeeLeaves = [];
         }
       }
@@ -586,12 +554,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   }
 
   Widget _buildEmployeeLeaveCard(Map<String, dynamic> leave) {
-    print('🔍 Employee Leave Card - Raw data: $leave');
-    print('🔍 employeeName: ${leave['employeeName']}');
-    print('🔍 firstName: ${leave['firstName']}');
-    print('🔍 positionName: ${leave['positionName']}');
-
-    // Try to get employee name from multiple possible fields
     final employeeName =
         leave['employeeName']?.toString() ??
         leave['firstName']?.toString() ??
@@ -623,11 +585,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         '';
     final branchName =
         leave['branchName']?.toString() ?? leave['branch']?.toString() ?? '';
-
-    // Debug logging for status
-    print('🔍 Status Debug:');
-    print('  - status: $status');
-    print('  - statusName: $statusName');
 
     Color statusColor;
     String statusText;
@@ -1484,9 +1441,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     String note,
   ) async {
     final totalStopwatch = Stopwatch()..start();
-    print(
-      '⏱️ APPROVAL FLOW: Starting ${approve ? "approve" : "reject"} process',
-    );
 
     final auth = ref.read(authServiceProvider);
     final approverId = auth.currentEmployeeId;
@@ -1503,14 +1457,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     }
 
     final service = LeaveService();
-    // Verify current status first - but allow HR to act on manager-approved requests
-    print('⏱️ APPROVAL FLOW: Step 1 - Fetching leave details');
+
     final detailsStopwatch = Stopwatch()..start();
     final details = await service.getLeaveDetails(leaveId);
     detailsStopwatch.stop();
-    print(
-      '⏱️ APPROVAL FLOW: Step 1 completed in ${detailsStopwatch.elapsedMilliseconds}ms',
-    );
+
     if (details['success'] == true) {
       final currentStatus =
           details['leaveRequest']?['status'] ??
@@ -1558,8 +1509,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         return;
       }
     }
-    // Prefer the status endpoint; backend also supports approval path
-    print('⏱️ APPROVAL FLOW: Step 2 - Sending approval request to API');
+
     final approvalStopwatch = Stopwatch()..start();
     final status = approve ? 'approved' : 'rejected';
     final userRole = _getUserLevel(auth);
@@ -1571,9 +1521,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       note: note,
     );
     approvalStopwatch.stop();
-    print(
-      '⏱️ APPROVAL FLOW: Step 2 completed in ${approvalStopwatch.elapsedMilliseconds}ms',
-    );
 
     if (res['success'] == true) {
       _showSuccessMessage(
@@ -1599,9 +1546,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         _processedRequests[leaveId] = processedRequest;
       }
 
-      // Clear leave data cache to ensure fresh data
-      // Clear cache for all employees since approval affects balance
-      print('⏱️ APPROVAL FLOW: Step 3 - Refreshing UI data');
       final refreshStopwatch = Stopwatch()..start();
       LeaveController.clearAllCache();
       // Refresh the leave controller data
@@ -1611,22 +1555,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       await _loadAllLeaveRequests();
       await _loadEmployeeLeaves();
       refreshStopwatch.stop();
-      print(
-        '⏱️ APPROVAL FLOW: Step 3 completed in ${refreshStopwatch.elapsedMilliseconds}ms',
-      );
 
       totalStopwatch.stop();
-      print(
-        '⏱️ APPROVAL FLOW: TOTAL TIME: ${totalStopwatch.elapsedMilliseconds}ms',
-      );
-      print('⏱️ APPROVAL FLOW: Breakdown:');
-      print(
-        '   - Get leave details: ${detailsStopwatch.elapsedMilliseconds}ms',
-      );
-      print(
-        '   - API approval call: ${approvalStopwatch.elapsedMilliseconds}ms',
-      );
-      print('   - UI refresh: ${refreshStopwatch.elapsedMilliseconds}ms');
     } else {
       // Fallback: try the alternate endpoint once
       final alt = await service.approveOrRejectLeave(

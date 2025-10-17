@@ -164,15 +164,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   }
 
   Widget _buildLeaveList(List<LeaveRequest> requests) {
-    print(
-      '🔍 LeaveListScreen: Building leave list with ${requests.length} requests',
-    );
-    for (int i = 0; i < requests.length; i++) {
-      print(
-        '🔍 LeaveListScreen: Request $i: ${requests[i].leaveType} - ${requests[i].reason}',
-      );
-    }
-
     return Column(
       children: [
         // Show message when no leave requests are available
