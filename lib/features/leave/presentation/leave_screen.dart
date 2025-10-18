@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
@@ -25,8 +26,17 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
 
     final positionLower = position.toLowerCase();
 
+    // Debug logging to see what position is detected
+    if (kDebugMode) {
+      print('🔍 Leave Approval Check:');
+      print('   Position: "$position"');
+      print('   Position Lower: "$positionLower"');
+      print('   Employee ID: "$currentEmployeeId"');
+    }
+
     if (positionLower.contains('hr') ||
         positionLower.contains('human resource')) {
+      if (kDebugMode) print('   ✅ HR detected - can approve');
       return true;
     }
 
@@ -34,15 +44,19 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     if (positionLower.contains('manager') ||
         positionLower.contains('supervisor') ||
         positionLower.contains('lead')) {
+      if (kDebugMode)
+        print('   ✅ Manager/Supervisor/Lead detected - can approve');
       return true;
     }
 
     // Approvers can approve
     if (positionLower.contains('approver') ||
         positionLower.contains('management')) {
+      if (kDebugMode) print('   ✅ Approver/Management detected - can approve');
       return true;
     }
 
+    if (kDebugMode) print('   ❌ No matching position found - cannot approve');
     return false;
   }
 

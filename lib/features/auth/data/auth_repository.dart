@@ -9,6 +9,10 @@ class AuthRepository {
   static const _kUserId = 'user_id';
   static const _kUserToken = 'user_token';
   static const _kEmployeeId = 'employee_id';
+  static const _kEmployeeName = 'employee_name';
+  static const _kEmployeeFirstName = 'employee_first_name';
+  static const _kEmployeeLastName = 'employee_last_name';
+  static const _kPositionName = 'position_name';
 
   AuthRepository(this._authService);
 
