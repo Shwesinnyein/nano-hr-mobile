@@ -13,6 +13,7 @@ import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
+import '../../../core/widgets/google_map_widget.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -1443,140 +1444,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           flex: 3,
           child: Container(
             margin: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.grey[300]!),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                // Map Pattern Background
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.blue[50]!, Colors.green[50]!],
-                    ),
-                  ),
-                ),
-                // Grid Pattern Overlay
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(15),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/icon/nano-icon-square.png'),
-                      opacity: 0.05,
-                      scale: 0.3,
-                    ),
-                  ),
-                ),
-                // Content
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Location Pin Icon
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.kNanoGold.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(50),
-                          border: Border.all(
-                            color: AppTheme.kNanoGold.withOpacity(0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.location_on,
-                          size: 48,
-                          color: AppTheme.kNanoGold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Your Location',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.kNanoGold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Lat: ${latitude.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'Lng: ${longitude.toStringAsFixed(6)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.kNanoGold.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppTheme.kNanoGold.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Text(
-                          'Map View',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.kNanoGold,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Corner Decoration
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.my_location,
-                      size: 16,
-                      color: AppTheme.kNanoGold,
-                    ),
-                  ),
-                ),
-              ],
+            child: GoogleMapWidget(
+              latitude: latitude,
+              longitude: longitude,
+              address: address,
+              title: 'Your Location',
             ),
           ),
         ),
@@ -1601,18 +1473,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   '📍',
                   'Address',
                   address ?? 'Not available',
-                ),
-                const SizedBox(height: 12),
-                _buildLocationDetailRow(
-                  '🌐',
-                  'Latitude',
-                  latitude.toStringAsFixed(6),
-                ),
-                const SizedBox(height: 12),
-                _buildLocationDetailRow(
-                  '🌐',
-                  'Longitude',
-                  longitude.toStringAsFixed(6),
                 ),
                 const SizedBox(height: 12),
                 _buildLocationDetailRow('🕐', 'Last Updated', 'Just now'),
