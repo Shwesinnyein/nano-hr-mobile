@@ -28,6 +28,12 @@ class AuthRepository {
       // Restore auth service state
       _authService.setCurrentUser(userId);
       _authService.setCurrentEmployeeId(employeeId);
+      
+      // Restore employee name and position from SharedPreferences
+      final firstName = prefs.getString(_kEmployeeFirstName);
+      final lastName = prefs.getString(_kEmployeeLastName);
+      final positionName = prefs.getString(_kPositionName);
+      _authService.setCurrentEmployeeName(firstName, lastName, positionName);
 
       return true;
     }
@@ -90,6 +96,14 @@ class AuthRepository {
         final employeeId = userData['id'] ?? userData['uid'];
         final token =
             response['token'] ?? userData['token'] ?? userData['accessToken'];
+        
+        // Get employee name and position
+        final firstName = userData['firstName'] ?? userData['first_name'];
+        final lastName = userData['lastName'] ?? userData['last_name'];
+        final positionName = userData['positionName'] ?? 
+            userData['position_name'] ?? 
+            userData['jobTitle'] ?? 
+            userData['job_title'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_kLoggedInKey, true);
@@ -108,10 +122,22 @@ class AuthRepository {
         } else {
           print('❌ No profile image URL found');
         }
+        
+        // Save employee name and position to SharedPreferences
+        if (firstName != null) {
+          await prefs.setString(_kEmployeeFirstName, firstName);
+        }
+        if (lastName != null) {
+          await prefs.setString(_kEmployeeLastName, lastName);
+        }
+        if (positionName != null) {
+          await prefs.setString(_kPositionName, positionName);
+        }
 
         // Update auth service with both user ID and employee ID
         _authService.setCurrentUser(userId);
         _authService.setCurrentEmployeeId(employeeId);
+        _authService.setCurrentEmployeeName(firstName, lastName, positionName);
       } else {
         throw Exception(response['message'] ?? 'Mobile login failed');
       }
@@ -144,12 +170,16 @@ class AuthRepository {
 
   Future<void> _clearLoginState() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kLoggedInKey, false);
-    await prefs.remove(_kUserId);
-    await prefs.remove(_kUserToken);
-    await prefs.remove(_kEmployeeId);
+    
+    // Clear ALL SharedPreferences data to prevent data mixing between different users
+    await prefs.clear();
+    
+    // Note: prefs.clear() removes everything, so no need to remove individual keys
+    // This ensures no old employee data remains when a new employee logs in
+    
     _authService.setCurrentUser(null);
     _authService.setCurrentEmployeeId(null);
+    _authService.setCurrentEmployeeName(null, null, null);
   }
 }
 

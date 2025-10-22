@@ -13,7 +13,6 @@ import '../../../core/widgets/animated_fade_in.dart';
 import 'package:intl/intl.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
-// import 'package:google_maps_flutter/google_maps_flutter.dart'; // Removed to prevent crashes
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -39,7 +38,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   // String? _locationError; // Removed unused variable
 
   // Google Maps controller (removed to prevent crashes)
-  // GoogleMapController? _mapController;
 
   // Performance optimization: Cache button state to prevent r_refreshAttendanceStatusecalculation
   Map<String, dynamic>? _cachedButtonState;
@@ -1344,7 +1342,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   // GPS/Location info method with map modal
-  void _showLocationInfo(BuildContext context) {
+  void _showLocationInfo(BuildContext context) async {
+    // Always get fresh location when GPS button is clicked
+    await _loadCurrentLocation();
+    
+    if (!mounted) return;
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

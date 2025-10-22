@@ -39,54 +39,10 @@ class LocationService {
     }
 
     try {
-      // Get current position - try medium accuracy first, fallback to low if needed
-      Position position;
-      try {
-        position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-          timeLimit: const Duration(seconds: 10),
-        );
-      } catch (e) {
-        // Fallback to low accuracy if medium fails
-        print('Medium accuracy failed, trying low accuracy...');
-        position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.low,
-          timeLimit: const Duration(seconds: 8),
-        );
-      }
-
-      // DEBUG: Print location details
-      print('=== ATTENDANCE SCREEN LOCATION DEBUG ===');
-      print('ACTUAL GPS Latitude: ${position.latitude}');
-      print('ACTUAL GPS Longitude: ${position.longitude}');
-      print('ACTUAL GPS Accuracy: ${position.accuracy}m');
-      print('YOUR CORRECT Location: 13.636473, 100.612055');
-      print('Distance between actual and correct: ${Geolocator.distanceBetween(
-        position.latitude,
-        position.longitude,
-        13.636473,
-        100.612055,
-      ).toStringAsFixed(0)}m');
-      print('========================================');
-
-      // If GPS accuracy is very poor (>1000m), use your exact coordinates instead
-      if (position.accuracy > 1000) {
-        print('GPS accuracy too poor (${position.accuracy}m), using exact coordinates');
-        position = Position(
-          latitude: 13.636473,
-          longitude: 100.612055,
-          timestamp: position.timestamp,
-          accuracy: 5.0, // Assume good accuracy for exact coordinates
-          altitude: position.altitude,
-          altitudeAccuracy: position.altitudeAccuracy,
-          heading: position.heading,
-          headingAccuracy: position.headingAccuracy,
-          speed: position.speed,
-          speedAccuracy: position.speedAccuracy,
-        );
-        print('Using exact coordinates: ${position.latitude}, ${position.longitude}');
-      }
-
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 30), // Give GPS more time to get accurate fix
+      );
       return position;
     } catch (e) {
       throw Exception('Failed to get location: ${e.toString()}');
