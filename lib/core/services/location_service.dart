@@ -39,11 +39,58 @@ class LocationService {
     }
 
     try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
-      );
-      return position;
+      // Try multiple times with different accuracy settings
+      Position? bestPosition;
+      double bestAccuracy = double.infinity;
+      
+      // First attempt: Best accuracy with longer timeout
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.best,
+          timeLimit: const Duration(seconds: 30),
+        );
+        if (position.accuracy < bestAccuracy) {
+          bestPosition = position;
+          bestAccuracy = position.accuracy;
+        }
+      } catch (e) {
+        print('First attempt failed: $e');
+      }
+      
+      // Second attempt: High accuracy with medium timeout
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 20),
+        );
+        if (position.accuracy < bestAccuracy) {
+          bestPosition = position;
+          bestAccuracy = position.accuracy;
+        }
+      } catch (e) {
+        print('Second attempt failed: $e');
+      }
+      
+      // Third attempt: Medium accuracy with short timeout
+      try {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+          timeLimit: const Duration(seconds: 15),
+        );
+        if (position.accuracy < bestAccuracy) {
+          bestPosition = position;
+          bestAccuracy = position.accuracy;
+        }
+      } catch (e) {
+        print('Third attempt failed: $e');
+      }
+      
+      if (bestPosition != null) {
+        print('Best location accuracy: ${bestPosition.accuracy}m');
+        return bestPosition;
+      } else {
+        throw Exception('All location attempts failed');
+      }
     } catch (e) {
       throw Exception('Failed to get location: ${e.toString()}');
     }
