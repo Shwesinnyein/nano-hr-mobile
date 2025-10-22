@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
 import '../../../core/widgets/google_map_widget.dart';
+import '../../../core/widgets/location_details_modal.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -1235,7 +1236,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // GPS Button
+          // Location Button
           Expanded(
             child: Container(
               height: 50,
@@ -1256,8 +1257,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  // GPS/Location functionality
-                  _showLocationInfo(context);
+                  _showDetailedLocationModal(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -1269,10 +1269,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.gps_fixed, color: AppTheme.kNanoGold, size: 20),
+                    Icon(
+                      Icons.location_on,
+                      color: AppTheme.kNanoGold,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      'GPS',
+                      'Location',
                       style: TextStyle(
                         color: AppTheme.kNanoGold,
                         fontSize: 16,
@@ -1481,6 +1485,53 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // Detailed Location Modal method
+  void _showDetailedLocationModal(BuildContext context) async {
+    // Always get fresh location when Details button is clicked
+    await _loadCurrentLocation();
+    
+    if (!mounted) return;
+    
+    if (_currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final latitude = _currentLocation!['latitude'] as double;
+    final longitude = _currentLocation!['longitude'] as double;
+    final address = _currentLocation!['address'] as String? ?? 'Address not available';
+
+    // Calculate distance to nearest office (simplified)
+    final nearestBranch = BranchLocationService.findNearestBranch(latitude, longitude);
+    final distance = nearestBranch != null 
+        ? BranchLocationService.calculateDistance(
+            latitude, longitude, 
+            nearestBranch.latitude, nearestBranch.longitude
+          )
+        : 0.0;
+    
+    final isWithinRange = distance <= 100; // Within 100 meters
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => LocationDetailsModal(
+          latitude: latitude,
+          longitude: longitude,
+          address: address,
+          onConfirm: () {
+            Navigator.of(context).pop();
+            // You can add additional logic here if needed
+          },
+        ),
+      ),
     );
   }
 
