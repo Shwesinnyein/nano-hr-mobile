@@ -56,6 +56,13 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       return true;
     }
 
+    // Programmers can approve (they are team leads)
+    if (positionLower.contains('programmer') ||
+        positionLower.contains('developer')) {
+      if (kDebugMode) print('   ✅ Programmer/Developer detected - can approve');
+      return true;
+    }
+
     if (kDebugMode) print('   ❌ No matching position found - cannot approve');
     return false;
   }

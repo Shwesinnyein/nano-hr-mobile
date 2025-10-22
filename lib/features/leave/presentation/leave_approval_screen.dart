@@ -106,6 +106,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return 'team-lead';
     }
 
+    // Check if user is Programmer/Developer (they can act as team leads)
+    if (position.toLowerCase().contains('programmer') ||
+        position.toLowerCase().contains('developer')) {
+      return 'team-lead';
+    }
+
     // Default to manager (most common case)
     return 'manager';
   }

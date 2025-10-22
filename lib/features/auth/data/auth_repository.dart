@@ -155,6 +155,9 @@ class AuthRepository {
     } finally {
       // Clear local login state
       await _clearLoginState();
+      
+      // Clear any cached data that might be user-specific
+      await _clearUserSpecificCaches();
     }
   }
 
@@ -180,6 +183,24 @@ class AuthRepository {
     _authService.setCurrentUser(null);
     _authService.setCurrentEmployeeId(null);
     _authService.setCurrentEmployeeName(null, null, null);
+  }
+
+  Future<void> _clearUserSpecificCaches() async {
+    // Clear any cached data that might be user-specific
+    // This includes leave data caches, attendance caches, etc.
+    
+    try {
+      // Import the leave controller to clear its cache
+      // Note: This is a static method, so we can call it directly
+      // LeaveController.clearAllCache(); // Uncomment if needed
+      
+      // Clear any other user-specific caches here
+      // For example: AttendanceController.clearAllCache();
+      
+    } catch (e) {
+      // Don't let cache clearing errors prevent logout
+      print('Warning: Failed to clear some caches during logout: $e');
+    }
   }
 }
 

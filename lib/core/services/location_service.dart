@@ -40,8 +40,9 @@ class LocationService {
 
     try {
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 30), // Give GPS more time to get accurate fix
+        desiredAccuracy: LocationAccuracy.bestForNavigation, // Highest possible accuracy
+        timeLimit: const Duration(seconds: 60), // Even longer timeout for best accuracy
+        forceAndroidLocationManager: false, // Use FusedLocationProvider
       );
       return position;
     } catch (e) {
@@ -55,31 +56,47 @@ class LocationService {
     double longitude,
   ) async {
     try {
+      // Try multiple geocoding attempts for better accuracy
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
         longitude,
+        localeIdentifier: 'th_TH', // Use Thai locale for better accuracy in Thailand
       );
 
       if (placemarks.isEmpty) {
         return 'Unknown Location';
       }
 
-      Placemark place = placemarks[0];
+      // Try to find the most accurate placemark
+      Placemark? bestPlace;
+      for (Placemark place in placemarks) {
+        // Prefer placemarks with street information
+        if (place.street != null && place.street!.isNotEmpty) {
+          bestPlace = place;
+          break;
+        }
+      }
+      
+      // If no street found, use the first one
+      bestPlace ??= placemarks[0];
 
-      // Build a readable address
+      // Build a readable address with more detail
       List<String> addressParts = [];
 
-      if (place.street != null && place.street!.isNotEmpty) {
-        addressParts.add(place.street!);
+      if (bestPlace.street != null && bestPlace.street!.isNotEmpty) {
+        addressParts.add(bestPlace.street!);
       }
-      if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-        addressParts.add(place.subLocality!);
+      if (bestPlace.subLocality != null && bestPlace.subLocality!.isNotEmpty) {
+        addressParts.add(bestPlace.subLocality!);
       }
-      if (place.locality != null && place.locality!.isNotEmpty) {
-        addressParts.add(place.locality!);
+      if (bestPlace.locality != null && bestPlace.locality!.isNotEmpty) {
+        addressParts.add(bestPlace.locality!);
       }
-      if (place.country != null && place.country!.isNotEmpty) {
-        addressParts.add(place.country!);
+      if (bestPlace.administrativeArea != null && bestPlace.administrativeArea!.isNotEmpty) {
+        addressParts.add(bestPlace.administrativeArea!);
+      }
+      if (bestPlace.country != null && bestPlace.country!.isNotEmpty) {
+        addressParts.add(bestPlace.country!);
       }
 
       String address = addressParts.isNotEmpty
