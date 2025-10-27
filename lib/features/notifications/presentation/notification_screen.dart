@@ -275,7 +275,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           context.push('/leave/approval');
         }
       case 'leave_approved':
+      case 'leave_approved_by_team_lead':
+      case 'leave_approved_by_manager':
+      case 'leave_approved_by_hr':
+      case 'approved_team_lead':
+      case 'approved_manager':
+      case 'approved_hr':
+      case 'approved':
       case 'leave_rejected':
+      case 'leave_rejected_by_team_lead':
+      case 'leave_rejected_by_manager':
+      case 'leave_rejected_by_hr':
+      case 'rejected':
         // Navigate to leave list to see the status (for employees)
         if (mounted) {
           context.push('/leave/list');
@@ -485,6 +496,9 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Widget _buildNotificationCard(NotificationModel notification) {
+    // Debug: Print notification type to console
+    print('Notification type: ${notification.type}');
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -605,13 +619,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Color _getNotificationColor(String type) {
+    // Use string matching for more flexibility
+    if (type.contains('approved') || type.contains('approve')) {
+      return AppTheme.successColor;
+    }
+    if (type.contains('rejected') || type.contains('reject')) {
+      return AppTheme.errorColor;
+    }
+    
     switch (type) {
       case 'leave_request':
+      case 'pending':
         return AppTheme.kNanoGold;
-      case 'leave_approved':
-        return AppTheme.successColor;
-      case 'leave_rejected':
-        return AppTheme.errorColor;
       case 'leave_reminder':
         return AppTheme.warningColor;
       case 'policy':
@@ -630,13 +649,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   IconData _getNotificationIcon(String type) {
+    // Use string matching for more flexibility
+    if (type.contains('approved') || type.contains('approve')) {
+      return Icons.check_circle;
+    }
+    if (type.contains('rejected') || type.contains('reject')) {
+      return Icons.cancel;
+    }
+    
     switch (type) {
       case 'leave_request':
+      case 'pending':
         return Icons.calendar_today;
-      case 'leave_approved':
-        return Icons.check_circle;
-      case 'leave_rejected':
-        return Icons.cancel;
       case 'leave_reminder':
         return Icons.schedule;
       case 'policy':

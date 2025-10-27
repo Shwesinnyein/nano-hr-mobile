@@ -103,15 +103,15 @@ class SettingsScreen extends ConsumerWidget {
               //   Icons.access_time,
               //   () => _showComingSoon(context, ref.t('ติดตามเวลา', 'Time Tracking')),
               // ),
-              _buildSettingsItem(
-                ref.t('รายงานการเข้างาน', 'Attendance Reports'),
-                ref.t('สร้างรายงานการเข้างาน', 'Generate attendance reports'),
-                Icons.assessment,
-                () => _showComingSoon(
-                  context,
-                  ref.t('รายงานการเข้างาน', 'Attendance Reports'),
-                ),
-              ),
+              // _buildSettingsItem(
+              //   ref.t('รายงานการเข้างาน', 'Attendance Reports'),
+              //   ref.t('สร้างรายงานการเข้างาน', 'Generate attendance reports'),
+              //   Icons.assessment,
+              //   () => _showComingSoon(
+              //     context,
+              //     ref.t('รายงานการเข้างาน', 'Attendance Reports'),
+              //   ),
+              // ),
             ]),
             const SizedBox(height: 24),
             _buildSettingsSection(ref.t('การเงิน', 'Financial'), [
