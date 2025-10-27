@@ -364,35 +364,48 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     if (state.hasError) {}
 
-    return Container(
-      color: AppTheme.kBackground,
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Header with today's date and status
-            AnimatedFadeIn(
-              delay: const Duration(milliseconds: 100),
-              child: _buildHeader(context, ref, state),
-            ),
-            const SizedBox(height: 20),
-            AnimatedFadeIn(
-              delay: const Duration(milliseconds: 200),
-              child: _buildCheckInOutButton(context, ref, controller, state),
-            ),
-            const SizedBox(height: 20),
-            AnimatedFadeIn(
-              delay: const Duration(milliseconds: 300),
-              child: _buildViewDetailsButton(context, ref, state),
-            ),
-            if (_showDetails) ...[
-              const SizedBox(height: 20),
-              AnimatedSlideIn(
-                delay: const Duration(milliseconds: 400),
-                child: _buildAttendanceList(ref, state),
+    return Scaffold(
+      backgroundColor: AppTheme.kNanoGold, // Primary color background
+      body: Column(
+        children: [
+          // Status bar area
+          Container(
+            height: MediaQuery.of(context).padding.top,
+            color: AppTheme.kNanoGold, // Primary color for status bar
+          ),
+          // Main content
+          Expanded(
+            child: Container(
+              color: AppTheme.kBackground,
+              child: Column(
+                children: [
+                  // Header with today's date and status
+                  AnimatedFadeIn(
+                    delay: const Duration(milliseconds: 100),
+                    child: _buildHeader(context, ref, state),
+                  ),
+                  const SizedBox(height: 20),
+                  AnimatedFadeIn(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildCheckInOutButton(context, ref, controller, state),
+                  ),
+                  const SizedBox(height: 20),
+                  AnimatedFadeIn(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildViewDetailsButton(context, ref, state),
+                  ),
+                  if (_showDetails) ...[
+                    const SizedBox(height: 20),
+                    AnimatedSlideIn(
+                      delay: const Duration(milliseconds: 400),
+                      child: _buildAttendanceList(ref, state),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }

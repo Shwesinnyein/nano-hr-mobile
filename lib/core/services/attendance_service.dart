@@ -35,6 +35,41 @@ class AttendanceService {
     }
   }
 
+  // Get attendance list with month/year filter
+  Future<List<Map<String, dynamic>>> getAttendanceListWithFilter({
+    required String employeeId,
+    int? month,
+    int? year,
+  }) async {
+    try {
+      final response = await _apiService.getAttendanceListWithFilter(
+        employeeId: employeeId,
+        month: month,
+        year: year,
+      );
+      
+      if (response['success'] == true) {
+        // Handle nested data structure
+        final outerData = response['data'] as Map<String, dynamic>;
+        if (outerData['success'] == true) {
+          final data = outerData['data'] as List<dynamic>;
+          final result = data.cast<Map<String, dynamic>>();
+          return result;
+        } else {
+          throw Exception(
+            outerData['message'] ?? 'Failed to get attendance history',
+          );
+        }
+      } else {
+        throw Exception(
+          response['message'] ?? 'Failed to get attendance history',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to get attendance history: ${e.toString()}');
+    }
+  }
+
   // Check in/out attendance
   Future<Map<String, dynamic>> checkInOut(Map<String, dynamic> data) async {
     try {

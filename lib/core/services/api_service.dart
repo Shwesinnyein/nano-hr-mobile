@@ -455,6 +455,132 @@ class ApiService {
     }
   }
 
+  // Get attendance list with month/year filter
+  Future<Map<String, dynamic>> getAttendanceListWithFilter({
+    required String employeeId,
+    int? month,
+    int? year,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'employeeId': employeeId,
+      };
+      
+      if (month != null) {
+        queryParams['month'] = month;
+      }
+      if (year != null) {
+        queryParams['year'] = year;
+      }
+
+      final response = await _dio.get(
+        '${ApiEndpoints.myAttendanceHistory}/$employeeId',
+        queryParameters: queryParams,
+      ); 
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': response.data,  
+          'message': 'Attendance list retrieved',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get attendance list: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // Handle specific HTTP status codes
+        if (e.response!.statusCode == 404) {
+          return {
+            'success': false,
+            'message': 'No attendance records found for the specified period',
+          };
+        } else if (e.response!.statusCode == 400) {
+          return {
+            'success': false,
+            'message': 'Invalid request parameters',
+          };
+        } else {
+          return {
+            'success': false,
+            'message': e.response?.data['message'] ?? 'Failed to get attendance list',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Network error: ${e.message}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to get attendance list: ${e.toString()}',
+      };
+    }
+  }
+
+  // Search attendance by employee name with month/year filter
+  Future<Map<String, dynamic>> searchAttendanceByName({
+    required String name,
+    int? year,
+    int? month,
+    String? date,
+    int limit = 100,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'name': name,
+        'limit': limit,
+      };
+      
+      if (year != null) {
+        queryParams['year'] = year.toString();
+      }
+      if (month != null) {
+        queryParams['month'] = month.toString();
+      }
+      if (date != null) {
+        queryParams['date'] = date;
+      }
+
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.searchAttendanceByName}',
+        queryParameters: queryParams,
+      );
+      
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to search attendance: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return {
+          'success': false,
+          'message': e.response?.data['message'] ?? 'Failed to search attendance',
+          'error': e.response?.data,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Network error: ${e.message}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to search attendance: ${e.toString()}',
+      };
+    }
+  }
+
   // Check in/out
   Future<Map<String, dynamic>> checkInOut({
     required String employeeId,

@@ -16,22 +16,19 @@ class EmployeeAttendanceHistoryScreen extends ConsumerStatefulWidget {
 
 class _EmployeeAttendanceHistoryScreenState
     extends ConsumerState<EmployeeAttendanceHistoryScreen> {
-  List<Map<String, dynamic>> _employees = [];
-  List<Map<String, dynamic>> _filteredEmployees = [];
-  Map<String, List<Map<String, dynamic>>> _employeeAttendanceData = {};
-  bool _isLoading = true;
+  List<Map<String, dynamic>> _attendanceData = [];
+  bool _isLoading = false;
   String? _error;
-  String _selectedEmployeeId = '';
-  String _selectedEmployeeName = '';
   DateTime _selectedDate = DateTime.now();
-  String _selectedPeriod = 'date'; // 'date' or 'month'
+  String _selectedPeriod = 'month'; // 'date' or 'month' - default to month
   final TextEditingController _searchController = TextEditingController();
-  bool _showSearchResults = false;
+  Map<String, dynamic>? _summary;
 
   @override
   void initState() {
     super.initState();
-    _loadEmployees();
+    // Load all attendance data on init
+    _loadAttendanceData();
   }
 
   @override
@@ -40,121 +37,57 @@ class _EmployeeAttendanceHistoryScreenState
     super.dispose();
   }
 
-  void _filterEmployees(String query) {
-    setState(() {
-      _filteredEmployees = _employees.where((employee) {
-        final name = employee['name'].toString().toLowerCase();
-        final position = employee['position'].toString().toLowerCase();
-        final department = employee['department'].toString().toLowerCase();
-        final searchQuery = query.toLowerCase();
-
-        return name.contains(searchQuery) ||
-            position.contains(searchQuery) ||
-            department.contains(searchQuery);
-      }).toList();
-      _showSearchResults = query.isNotEmpty;
-    });
-  }
-
-  Future<void> _loadEmployees() async {
+  Future<void> _loadAttendanceData() async {
     try {
       setState(() {
         _isLoading = true;
         _error = null;
       });
 
-      // For now, we'll use a mock employee list
-      // In a real app, you would call an API to get all employees
-      final mockEmployees = [
-        {
-          'id': 'EMP-02102025054',
-          'name': 'TEST PROGRAMMER',
-          'position': 'Programmer',
-          'department': 'IT',
-        },
-        {
-          'id': 'EMP-15072025045',
-          'name': 'Office Accountant',
-          'position': 'Accountant',
-          'department': 'Finance',
-        },
-      ];
-
-      setState(() {
-        _employees = mockEmployees;
-        _filteredEmployees = mockEmployees;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadEmployeeAttendance(String employeeId, DateTime date) async {
-    try {
       final apiService = ref.read(apiServiceProvider);
-
-      final dateString = DateFormat('yyyy-MM-dd').format(date);
-
-      final response = await apiService.getShiftDataWithFilter(
-        employeeId: employeeId,
-        date: dateString,
-      );
+      final searchName = _searchController.text.trim();
+      
+      // Call API with search parameters
+      Map<String, dynamic> response;
+      
+      if (_selectedPeriod == 'date') {
+        final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        response = await apiService.searchAttendanceByName(
+          name: searchName, // Can be empty to get all
+          date: dateString,
+        );
+      } else {
+        // Month view
+        response = await apiService.searchAttendanceByName(
+          name: searchName, // Can be empty to get all
+          year: _selectedDate.year,
+          month: _selectedDate.month,
+        );
+      }
 
       if (response['success'] == true) {
-        final attendanceData = response['attendanceData'] as List<dynamic>?;
+        final data = response['data'] as List<dynamic>?;
+        final summary = response['summary'] as Map<String, dynamic>?;
+        
         setState(() {
-          _employeeAttendanceData[employeeId] =
-              attendanceData?.cast<Map<String, dynamic>>() ?? [];
+          _attendanceData = data?.cast<Map<String, dynamic>>() ?? [];
+          _summary = summary;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _attendanceData = [];
+          _summary = null;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading attendance for $employeeId: $e');
-    }
-  }
-
-  Future<void> _loadEmployeeAttendanceForMonth(
-    String employeeId,
-    int year,
-    int month,
-  ) async {
-    try {
-      final apiService = ref.read(apiServiceProvider);
-      final List<Map<String, dynamic>> monthlyData = [];
-
-      // Get all days in the month
-      final daysInMonth = DateTime(year, month + 1, 0).day;
-
-      for (int day = 1; day <= daysInMonth; day++) {
-        try {
-          final date = DateTime(year, month, day);
-          final dateString = DateFormat('yyyy-MM-dd').format(date);
-
-          final response = await apiService.getShiftDataWithFilter(
-            employeeId: employeeId,
-            date: dateString,
-          );
-
-          if (response['success'] == true) {
-            final attendanceData = response['attendanceData'] as List<dynamic>?;
-            if (attendanceData != null && attendanceData.isNotEmpty) {
-              monthlyData.addAll(attendanceData.cast<Map<String, dynamic>>());
-            }
-          }
-        } catch (e) {
-          // Continue to next day if one fails
-          continue;
-        }
-      }
-
       setState(() {
-        _employeeAttendanceData[employeeId] = monthlyData;
+        _error = e.toString();
+        _attendanceData = [];
+        _summary = null;
+        _isLoading = false;
       });
-    } catch (e) {
-      print('Error loading monthly attendance for $employeeId: $e');
     }
   }
 
@@ -318,15 +251,30 @@ class _EmployeeAttendanceHistoryScreenState
     return isThai ? thaiText : englishText;
   }
 
+  Widget _buildStat(IconData icon, String value, String label, {Color? color}) {
+    return Column(
+      children: [
+        Icon(icon, color: color ?? AppTheme.kNanoGold, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color ?? AppTheme.kNanoGold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _showSearchResults = false;
-        });
-      },
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: AppTheme.kBackground,
         appBar: AppBar(
           title: Text(
@@ -343,6 +291,16 @@ class _EmployeeAttendanceHistoryScreenState
             icon: const Icon(Icons.arrow_back, color: AppTheme.kOnBackground),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search, color: AppTheme.kNanoGold),
+              onPressed: _loadAttendanceData,
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppTheme.kOnBackground),
+              onPressed: _loadAttendanceData,
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -352,15 +310,33 @@ class _EmployeeAttendanceHistoryScreenState
               color: Colors.white,
               child: Column(
                 children: [
+                  // Summary Statistics
+                  if (_summary != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.kNanoGold.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStat(Icons.people, _summary!['totalEmployees'].toString(), _t('พนักงาน', 'Employees')),
+                          _buildStat(Icons.event_available, _summary!['totalRecords'].toString(), _t('บันทึก', 'Records')),
+                          _buildStat(Icons.access_time_filled, _summary!['lateCount'].toString(), _t('สาย', 'Late'), color: Colors.red),
+                          _buildStat(Icons.check_circle, _summary!['onTimeCount'].toString(), _t('ตรงเวลา', 'On Time'), color: Colors.green),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   // Employee Search Input
                   TextFormField(
                     controller: _searchController,
                     decoration: InputDecoration(
                       labelText: _t('ค้นหาพนักงาน', 'Search Employee'),
-                      hintText: _t(
-                        'พิมพ์ชื่อ, ตำแหน่ง หรือแผนก',
-                        'Type name, position or department',
-                      ),
+                      hintText: _t('พิมพ์ชื่อพนักงาน', 'Type employee name'),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -370,128 +346,13 @@ class _EmployeeAttendanceHistoryScreenState
                               icon: const Icon(Icons.clear),
                               onPressed: () {
                                 _searchController.clear();
-                                _filterEmployees('');
+                                _loadAttendanceData();
                               },
                             )
                           : null,
                     ),
-                    onChanged: _filterEmployees,
-                    onTap: () {
-                      setState(() {
-                        _showSearchResults = true;
-                      });
-                    },
+                    onFieldSubmitted: (_) => _loadAttendanceData(),
                   ),
-
-                  // Search Results
-                  if (_showSearchResults && _filteredEmployees.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _filteredEmployees.length,
-                        itemBuilder: (context, index) {
-                          final employee = _filteredEmployees[index];
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: AppTheme.kNanoGold.withOpacity(
-                                0.2,
-                              ),
-                              child: Text(
-                                employee['name'][0],
-                                style: const TextStyle(
-                                  color: AppTheme.kNanoGold,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            title: Text(
-                              employee['name'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${employee['position']} - ${employee['department']}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            onTap: () {
-                              setState(() {
-                                _selectedEmployeeId = employee['id'];
-                                _selectedEmployeeName = employee['name'];
-                                _searchController.text = employee['name'];
-                                _showSearchResults = false;
-                              });
-                              _loadEmployeeAttendance(
-                                employee['id'],
-                                _selectedDate,
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-
-                  // Selected Employee Display
-                  if (_selectedEmployeeId.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.kNanoGold.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppTheme.kNanoGold.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.person, color: AppTheme.kNanoGold),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _selectedEmployeeName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.kNanoGold,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.clear,
-                              color: AppTheme.kNanoGold,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _selectedEmployeeId = '';
-                                _selectedEmployeeName = '';
-                                _searchController.clear();
-                                _employeeAttendanceData.clear();
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 16),
 
                   // Period Selection Toggle
@@ -503,6 +364,7 @@ class _EmployeeAttendanceHistoryScreenState
                             setState(() {
                               _selectedPeriod = 'date';
                             });
+                            _loadAttendanceData();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -532,6 +394,7 @@ class _EmployeeAttendanceHistoryScreenState
                             setState(() {
                               _selectedPeriod = 'month';
                             });
+                            _loadAttendanceData();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -573,9 +436,7 @@ class _EmployeeAttendanceHistoryScreenState
                           setState(() {
                             _selectedDate = date;
                           });
-                          if (_selectedEmployeeId.isNotEmpty) {
-                            _loadEmployeeAttendance(_selectedEmployeeId, date);
-                          }
+                          _loadAttendanceData();
                         }
                       } else {
                         // Month picker
@@ -588,13 +449,7 @@ class _EmployeeAttendanceHistoryScreenState
                               1,
                             );
                           });
-                          if (_selectedEmployeeId.isNotEmpty) {
-                            _loadEmployeeAttendanceForMonth(
-                              _selectedEmployeeId,
-                              result['year']!,
-                              result['month']!,
-                            );
-                          }
+                          _loadAttendanceData();
                         }
                       }
                     },
@@ -638,7 +493,6 @@ class _EmployeeAttendanceHistoryScreenState
             Expanded(child: _buildContent()),
           ],
         ),
-      ),
     );
   }
 
@@ -650,7 +504,7 @@ class _EmployeeAttendanceHistoryScreenState
           children: [
             CircularProgressIndicator(color: AppTheme.kNanoGold),
             SizedBox(height: 16),
-            Text('Loading employees...'),
+            Text('Loading attendance data...'),
           ],
         ),
       );
@@ -660,104 +514,55 @@ class _EmployeeAttendanceHistoryScreenState
       return ErrorStateWidget(
         message: _error!,
         actionText: _t('ลองใหม่', 'Retry'),
-        onAction: _loadEmployees,
+        onAction: _loadAttendanceData,
       );
     }
 
-    if (_selectedEmployeeId.isEmpty) {
+    if (_attendanceData.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.person_search, size: 64, color: Colors.grey[400]),
+            Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              _t('กรุณาเลือกพนักงาน', 'Please select an employee'),
+              _t('ไม่มีข้อมูลการเข้างาน', 'No attendance data found'),
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _t('ลองค้นหาชื่อพนักงาน หรือเปลี่ยนวัน/เดือน', 'Try searching by employee name or change date/month'),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       );
     }
 
-    final attendanceData = _employeeAttendanceData[_selectedEmployeeId] ?? [];
-    final selectedEmployee = _employees.firstWhere(
-      (emp) => emp['id'] == _selectedEmployeeId,
-    );
-
-    return Column(
-      children: [
-        // Employee Info Header
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.kNanoGold, AppTheme.kNanoGoldDark],
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                selectedEmployee['name'],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${selectedEmployee['position']} - ${selectedEmployee['department']}',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Attendance Data
-        Expanded(
-          child: attendanceData.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        _t(
-                          'ไม่มีข้อมูลการเข้างานในวันนี้',
-                          'No attendance data for this date',
-                        ),
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: attendanceData.length,
-                  itemBuilder: (context, index) {
-                    final record = attendanceData[index];
-                    return _buildAttendanceCard(record);
-                  },
-                ),
-        ),
-      ],
+    return RefreshIndicator(
+      onRefresh: _loadAttendanceData,
+      color: AppTheme.kNanoGold,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: _attendanceData.length,
+        itemBuilder: (context, index) {
+          final record = _attendanceData[index];
+          return _buildAttendanceCard(record);
+        },
+      ),
     );
   }
 
   Widget _buildAttendanceCard(Map<String, dynamic> record) {
+    final employeeName = record['employeeName'] as String?;
     final checkInAt = record['checkInAt'] as String?;
     final checkOutAt = record['checkOutAt'] as String?;
     final status = record['status'] as String?;
     final location = record['location'] as String?;
+    final date = record['date'] as String?;
+    final lateMinutes = record['lateMinutes'] as int?;
+    final branchName = record['branchName'] as String?;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -776,9 +581,31 @@ class _EmployeeAttendanceHistoryScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Status Badge
+          // Employee Name & Date Header
           Row(
             children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (employeeName != null)
+                      Text(
+                        employeeName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.kNanoGold,
+                        ),
+                      ),
+                    if (date != null)
+                      Text(
+                        DateFormat('dd MMM yyyy').format(DateTime.parse(date)),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                  ],
+                ),
+              ),
+              // Status Badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -794,56 +621,43 @@ class _EmployeeAttendanceHistoryScreenState
                   ),
                 ),
               ),
-              const Spacer(),
-              Text(
-                DateFormat('HH:mm').format(DateTime.parse(record['timestamp'])),
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
             ],
           ),
           const SizedBox(height: 12),
 
           // Check In/Out Times
-          if (checkInAt != null) ...[
-            Row(
-              children: [
-                const Icon(Icons.login, color: AppTheme.kNanoGold, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  _t('เข้างาน: ', 'Check In: ') + checkInAt,
-                  style: const TextStyle(fontSize: 14),
-                ),
+          Row(
+            children: [
+              if (checkInAt != null) ...[
+                const Icon(Icons.login, color: Colors.green, size: 18),
+                const SizedBox(width: 4),
+                Text(checkInAt, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
               ],
-            ),
-          ],
-          if (checkOutAt != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.logout, color: Colors.green, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  _t('ออกงาน: ', 'Check Out: ') + checkOutAt,
-                  style: const TextStyle(fontSize: 14),
+              if (checkInAt != null && checkOutAt != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(Icons.arrow_forward, size: 16, color: Colors.grey[400]),
                 ),
+              if (checkOutAt != null) ...[
+                const Icon(Icons.logout, color: Colors.red, size: 18),
+                const SizedBox(width: 4),
+                Text(checkOutAt, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
               ],
-            ),
-          ],
+              if (lateMinutes != null && lateMinutes > 0) ...[
+                const Spacer(),
+                Text('${_t('สาย', 'Late')} ${lateMinutes} ${_t('นาที', 'min')}', style: TextStyle(fontSize: 12, color: Colors.red[700])),
+              ],
+            ],
+          ),
 
-          if (location != null) ...[
+          // Branch
+          if (branchName != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.location_on, color: Colors.grey, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _t('สถานที่: ', 'Location: ') + location,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+                Icon(Icons.business, color: Colors.grey[600], size: 16),
+                const SizedBox(width: 4),
+                Text(branchName, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
               ],
             ),
           ],

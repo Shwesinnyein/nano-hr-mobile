@@ -46,27 +46,39 @@ class _AttendanceHistoryScreenState
       }
 
       // Get attendance history for the selected month/year
-      final response = await apiService.getAttendanceList(
+      final response = await apiService.getAttendanceListWithFilter(
         employeeId: employeeId,
+        month: _selectedMonth,
+        year: _selectedYear,
       );
 
       if (response['success'] == true) {
-        final outerData = response['data'] as Map<String, dynamic>;
-        if (outerData['success'] == true) {
-          final data = outerData['data'] as List<dynamic>;
+        final data = response['data'] as Map<String, dynamic>;
+        if (data['success'] == true) {
+          final attendanceData = data['data'] as List<dynamic>;
           setState(() {
-            _attendanceHistory = data.cast<Map<String, dynamic>>();
+            _attendanceHistory = attendanceData.cast<Map<String, dynamic>>();
             _isLoading = false;
           });
         } else {
           throw Exception(
-            outerData['message'] ?? 'Failed to load attendance data',
+            data['message'] ?? 'Failed to load attendance data',
           );
         }
       } else {
-        throw Exception(
-          response['message'] ?? 'Failed to load attendance data',
-        );
+        // Handle "no records found" case
+        final message = response['message'] ?? 'Failed to load attendance data';
+        if (message.contains('No attendance records found') || 
+            message.contains('No attendance records found for the specified period')) {
+          // Show empty state instead of error
+          setState(() {
+            _attendanceHistory = [];
+            _isLoading = false;
+            _error = null; // Clear any previous errors
+          });
+        } else {
+          throw Exception(message);
+        }
       }
     } catch (e) {
       setState(() {
@@ -537,10 +549,20 @@ class _AttendanceHistoryScreenState
           Text(
             _t(
               ref,
-              'ไม่พบข้อมูลการเข้างานสำหรับเดือนนี้',
-              'No attendance records found for this month',
+              'ไม่พบข้อมูลการเข้างานสำหรับ ${_getMonthName(_selectedMonth)} $_selectedYear',
+              'No attendance records found for ${_getMonthName(_selectedMonth)} $_selectedYear',
             ),
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _t(
+              ref,
+              'ลองเลือกเดือนหรือปีอื่น',
+              'Try selecting a different month or year',
+            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
             textAlign: TextAlign.center,
           ),
         ],
