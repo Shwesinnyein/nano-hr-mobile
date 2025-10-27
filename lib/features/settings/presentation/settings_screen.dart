@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
 import '../../employee/presentation/employee_list_screen.dart';
 import '../../attendance/presentation/employee_attendance_history_screen.dart';
@@ -8,6 +9,7 @@ import '../../attendance/presentation/attendance_history_screen.dart';
 import '../../auth/data/auth_repository.dart' as auth;
 import '../../../core/providers/language_provider.dart';
 import '../../../core/utils/translation_helper.dart';
+import '../../../core/constants/app_constants.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -156,10 +158,7 @@ class SettingsScreen extends ConsumerWidget {
                   'Manage privacy and security',
                 ),
                 Icons.privacy_tip,
-                () => _showComingSoon(
-                  context,
-                  ref.t('การตั้งค่าความเป็นส่วนตัว', 'Privacy Settings'),
-                ),
+                () => _openPrivacyPolicy(context),
               ),
               _buildLogoutButton(context, ref),
               _buildVersionInfo(ref),
@@ -719,5 +718,32 @@ class SettingsScreen extends ConsumerWidget {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  Future<void> _openPrivacyPolicy(BuildContext context) async {
+    try {
+      final url = Uri.parse(AppConstants.privacyPolicyUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open privacy policy'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 }

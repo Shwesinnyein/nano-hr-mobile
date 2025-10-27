@@ -44,4 +44,8 @@ class AppConstants {
 
   // Thailand Timezone
   static const int thailandTimezoneOffset = 7; // UTC+7
+
+  // External Links
+  static const String privacyPolicyUrl = 'https://nano-hr-api.vercel.app/privacy-policy';
+  static const String termsOfServiceUrl = 'https://nano-hr-api.vercel.app/terms-of-service';
 }
