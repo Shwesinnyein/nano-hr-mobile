@@ -74,6 +74,16 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
         setState(() {
           _shiftData = data;
+          // Also set _workingShift for form submission
+          if (data['shift'] != null) {
+            final shift = data['shift'];
+            final shiftTime = shift['shiftTime']?.toString() ?? 
+                             '${shift['startTime'] ?? ''}-${shift['endTime'] ?? ''}';
+            if (shiftTime.isNotEmpty && shiftTime != '-') {
+              _workingShift = shiftTime;
+              print('✅ Set _workingShift to: $_workingShift');
+            }
+          }
           _isLoadingShift = false;
         });
       } else {
@@ -1137,6 +1147,17 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
+      // Validate that shift data was loaded
+      if (_shiftData == null || _workingShift.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Working shift data not loaded. Please select the date again.'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+
       // Validate time range
       if (_startTime!.hour > _endTime!.hour ||
           (_startTime!.hour == _endTime!.hour &&
@@ -1219,18 +1240,87 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             '${_toDate!.year}-${_toDate!.month.toString().padLeft(2, '0')}-${_toDate!.day.toString().padLeft(2, '0')}';
       }
 
-      // Add hourly leave specific fields (treat as half day)
+      // Add hourly leave specific fields
       if (_durationType == 'hourly') {
         final selectedDate = _selectedDate!;
-        requestData['fromDate'] =
-            '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-        requestData['toDate'] =
-            '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-        requestData['isHalfDay'] = true;
-        requestData['halfDayType'] = _startTime!.hour < 12
-            ? 'morning'
-            : 'afternoon';
+        final dateString = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+        
+        requestData['fromDate'] = dateString;
+        requestData['toDate'] = dateString;
+        requestData['date'] = dateString; // Also add 'date' field
+        
+        // Calculate hours taken and deduction
+        final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
+        final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
+        final hoursTaken = (endMinutes - startMinutes) / 60.0;
+        
+        // Get shift duration from shift data
+        double shiftDurationHours = 8.0; // Default 8 hours
+        if (_shiftData != null && _shiftData!['shift'] != null) {
+          final shift = _shiftData!['shift'];
+          final shiftStart = shift['startTime']?.toString() ?? '';
+          final shiftEnd = shift['endTime']?.toString() ?? '';
+          
+          // Parse shift hours (format: "13:30")
+          if (shiftStart.isNotEmpty && shiftEnd.isNotEmpty) {
+            try {
+              final startParts = shiftStart.split(':');
+              final endParts = shiftEnd.split(':');
+              final shiftStartMinutes = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+              final shiftEndMinutes = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+              shiftDurationHours = (shiftEndMinutes - shiftStartMinutes) / 60.0;
+            } catch (e) {
+              print('⚠️ Error parsing shift duration: $e');
+            }
+          }
+        }
+        
+        // Calculate deduction as fraction of a day
+        final deductionDays = hoursTaken / shiftDurationHours;
+        
+        // Determine if it's considered half day (for display purposes)
+        final isHalfDay = deductionDays >= 0.4 && deductionDays <= 0.6;
+        
+        requestData['isHalfDay'] = isHalfDay;
+        requestData['halfDayType'] = _startTime!.hour < 12 ? 'morning' : 'afternoon';
+        requestData['hoursTaken'] = hoursTaken;
+        requestData['shiftDurationHours'] = shiftDurationHours;
+        requestData['deductionDays'] = deductionDays;
+        
+        // Add working shift information (multiple formats to ensure backend receives it)
+        requestData['workingShift'] = _workingShift;
+        requestData['working_shift'] = _workingShift; // snake_case variant
+        
+        // Add start and end times
+        final startTimeStr = '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}';
+        final endTimeStr = '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}';
+        
+        requestData['startTime'] = startTimeStr;
+        requestData['start_time'] = startTimeStr; // snake_case variant
+        requestData['endTime'] = endTimeStr;
+        requestData['end_time'] = endTimeStr; // snake_case variant
+        
+        // If we have detailed shift data, include it
+        if (_shiftData != null && _shiftData!['shift'] != null) {
+          requestData['shiftId'] = _shiftData!['shift']['shiftId'];
+          requestData['shift_id'] = _shiftData!['shift']['shiftId'];
+          requestData['shiftName'] = _shiftData!['shift']['shiftName'];
+          requestData['shift_name'] = _shiftData!['shift']['shiftName'];
+        }
+        
+        // Debug logging
+        print('🔍 HOURLY LEAVE REQUEST DATA:');
+        print('  Date: $dateString');
+        print('  Working Shift: $_workingShift (${shiftDurationHours.toStringAsFixed(1)} hours)');
+        print('  Start Time: $startTimeStr');
+        print('  End Time: $endTimeStr');
+        print('  Hours Taken: ${hoursTaken.toStringAsFixed(2)} hours');
+        print('  Deduction: ${deductionDays.toStringAsFixed(3)} days');
+        print('  Shift ID: ${requestData['shiftId']}');
+        print('  Shift Name: ${requestData['shiftName']}');
       }
+
+      print('📤 FULL REQUEST DATA: $requestData');
 
       // Convert attachments to File list
       final List<File> attachmentFiles = _attachments
