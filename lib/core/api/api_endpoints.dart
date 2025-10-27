@@ -20,6 +20,7 @@ class ApiEndpoints {
       '/employee/profile'; // Gets employee profile by ID
   static const String updateProfile = '/employee/update-profile';
   static const String employeeList = '/employee/list';
+  static const String employeeShiftByDate = '/employee/shift/get-by-date';
 
   // Leave endpoints
   static const String createLeaveRequest = '/leave/create';

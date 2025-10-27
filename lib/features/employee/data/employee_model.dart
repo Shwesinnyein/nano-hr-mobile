@@ -39,6 +39,7 @@ class Employee {
   final String? title;
   final String? department;
   final String? password;
+  final String? workingShift;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -83,6 +84,7 @@ class Employee {
     this.title,
     this.department,
     this.password,
+    this.workingShift,
     this.createdAt,
     this.updatedAt,
   });
@@ -157,6 +159,7 @@ class Employee {
       title: json['title'],
       department: json['department'],
       password: json['password'],
+      workingShift: json['workingShift'] ?? json['working_shift'],
       createdAt: json['createdAt'] != null
           ? _parseDateTime(json['createdAt'])
           : null,
@@ -208,6 +211,7 @@ class Employee {
       'title': title,
       'department': department,
       'password': password,
+      'workingShift': workingShift,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
@@ -255,6 +259,7 @@ class Employee {
       title: title,
       department: department,
       password: newPassword,
+      workingShift: workingShift,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );

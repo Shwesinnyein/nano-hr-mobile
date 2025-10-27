@@ -6,9 +6,11 @@ import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/file_utils.dart';
 import '../../../core/services/leave_service.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/models/attachment_model.dart';
 import '../data/leave_repository.dart';
 import '../utils/leave_translations.dart';
+import '../../employee/data/employee_model.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
@@ -36,6 +38,57 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
   List<AttachmentModel> _attachments = [];
+  Map<String, dynamic>? _shiftData; // Stores shift data from API
+  bool _isLoadingShift = false;
+
+  Future<void> _loadShiftByDate(String date) async {
+    setState(() {
+      _isLoadingShift = true;
+      _shiftData = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final employeeId = authService.currentEmployeeId;
+
+      if (employeeId == null) {
+        print('❌ No employee ID found');
+        setState(() {
+          _isLoadingShift = false;
+        });
+        return;
+      }
+
+      final apiService = ApiService();
+      final response = await apiService.getEmployeeShiftByDate(
+        employeeId: employeeId,
+        date: date,
+      );
+
+      print('📋 Shift Response: $response');
+
+      if (response['success'] == true && response['data'] != null) {
+        final data = response['data'];
+        print('✅ Shift Data: $data');
+        print('⏰ Shift Time: ${data['shift']?['shiftTime']}');
+
+        setState(() {
+          _shiftData = data;
+          _isLoadingShift = false;
+        });
+      } else {
+        print('❌ Failed to load shift data');
+        setState(() {
+          _isLoadingShift = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading shift: $e');
+      setState(() {
+        _isLoadingShift = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,6 +267,134 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   Widget _buildWorkingShiftSelector() {
+    // If loading shift data, show loading indicator
+    if (_isLoadingShift) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LeaveTranslations.workingShift(ref),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.kOnBackground,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+
+    // If shift data is available from API, display it
+    if (_shiftData != null && _shiftData!['shift'] != null) {
+      final shift = _shiftData!['shift'];
+      final shiftName = shift['shiftName'] ?? shift['shiftNameEN'] ?? 'Working Shift';
+      final shiftTime = shift['shiftTime'] ?? '${shift['startTime']} - ${shift['endTime']}';
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LeaveTranslations.workingShift(ref),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.kOnBackground,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.kNanoGold.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.kNanoGold,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: AppTheme.kNanoGold, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        shiftName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.kNanoGold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        shiftTime,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.kNanoGold.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // If no date selected yet, show message
+    if (_selectedDate == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LeaveTranslations.workingShift(ref),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.kOnBackground,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.grey.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Please select a date first to load your working shift',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Fallback: No shift data found for selected date
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -226,15 +407,58 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _buildShiftOption('7am-9pm', '7:00 AM - 9:00 PM')),
-            const SizedBox(width: 12),
-            Expanded(child: _buildShiftOption('8am-1pm', '8:00 AM - 1:00 PM')),
-          ],
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.orange,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'No working shift found for this date',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
+  }
+
+  String _formatWorkingShift(String shift) {
+    // Convert shift format like "7am-9pm" to "7:00 AM - 9:00 PM"
+    final parts = shift.toLowerCase().split('-');
+    if (parts.length == 2) {
+      final start = _formatShiftTime(parts[0].trim());
+      final end = _formatShiftTime(parts[1].trim());
+      return '$start - $end';
+    }
+    return shift;
+  }
+
+  String _formatShiftTime(String time) {
+    // Convert "7am" to "7:00 AM" or "9pm" to "9:00 PM"
+    final regex = RegExp(r'(\d+)(am|pm)', caseSensitive: false);
+    final match = regex.firstMatch(time);
+    if (match != null) {
+      final hour = match.group(1);
+      final period = match.group(2)?.toUpperCase();
+      return '$hour:00 $period';
+    }
+    return time;
   }
 
   Widget _buildShiftOption(String value, String label) {
@@ -796,6 +1020,10 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     );
     if (date != null) {
       setState(() => _selectedDate = date);
+      
+      // Fetch shift data for the selected date
+      final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      await _loadShiftByDate(dateString);
     }
   }
 

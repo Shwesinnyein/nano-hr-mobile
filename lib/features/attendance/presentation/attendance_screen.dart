@@ -768,8 +768,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(buttonState['icon'], color: Colors.white, size: 24),
-                  const SizedBox(width: 8),
-                  Icon(Icons.gps_fixed, color: Colors.white, size: 16),
                   const SizedBox(width: 12),
                   Text(
                     buttonState['text'],

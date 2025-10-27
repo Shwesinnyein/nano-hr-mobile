@@ -295,6 +295,49 @@ class ApiService {
     }
   }
 
+  // Get employee shift by date
+  Future<Map<String, dynamic>> getEmployeeShiftByDate({
+    required String employeeId,
+    required String date, // Format: YYYY-MM-DD
+  }) async {
+    try {
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.employeeShiftByDate}',
+        queryParameters: {
+          'employeeId': employeeId,
+          'date': date,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get employee shift: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return {
+          'success': false,
+          'message': e.response?.data['message'] ?? 'Failed to get employee shift',
+          'error': e.response?.data,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Network error: ${e.message}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Failed to get employee shift: ${e.toString()}',
+      };
+    }
+  }
+
   // Get employee list
   Future<Map<String, dynamic>> getEmployeeList({
     int page = 1,
