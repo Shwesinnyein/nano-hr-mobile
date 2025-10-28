@@ -167,17 +167,16 @@ class LeaveBalance {
 
   // Legacy properties for backward compatibility
   double get annualLeave =>
-      getLeaveTypeByName('Annual')?.remaining.toDouble() ?? 0.0;
+      getLeaveTypeByName('Annual')?.remaining ?? 0.0;
   double get sickLeave =>
-      getLeaveTypeByName('ป่วย')?.remaining.toDouble() ?? 0.0;
+      getLeaveTypeByName('ป่วย')?.remaining ?? 0.0;
   double get personalLeave =>
-      getLeaveTypeByName('ลา (โดยไม่ได้รับค่าจ้าง)')?.remaining.toDouble() ??
-      0.0;
+      getLeaveTypeByName('ลา (โดยไม่ได้รับค่าจ้าง)')?.remaining ?? 0.0;
   double get vacationLeave => annualLeave;
   double get leaveWithoutPay => personalLeave;
   double get maternityLeave => 0.0;
   double get leaveOfAbsencePaid =>
-      getLeaveTypeByName('ลากิจ(ได้รับค่าจ้าง)')?.remaining.toDouble() ?? 0.0;
+      getLeaveTypeByName('ลากิจ(ได้รับค่าจ้าง)')?.remaining ?? 0.0;
   double get emergency => 0.0;
 }
 
@@ -185,8 +184,8 @@ class LeaveTypeBalance {
   final String leaveTypeId;
   final String leaveTypeName;
   final int totalAllocated;
-  final int used;
-  final int remaining;
+  final double used;
+  final double remaining;
   final bool isPaid;
   final bool isActive;
   final int percentageUsed;
@@ -208,8 +207,12 @@ class LeaveTypeBalance {
       leaveTypeName: json['leaveTypeName'] ?? '',
       totalAllocated:
           int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
-      used: json['used'] ?? 0,
-      remaining: json['remaining'] ?? 0,
+      used: (json['used'] is int) 
+          ? (json['used'] as int).toDouble() 
+          : (json['used'] as double? ?? 0.0),
+      remaining: (json['remaining'] is int) 
+          ? (json['remaining'] as int).toDouble() 
+          : (json['remaining'] as double? ?? 0.0),
       isPaid: json['isPaid'] ?? false,
       isActive: json['isActive'] ?? true,
       percentageUsed: json['percentageUsed'] ?? 0,
@@ -221,8 +224,8 @@ class LeaveTypeBalance {
       leaveTypeId: '',
       leaveTypeName: '',
       totalAllocated: 0,
-      used: 0,
-      remaining: 0,
+      used: 0.0,
+      remaining: 0.0,
       isPaid: false,
       isActive: false,
       percentageUsed: 0,
@@ -246,8 +249,8 @@ class LeaveTypeBalance {
 class LeaveSummary {
   final int totalLeaveTypes;
   final int totalDaysAllocated;
-  final int totalDaysUsed;
-  final int totalDaysRemaining;
+  final double totalDaysUsed;
+  final double totalDaysRemaining;
 
   LeaveSummary({
     required this.totalLeaveTypes,
@@ -261,8 +264,12 @@ class LeaveSummary {
       totalLeaveTypes: json['totalLeaveTypes'] ?? 0,
       totalDaysAllocated:
           int.tryParse(json['totalDaysAllocated']?.toString() ?? '0') ?? 0,
-      totalDaysUsed: json['totalDaysUsed'] ?? 0,
-      totalDaysRemaining: json['totalDaysRemaining'] ?? 0,
+      totalDaysUsed: (json['totalDaysUsed'] is int)
+          ? (json['totalDaysUsed'] as int).toDouble()
+          : (json['totalDaysUsed'] as double? ?? 0.0),
+      totalDaysRemaining: (json['totalDaysRemaining'] is int)
+          ? (json['totalDaysRemaining'] as int).toDouble()
+          : (json['totalDaysRemaining'] as double? ?? 0.0),
     );
   }
 

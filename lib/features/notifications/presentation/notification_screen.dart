@@ -260,56 +260,44 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     // Mark as read first
     await _markAsRead(notification);
 
-    // Get current user ID for filtering
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
 
-    // Navigate based on notification type and user role
+    final isOwnRequest = currentEmployeeId != null && 
+                        notification.senderId == currentEmployeeId;
+    
     switch (notification.type) {
-      case 'leave_request':
-      case 'pending_approval':
-      case 'approved_manager':
-      case 'approved_by_manager':
-      case 'approved_team_lead':
-      case 'approved_by_team_lead':
-      case 'pending_hr_approval':
-      case 'pending_approver_approval':
-        // Navigate to leave approval screen for users who need to approve
-        // (managers, team leads, HR, approvers)
-        // Regular employees should NOT see their own leave request notifications
-        if (currentEmployeeId != null &&
-            notification.senderId == currentEmployeeId) {
-          return;
-        }
-
-        // Navigate to leave approval screen (for all user types)
-        // The LeaveApprovalScreen automatically determines user level:
-        // - HR: sees pending and manager-approved requests
-        // - Approver: sees pending and HR-approved requests  
-        // - Team Lead: sees pending requests from team
-        // - Manager: sees pending requests from employees
-        if (mounted) {
-          context.push('/leave/approval');
-        }
-      case 'leave_approved':
-      case 'leave_approved_by_team_lead':
-      case 'leave_approved_by_manager':
-      case 'leave_approved_by_hr':
+      // Needs approval - go to approval screen unless it's own request
+      case 'pending':
       case 'approved_team_lead':
       case 'approved_manager':
       case 'approved_hr':
+        // If it's own request, go to leave history
+        if (isOwnRequest) {
+          print('   → Own request, navigating to Leave History');
+          if (mounted) {
+            context.push('/leave/list');
+          }
+          return;
+        }
+        
+        // Otherwise, go to approval screen (for managers, HR, approvers)
+        print('   → Navigating to Approval Screen');
+        if (mounted) {
+          context.push('/leave/approval');
+        }
+        
+      // Final status - always go to leave history
       case 'approved':
-      case 'leave_rejected':
-      case 'leave_rejected_by_team_lead':
-      case 'leave_rejected_by_manager':
-      case 'leave_rejected_by_hr':
       case 'rejected':
-        // Navigate to leave list to see the status (for employees)
+        print('   → Final status, navigating to Leave History');
         if (mounted) {
           context.push('/leave/list');
         }
+        
       default:
         // For other notification types, just mark as read
+        print('⚠️ Unknown notification type: ${notification.type}');
         break;
     }
   }
@@ -490,13 +478,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                 color: Colors.grey.withOpacity(0.5),
               ),
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                _refreshNotifications();
-              },
-              child: const Text('Debug: Refresh Notifications'),
-            ),
+            // const SizedBox(height: 16),
+            // ElevatedButton(
+            //   onPressed: () {
+            //     _refreshNotifications();
+            //   },
+            //   child: const Text('Debug: Refresh Notifications'),
+            // ),
           ],
         ),
       );
