@@ -35,6 +35,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     final authService = ref.read(authServiceProvider);
     _currentUserId = authService.currentEmployeeId;
     if (_currentUserId != null) {
+      // Clear cache to get fresh data from server
+      _notificationService.clearCache();
       _loadNotifications();
       // Skip separate badge count refresh to reduce API calls
       // The badge count will be updated when notifications are loaded
@@ -181,6 +183,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       return;
     }
 
+    // Clear cache to force fresh data from server
+    _notificationService.clearCache();
     await _loadNotifications();
 
     ref.read(notificationProvider.notifier).refreshUnreadCount();
