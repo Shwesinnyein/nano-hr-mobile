@@ -267,14 +267,27 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     // Navigate based on notification type and user role
     switch (notification.type) {
       case 'leave_request':
-        // Only managers should see leave request notifications
+      case 'pending_approval':
+      case 'approved_manager':
+      case 'approved_by_manager':
+      case 'approved_team_lead':
+      case 'approved_by_team_lead':
+      case 'pending_hr_approval':
+      case 'pending_approver_approval':
+        // Navigate to leave approval screen for users who need to approve
+        // (managers, team leads, HR, approvers)
         // Regular employees should NOT see their own leave request notifications
         if (currentEmployeeId != null &&
             notification.senderId == currentEmployeeId) {
           return;
         }
 
-        // Navigate to leave approval screen (for managers)
+        // Navigate to leave approval screen (for all user types)
+        // The LeaveApprovalScreen automatically determines user level:
+        // - HR: sees pending and manager-approved requests
+        // - Approver: sees pending and HR-approved requests  
+        // - Team Lead: sees pending requests from team
+        // - Manager: sees pending requests from employees
         if (mounted) {
           context.push('/leave/approval');
         }
