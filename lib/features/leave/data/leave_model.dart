@@ -296,7 +296,7 @@ class LeaveRequest {
   final String? endTime;
   final String reason;
   final String status;
-  final int? totalDays;
+  final double? totalDays;
   final List<Map<String, dynamic>> attachments;
   final String createdAt;
   final String updatedAt;
@@ -339,7 +339,11 @@ class LeaveRequest {
       endTime: json['endTime'],
       reason: json['reason'] ?? '',
       status: json['status'] ?? 'pending',
-      totalDays: json['totalDays'],
+      totalDays: json['totalDays'] != null
+          ? (json['totalDays'] is int
+              ? (json['totalDays'] as int).toDouble()
+              : json['totalDays'] as double?)
+          : null,
       attachments: _parseAttachments(json),
       createdAt: json['createdAt'] ?? '',
       updatedAt: json['updatedAt'] ?? '',
