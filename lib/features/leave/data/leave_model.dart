@@ -237,8 +237,9 @@ class LeaveTypeBalance {
   }
 
   // Helper method to get localized name
-  String getLocalizedName(String languageCode) {
-    if (languageCode == 'en' && leaveTypeEng != null && leaveTypeEng!.isNotEmpty) {
+  // isThai: true = Thai, false = English
+  String getLocalizedName(bool isThai) {
+    if (!isThai && leaveTypeEng != null && leaveTypeEng!.isNotEmpty) {
       return leaveTypeEng!;
     }
     return leaveTypeName;
