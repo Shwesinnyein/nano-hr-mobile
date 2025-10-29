@@ -183,6 +183,7 @@ class LeaveBalance {
 class LeaveTypeBalance {
   final String leaveTypeId;
   final String leaveTypeName;
+  final String? leaveTypeEng;
   final int totalAllocated;
   final double used;
   final double remaining;
@@ -193,6 +194,7 @@ class LeaveTypeBalance {
   LeaveTypeBalance({
     required this.leaveTypeId,
     required this.leaveTypeName,
+    this.leaveTypeEng,
     required this.totalAllocated,
     required this.used,
     required this.remaining,
@@ -205,6 +207,7 @@ class LeaveTypeBalance {
     return LeaveTypeBalance(
       leaveTypeId: json['leaveTypeId'] ?? '',
       leaveTypeName: json['leaveTypeName'] ?? '',
+      leaveTypeEng: json['leaveTypeEng'],
       totalAllocated:
           int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
       used: (json['used'] is int) 
@@ -223,6 +226,7 @@ class LeaveTypeBalance {
     return LeaveTypeBalance(
       leaveTypeId: '',
       leaveTypeName: '',
+      leaveTypeEng: null,
       totalAllocated: 0,
       used: 0.0,
       remaining: 0.0,
@@ -232,10 +236,19 @@ class LeaveTypeBalance {
     );
   }
 
+  // Helper method to get localized name
+  String getLocalizedName(String languageCode) {
+    if (languageCode == 'en' && leaveTypeEng != null && leaveTypeEng!.isNotEmpty) {
+      return leaveTypeEng!;
+    }
+    return leaveTypeName;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'leaveTypeId': leaveTypeId,
       'leaveTypeName': leaveTypeName,
+      'leaveTypeEng': leaveTypeEng,
       'totalAllocated': totalAllocated,
       'used': used,
       'remaining': remaining,

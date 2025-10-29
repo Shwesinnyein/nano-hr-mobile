@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/providers/language_provider.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
 import '../utils/leave_translations.dart';
@@ -390,7 +391,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
               ? () => _navigateToLeaveRequest(
                   context,
                   leaveTypeBalance.leaveTypeId,
-                  leaveTypeBalance.leaveTypeName,
+                  leaveTypeBalance.getLocalizedName(ref.watch(languageProvider)),
                   leaveTypeBalance.totalAllocated,
                 )
               : null,
@@ -429,9 +430,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        LeaveTranslations.translateLeaveTypeName(
-                          ref,
-                          leaveTypeBalance.leaveTypeName,
+                        leaveTypeBalance.getLocalizedName(
+                          ref.watch(languageProvider),
                         ),
                         style: TextStyle(
                           fontSize: 16,
