@@ -187,6 +187,8 @@ class LeaveTypeBalance {
   final int totalAllocated;
   final double used;
   final double remaining;
+  final double? remainingHours;
+  final String? remainingDaysHours;
   final bool isPaid;
   final bool isActive;
   final int percentageUsed;
@@ -198,6 +200,8 @@ class LeaveTypeBalance {
     required this.totalAllocated,
     required this.used,
     required this.remaining,
+    this.remainingHours,
+    this.remainingDaysHours,
     required this.isPaid,
     required this.isActive,
     required this.percentageUsed,
@@ -216,6 +220,10 @@ class LeaveTypeBalance {
       remaining: (json['remaining'] is int) 
           ? (json['remaining'] as int).toDouble() 
           : (json['remaining'] as double? ?? 0.0),
+      remainingHours: (json['remainingHours'] is int)
+          ? (json['remainingHours'] as int).toDouble()
+          : (json['remainingHours'] as double?),
+      remainingDaysHours: json['remainingDaysHours']?.toString(),
       isPaid: json['isPaid'] ?? false,
       isActive: json['isActive'] ?? true,
       percentageUsed: json['percentageUsed'] ?? 0,
@@ -230,6 +238,8 @@ class LeaveTypeBalance {
       totalAllocated: 0,
       used: 0.0,
       remaining: 0.0,
+      remainingHours: 0.0,
+      remainingDaysHours: null,
       isPaid: false,
       isActive: false,
       percentageUsed: 0,
@@ -253,6 +263,8 @@ class LeaveTypeBalance {
       'totalAllocated': totalAllocated,
       'used': used,
       'remaining': remaining,
+      'remainingHours': remainingHours,
+      'remainingDaysHours': remainingDaysHours,
       'isPaid': isPaid,
       'isActive': isActive,
       'percentageUsed': percentageUsed,

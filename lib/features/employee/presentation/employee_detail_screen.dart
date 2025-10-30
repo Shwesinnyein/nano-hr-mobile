@@ -264,12 +264,8 @@ class EmployeeDetailScreen extends StatelessWidget {
       _buildInfoItem(context, 'Employee ID', employee.id),
       _buildInfoItem(
         context,
-        'Birthday',
-        _formatDate(
-          employee.dateOfBirth is DateTime
-              ? employee.dateOfBirth as DateTime
-              : DateTime.now(),
-        ),
+        'Nickname',
+        employee.nickname ?? '',
       ),
       if (employee.managerName != null)
         _buildInfoItem(context, 'Manager', employee.managerName!),
@@ -303,11 +299,11 @@ class EmployeeDetailScreen extends StatelessWidget {
       _buildInfoItem(context, 'Company', employee.companyName),
       _buildInfoItem(context, 'Location', employee.locationName),
       _buildInfoItem(context, 'Branch', employee.branchName ?? ''),
-      _buildInfoItem(
-        context,
-        'Join Date',
-        _formatDate(employee.joinDate ?? DateTime.now()),
-      ),
+      // _buildInfoItem(
+      //   context,
+      //   'Join Date',
+      //   _formatDate(employee.joinDate ?? DateTime.now()),
+      // ),
     ]);
   }
 

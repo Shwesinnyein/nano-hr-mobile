@@ -9,7 +9,9 @@ import '../../../core/services/leave_service.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/models/attachment_model.dart';
 import '../data/leave_repository.dart';
+import '../data/leave_model.dart';
 import '../utils/leave_translations.dart';
+import '../../../core/providers/language_provider.dart';
 import '../../employee/data/employee_model.dart';
 
 class LeaveRequestScreen extends ConsumerStatefulWidget {
@@ -40,6 +42,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   List<AttachmentModel> _attachments = [];
   Map<String, dynamic>? _shiftData; // Stores shift data from API
   bool _isLoadingShift = false;
+  String? _remainingDaysHours; // Remaining in days/hours text
+  bool _remainingLoaded = false;
 
   Future<void> _loadShiftByDate(String date) async {
     setState(() {
@@ -107,6 +111,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
     if (currentEmployeeId == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (!_remainingLoaded) {
+      _remainingLoaded = true;
+      _fetchRemainingDaysHours(currentEmployeeId);
     }
 
     final userId = currentEmployeeId;
@@ -228,12 +237,38 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                     color: AppTheme.kNanoWhite.withOpacity(0.8),
                   ),
                 ),
+                if (_remainingDaysHours != null && _remainingDaysHours!.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    _remainingDaysHours!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.kNanoWhite.withOpacity(0.95),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _fetchRemainingDaysHours(String employeeId) async {
+    try {
+      final repo = LeaveRepository(LeaveService());
+      final balance = await repo.getLeaveBalance(employeeId);
+      final target = balance.balances.firstWhere(
+        (b) => b.leaveTypeId == widget.leaveType,
+        orElse: () => LeaveTypeBalance.empty(),
+      );
+      if (mounted) {
+        setState(() {
+          _remainingDaysHours = target.remainingDaysHours;
+        });
+      }
+    } catch (_) {}
   }
 
   Widget _buildDurationTypeSelector() {
@@ -1326,12 +1361,28 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       // Close loading dialog
       Navigator.pop(context);
 
+      // Format error message without technical prefixes like "Exception:"
+      String message = e.toString();
+      if (message.startsWith('Exception:')) {
+        message = message.replaceFirst('Exception:', '').trim();
+      }
+
+      // Build friendly alert if message indicates remaining is not enough
+      final isThai = ref.read(languageProvider);
+      final match = RegExp(r'exceeds remaining\s+([0-9.]+)\s+days', caseSensitive: false)
+          .firstMatch(message);
+      final remainingText = _remainingDaysHours ??
+          (match != null ? '${match.group(1)} days' : null);
+      if (remainingText != null) {
+        message = isThai
+            ? 'วันลาที่เหลือไม่เพียงพอสำหรับคำขอนี้ ($remainingText)'
+            : 'Your remaining leave days are not enough for this request ($remainingText)';
+      }
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '${LeaveTranslations.errorSubmittingRequest(ref)}: ${e.toString()}',
-            ),
+            content: Text(message),
             backgroundColor: AppTheme.errorColor,
           ),
         );
