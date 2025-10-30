@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../data/employee_repository.dart';
+import '../../../core/utils/translation_helper.dart';
 
-class EmployeeDetailScreen extends StatelessWidget {
+class EmployeeDetailScreen extends ConsumerWidget {
   final Employee employee;
 
   const EmployeeDetailScreen({super.key, required this.employee});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
@@ -37,9 +39,9 @@ class EmployeeDetailScreen extends StatelessWidget {
         child: Column(
           children: [
             _buildProfileHeader(),
-            _buildEmployeeInfo(context),
-            _buildContactInfo(context),
-            _buildWorkInfo(context),
+            _buildEmployeeInfo(context, ref),
+            _buildContactInfo(context, ref),
+            _buildWorkInfo(context, ref),
             _buildAdditionalInfo(context),
             const SizedBox(height: 32),
           ],
@@ -259,26 +261,26 @@ class EmployeeDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEmployeeInfo(BuildContext context) {
-    return _buildInfoSection('Employee Information', Icons.person, [
-      _buildInfoItem(context, 'Employee ID', employee.id),
+  Widget _buildEmployeeInfo(BuildContext context, WidgetRef ref) {
+    return _buildInfoSection(ref.t('ข้อมูลพนักงาน', 'Employee Information'), Icons.person, [
+      _buildInfoItem(context, ref.t('รหัสพนักงาน', 'Employee ID'), employee.id),
       _buildInfoItem(
         context,
-        'Nickname',
+        ref.t('ชื่อเล่น', 'Nickname'),
         employee.nickname ?? '',
       ),
       if (employee.managerName != null)
-        _buildInfoItem(context, 'Manager', employee.managerName!),
+        _buildInfoItem(context, ref.t('ผู้จัดการ', 'Manager'), employee.managerName!),
     ]);
   }
 
-  Widget _buildContactInfo(BuildContext context) {
-    return _buildInfoSection('Contact Information', Icons.contact_phone, [
+  Widget _buildContactInfo(BuildContext context, WidgetRef ref) {
+    return _buildInfoSection(ref.t('ข้อมูลการติดต่อ', 'Contact Information'), Icons.contact_phone, [
       if (employee.email != null)
         _buildInfoItem(context, 'Email', employee.email!, isEmail: true),
       _buildInfoItem(
         context,
-        'Phone',
+        ref.t('โทรศัพท์', 'Phone'),
         employee.primary_number ?? '',
         isPhone: true,
       ),
@@ -286,19 +288,19 @@ class EmployeeDetailScreen extends StatelessWidget {
       if (employee.additionalInfo?['location'] != null)
         _buildInfoItem(
           context,
-          'Location',
+          ref.t('ที่ตั้ง', 'Location'),
           employee.additionalInfo!['location'],
         ),
     ]);
   }
 
-  Widget _buildWorkInfo(BuildContext context) {
-    return _buildInfoSection('Work Information', Icons.work, [
+  Widget _buildWorkInfo(BuildContext context, WidgetRef ref) {
+    return _buildInfoSection(ref.t('ข้อมูลการทำงาน', 'Work Information'), Icons.work, [
       if (employee.position != null)
-        _buildInfoItem(context, 'Position', employee.positionName!),
-      _buildInfoItem(context, 'Company', employee.companyName),
-      _buildInfoItem(context, 'Location', employee.locationName),
-      _buildInfoItem(context, 'Branch', employee.branchName ?? ''),
+        _buildInfoItem(context, ref.t('ตำแหน่ง', 'Position'), employee.positionName!),
+      _buildInfoItem(context, ref.t('บริษัท', 'Company'), employee.companyName),
+      _buildInfoItem(context, ref.t('สถานที่', 'Location'), employee.locationName),
+      _buildInfoItem(context, ref.t('สาขา', 'Branch'), employee.branchName ?? ''),
       // _buildInfoItem(
       //   context,
       //   'Join Date',
@@ -314,15 +316,15 @@ class EmployeeDetailScreen extends StatelessWidget {
 
     final additionalItems = <Widget>[];
 
-    if (employee.additionalInfo?['birthday'] != null) {
-      additionalItems.add(
-        _buildInfoItem(
-          context,
-          'Birthday',
-          employee.additionalInfo!['birthday'],
-        ),
-      );
-    }
+    // if (employee.additionalInfo?['birthday'] != null) {
+    //   additionalItems.add(
+    //     _buildInfoItem(
+    //       context,
+    //       'Birthday',
+    //       employee.additionalInfo!['birthday'],
+    //     ),
+    //   );
+    // }
 
     if (additionalItems.isEmpty) {
       return const SizedBox.shrink();

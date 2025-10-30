@@ -5,6 +5,7 @@ import '../../../app/theme.dart';
 import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/animated_fade_in.dart';
+import '../../../core/utils/translation_helper.dart';
 import '../data/employee_repository.dart';
 import 'employee_detail_screen.dart';
 
@@ -86,10 +87,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load employees. Please try again.'),
+            content: Text(ref.t('โหลดรายชื่อพนักงานล้มเหลว โปรดลองอีกครั้ง', 'Failed to load employees. Please try again.')),
             backgroundColor: AppTheme.errorColor,
             action: SnackBarAction(
-              label: 'Retry',
+              label: ref.t('ลองอีกครั้ง', 'Retry'),
               textColor: Colors.white,
               onPressed: () => _loadEmployees(),
             ),
@@ -170,8 +171,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Employee List',
+        title: Text(
+          ref.t('รายชื่อพนักงาน', 'Employee List'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -219,7 +220,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         controller: _searchController,
         onChanged: _filterEmployees,
         decoration: InputDecoration(
-          hintText: 'Search employees...',
+          hintText: ref.t('ค้นหาพนักงาน...', 'Search employees...'),
           prefixIcon: Icon(Icons.search, color: AppTheme.kNanoGold),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
@@ -237,7 +238,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       child: Row(
         children: [
           Text(
-            '${_filteredEmployees.length} employee${_filteredEmployees.length != 1 ? 's' : ''}',
+            ref.t(
+              '${_filteredEmployees.length} คน',
+              '${_filteredEmployees.length} employee${_filteredEmployees.length != 1 ? 's' : ''}',
+            ),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -247,7 +251,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           const Spacer(),
           if (_hasMoreData && !_isLoading && _searchController.text.isEmpty)
             Text(
-              'Scroll for more',
+              ref.t('เลื่อนเพื่อโหลดเพิ่ม', 'Scroll for more'),
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.kNanoGold,
@@ -260,7 +264,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 _searchController.clear();
                 _filterEmployees('');
               },
-              child: Text('Clear', style: TextStyle(color: AppTheme.kNanoGold)),
+              child: Text(ref.t('ล้าง', 'Clear'), style: TextStyle(color: AppTheme.kNanoGold)),
             ),
         ],
       ),
@@ -324,8 +328,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   Widget _buildEmptyState() {
     return EmptyStateWidget(
       message: _searchController.text.isNotEmpty
-          ? 'No employees found. Try adjusting your search terms.'
-          : 'No employees available.',
+          ? ref.t('ไม่พบพนักงาน ลองเปลี่ยนคำค้นหา', 'No employees found. Try adjusting your search terms.')
+          : ref.t('ยังไม่มีพนักงาน', 'No employees available.'),
       icon: Icons.people_outline,
     );
   }

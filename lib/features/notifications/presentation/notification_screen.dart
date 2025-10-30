@@ -6,6 +6,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/providers/notification_provider.dart';
+import '../../../core/utils/translation_helper.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -234,25 +235,48 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     if (_currentUserId == null) return;
 
     try {
+      // Optimistically update UI first for instant feedback
+      setState(() {
+        for (var i = 0; i < _notifications.length; i++) {
+          final n = _notifications[i];
+          _notifications[i] = NotificationModel(
+            id: n.id,
+            userId: n.userId,
+            senderId: n.senderId,
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            data: n.data,
+            isRead: true, // Mark as read
+            createdAt: n.createdAt,
+            updatedAt: n.updatedAt,
+          );
+        }
+      });
+
+      // Update badge count to 0 immediately
+      ref.read(notificationProvider.notifier).markAllAsRead();
+
+      // Call API in background
       final response = await _notificationService.markAllAsRead(
         employeeId: _currentUserId!,
       );
 
       if (response['success'] == true) {
-        // Reload notifications to get updated read status
-        await _loadNotifications();
-
-        // Update the badge count to 0
-        ref.read(notificationProvider.notifier).markAllAsRead();
-
         _showSuccessSnackBar(
-          response['message'] ?? 'All notifications marked as read',
+          ref.t('ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว', 'All notifications marked as read'),
         );
       } else {
-        _showErrorSnackBar(response['message'] ?? 'Failed to mark all as read');
+        // Revert if API failed
+        await _loadNotifications();
+        _showErrorSnackBar(
+          ref.t('ไม่สามารถทำเครื่องหมายว่าอ่านได้', response['message'] ?? 'Failed to mark all as read'),
+        );
       }
     } catch (e) {
-      _showErrorSnackBar('Error marking all as read: $e');
+      // Revert if error
+      await _loadNotifications();
+      _showErrorSnackBar(ref.t('เกิดข้อผิดพลาด', 'Error marking all as read: $e'));
     }
   }
 
@@ -319,8 +343,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
-        title: const Text(
-          'Notifications',
+        title: Text(
+          ref.t('การแจ้งเตือน', 'Notifications'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.kOnBackground,
@@ -391,7 +415,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Notifications',
+                  ref.t('การแจ้งเตือน', 'Notifications'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -400,7 +424,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${_getUnreadCount()} unread notifications',
+                  ref.t(
+                    '${_getUnreadCount()} การแจ้งเตือนที่ยังไม่ได้อ่าน',
+                    '${_getUnreadCount()} unread notifications',
+                  ),
                   style: TextStyle(
                     fontSize: 14,
                     color: AppTheme.kNanoWhite.withOpacity(0.8),
@@ -445,7 +472,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadNotifications,
-              child: const Text('Retry'),
+              child: Text(ref.t('ลองอีกครั้ง', 'Retry')),
             ),
           ],
         ),
@@ -464,7 +491,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No notifications',
+              ref.t('ไม่มีการแจ้งเตือน', 'No notifications'),
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey.withOpacity(0.7),
@@ -472,7 +499,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Pull down to refresh',
+              ref.t('ดึงลงเพื่อรีเฟรช', 'Pull down to refresh'),
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.withOpacity(0.5),

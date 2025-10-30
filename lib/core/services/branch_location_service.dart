@@ -17,7 +17,12 @@ class BranchLocation {
 class BranchLocationService {
   // Maximum distance (in kilometers) to consider a branch as "nearby"
   // 0.5 km = 500 meters, 1.0 km = 1000 meters, etc.
-  static const double maxBranchRadius = 0.060; // 500 meters
+  // Use 0.060 km (≈60 meters) as the office geofence radius
+  static const double maxBranchRadius = 0.060; // 60 meters
+
+  // Optional GPS tolerance (in kilometers) to mitigate indoor jitter
+  // e.g. 0.03 km = 30 meters
+  static const double gpsTolerance = 0.03;
 
   // Define your 7 branches with their coordinates
   static final List<BranchLocation> branches = [
@@ -126,7 +131,7 @@ class BranchLocationService {
     }
 
     // Check if nearest branch is within the allowed radius
-    if (enforceRadius && minDistance > maxBranchRadius) {
+    if (enforceRadius && minDistance > (maxBranchRadius + gpsTolerance)) {
       return null; // Too far from any branch
     }
 

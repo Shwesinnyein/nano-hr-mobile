@@ -733,6 +733,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         data: (entries) {
           // Get button state from helper method
           final buttonState = _getButtonState(entries);
+          // Geofence: enable only when within branch radius
+          bool withinBranch = false;
+          if (_currentLocation != null) {
+            final lat = _currentLocation!['latitude'] as double?;
+            final lng = _currentLocation!['longitude'] as double?;
+            if (lat != null && lng != null) {
+              withinBranch = BranchLocationService.isWithinBranchRadius(lat, lng);
+            }
+          }
+          final isEnabled = (buttonState['enabled'] as bool) && withinBranch;
+          final displayText = withinBranch
+              ? buttonState['text'] as String
+              : 'Outside office area';
 
           return Container(
             width: double.infinity,
@@ -754,7 +767,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ],
             ),
             child: ElevatedButton(
-              onPressed: buttonState['enabled']
+              onPressed: isEnabled
                   ? () => _handleCheckInOut(context, ref, controller)
                   : null, // Disable button if already checked out
               style: ElevatedButton.styleFrom(
@@ -770,7 +783,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   Icon(buttonState['icon'], color: Colors.white, size: 24),
                   const SizedBox(width: 12),
                   Text(
-                    buttonState['text'],
+                    displayText,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
