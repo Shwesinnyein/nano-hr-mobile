@@ -20,9 +20,8 @@ class BranchLocationService {
   // Use 0.060 km (≈60 meters) as the office geofence radius
   static const double maxBranchRadius = 0.060; // 60 meters
 
-  // Optional GPS tolerance (in kilometers) to mitigate indoor jitter
-  // e.g. 0.03 km = 30 meters
-  static const double gpsTolerance = 0.03;
+  // GPS tolerance disabled - strict 60m enforcement
+  static const double gpsTolerance = 0.0;
 
   // Define your 7 branches with their coordinates
   static final List<BranchLocation> branches = [

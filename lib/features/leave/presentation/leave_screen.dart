@@ -326,23 +326,48 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   Color _getLeaveTypeColor(String leaveTypeName) {
     final name = leaveTypeName.toLowerCase();
 
-    if (name.contains('annual')) {
-      return AppTheme.primaryColor;
-    } else if (name.contains('ป่วย') || name.contains('sick')) {
-      return AppTheme.errorColor;
-    } else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid')) {
-      return AppTheme.secondaryColor;
-    } else if (name.contains('ลากิจ')) {
-      return const Color(0xFF9C27B0);
-    } else if (name.contains('สมรส') || name.contains('marriage')) {
-      return const Color(0xFF607D8B);
-    } else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
-      return const Color(0xFF795548);
-    } else if (name.contains('ทหาร') || name.contains('military')) {
-      return const Color(0xFFFF5722);
-    } else if (name.contains('ฌาปนกิจ') || name.contains('funeral')) {
-      return const Color(0xFFFF5722);
-    } else {
+    // Annual Leave - Blue (vacation/holiday)
+    if (name.contains('พักร้อน') || name.contains('annual')) {
+      return const Color(0xFF2196F3); // Blue
+    } 
+    // Sick Leave - Red (health issue)
+    else if (name.contains('ป่วย') || name.contains('sick')) {
+      return const Color(0xFFF44336); // Red
+    } 
+    // Unpaid Leave - Gray (no pay)
+    else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid') || name.contains('without pay')) {
+      return const Color(0xFF9E9E9E); // Gray
+    } 
+    // Marriage Leave - Pink (love/celebration)
+    else if (name.contains('สมรส') || name.contains('marriage')) {
+      return const Color(0xFFE91E63); // Pink
+    } 
+    // Maternity Leave - Purple (motherhood)
+    else if (name.contains('ลาคลอด') || name.contains('maternity')) {
+      return const Color(0xFF9C27B0); // Purple
+    } 
+    // Paternity Leave - Blue-gray (fatherhood)
+    else if (name.contains('ภรรยาคลอด') || name.contains('paternity')) {
+      return const Color(0xFF607D8B); // Blue-gray
+    } 
+    // Compassionate/Funeral Leave - Dark gray (somber)
+    else if (name.contains('ฌาปนกิจ') || name.contains('funeral') || name.contains('compassionate')) {
+      return const Color(0xFF424242); // Dark gray
+    } 
+    // Military Service - Olive green (military)
+    else if (name.contains('ทหาร') || name.contains('military')) {
+      return const Color(0xFF689F38); // Olive green
+    } 
+    // Sterilization - Teal (medical procedure)
+    else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
+      return const Color(0xFF009688); // Teal
+    } 
+    // Business Leave - Orange (work-related)
+    else if (name.contains('ธุรกิจ') || name.contains('business')) {
+      return const Color(0xFFFF9800); // Orange
+    } 
+    // Default - Gold
+    else {
       return AppTheme.kNanoGold;
     }
   }
@@ -351,23 +376,48 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   IconData _getLeaveTypeIcon(String leaveTypeName) {
     final name = leaveTypeName.toLowerCase();
 
-    if (name.contains('annual')) {
+    // Annual Leave - Beach/vacation
+    if (name.contains('พักร้อน') || name.contains('annual')) {
       return Icons.beach_access;
-    } else if (name.contains('ป่วย') || name.contains('sick')) {
-      return Icons.health_and_safety;
-    } else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid')) {
-      return Icons.event_available;
-    } else if (name.contains('ลากิจ')) {
-      return Icons.calendar_today;
-    } else if (name.contains('สมรส') || name.contains('marriage')) {
+    } 
+    // Sick Leave - Health
+    else if (name.contains('ป่วย') || name.contains('sick')) {
+      return Icons.local_hospital;
+    } 
+    // Unpaid Leave - Money off
+    else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid') || name.contains('without pay')) {
+      return Icons.money_off;
+    } 
+    // Marriage Leave - Heart/rings
+    else if (name.contains('สมรส') || name.contains('marriage')) {
       return Icons.favorite;
-    } else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
-      return Icons.medical_services;
-    } else if (name.contains('ทหาร') || name.contains('military')) {
+    } 
+    // Maternity Leave - Pregnant woman
+    else if (name.contains('ลาคลอด') || name.contains('maternity')) {
+      return Icons.pregnant_woman;
+    } 
+    // Paternity Leave - Family
+    else if (name.contains('ภรรยาคลอด') || name.contains('paternity')) {
+      return Icons.family_restroom;
+    } 
+    // Compassionate/Funeral Leave - Flower/memorial
+    else if (name.contains('ฌาปนกิจ') || name.contains('funeral') || name.contains('compassionate') || name.contains('ร่วมงานศพ')) {
+      return Icons.local_florist;
+    } 
+    // Military Service - Military medal/star
+    else if (name.contains('ทหาร') || name.contains('military')) {
       return Icons.military_tech;
-    } else if (name.contains('ฌาปนกิจ') || name.contains('funeral')) {
-      return Icons.emergency;
-    } else {
+    } 
+    // Sterilization - Medical
+    else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
+      return Icons.medical_services;
+    } 
+    // Business Leave - Briefcase
+    else if (name.contains('ธุรกิจ') || name.contains('business')) {
+      return Icons.business_center;
+    } 
+    // Default - Calendar
+    else {
       return Icons.event_note;
     }
   }

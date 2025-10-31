@@ -1035,10 +1035,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                       height: 48,
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       child: ElevatedButton.icon(
-                        onPressed: () => _confirmDecision(
-                          notification: notification,
-                          approve: false,
-                        ),
+                        onPressed: () => _decide(notification, false, ''),
                         icon: const Icon(Icons.close, size: 18),
                         label: const Text('Reject'),
                         style: ElevatedButton.styleFrom(
@@ -1059,10 +1056,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                       height: 48,
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       child: ElevatedButton.icon(
-                        onPressed: () => _confirmDecision(
-                          notification: notification,
-                          approve: true,
-                        ),
+                        onPressed: () => _decide(notification, true, ''),
                         icon: const Icon(Icons.check, size: 18),
                         label: const Text('Approve'),
                         style: ElevatedButton.styleFrom(

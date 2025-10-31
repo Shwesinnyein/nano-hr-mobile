@@ -15,6 +15,7 @@ import '../../../core/services/location_service.dart';
 import '../../../core/services/branch_location_service.dart';
 import '../../../core/widgets/google_map_widget.dart';
 import '../../../core/widgets/location_details_modal.dart';
+import '../../../core/utils/translation_helper.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -459,7 +460,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Welcome back,',
+                      ref.t('สวัสดี!', 'Have a nice day!'),
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 14,
