@@ -49,4 +49,9 @@ class ApiEndpoints {
       '/notifications'; // GET /notifications/{employeeId}
   static const String markNotificationRead =
       '/notifications'; // PUT /notifications/{employeeId}/read/{notificationId}
+
+  // Device (push notifications) endpoints
+  static const String registerDevice = '/notifications/devices/register';
+  static const String unregisterDevice = '/notifications/devices'; // /notifications/devices/{token}
+  static const String unreadCount = '/notifications/unread-count'; // /notifications/unread-count/{employeeId}
 }
