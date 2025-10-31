@@ -29,6 +29,9 @@ class PushNotificationService {
     const initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
     await _local.initialize(initSettings,
         onDidReceiveNotificationResponse: _onLocalNotificationTap);
+    if (kDebugMode) {
+      print('✅ PushNotificationService initialized');
+    }
 
     // Request permission
     final settings = await _messaging.requestPermission(
@@ -46,11 +49,18 @@ class PushNotificationService {
 
     // Listen for token refresh
     FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+      if (kDebugMode) {
+        final short = token.substring(0, token.length > 12 ? 12 : token.length);
+        print('🔁 FCM token refreshed: $short...');
+      }
       await _registerToken(tokenOverride: token);
     });
 
     // Foreground messages → show local notification
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      if (kDebugMode) {
+        print('📩 onMessage: ${message.data}');
+      }
       final notification = message.notification;
       if (notification != null) {
         final androidDetails = AndroidNotificationDetails(
@@ -75,19 +85,34 @@ class PushNotificationService {
   static Future<void> _registerToken({String? tokenOverride}) async {
     try {
       final token = tokenOverride ?? await _messaging.getToken();
-      if (token == null) return;
+      if (token == null) {
+        if (kDebugMode) print('⚠️ FCM token is null');
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
-      final employeeId = prefs.getString('employee_id');
-      if (employeeId == null) return;
+      // Prefer UID key; fallback to legacy employee_id if present
+      final employeeId =
+          prefs.getString('employee_uid') ?? prefs.getString('employee_id');
+      if (employeeId == null) {
+        if (kDebugMode) print('⚠️ No employee UID found in SharedPreferences');
+        return;
+      }
+      if (kDebugMode) {
+        final short = token.substring(0, token.length > 12 ? 12 : token.length);
+        print('📝 Registering device token for employeeId=$employeeId token=$short...');
+      }
       final api = ApiService();
-      await api.registerDevice(
+      final res = await api.registerDevice(
         employeeId: employeeId,
         token: token,
         platform: Platform.isIOS ? 'ios' : 'android',
       );
 
       await prefs.setString('fcm_token', token);
+      if (kDebugMode) {
+        print('✅ Device registered: ${res['success']}');
+      }
     } catch (e) {
       if (kDebugMode) {
         print('❌ Register token failed: $e');

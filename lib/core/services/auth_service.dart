@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'push_notification_service.dart';
 
 class AuthService {
   String? _currentUserId;
@@ -81,6 +83,16 @@ class AuthService {
             employeeData['jobTitle'] ??
             employeeData['job_title'];
 
+        // Persist UID for push registration (backend expects employees.uid)
+        final uid = employeeData['uid'] ?? _currentEmployeeId;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (uid != null) await prefs.setString('employee_uid', uid);
+        } catch (_) {}
+
+        // Initialize push notifications (requests permission and registers token)
+        await PushNotificationService.init();
+
         return {
           'success': true,
           'message': response['message'] ?? 'Login successful',
@@ -127,6 +139,16 @@ class AuthService {
             employeeData['position_name'] ??
             employeeData['jobTitle'] ??
             employeeData['job_title'];
+
+        // Persist UID for push registration (backend expects employees.uid)
+        final uid = employeeData['uid'] ?? _currentEmployeeId;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (uid != null) await prefs.setString('employee_uid', uid);
+        } catch (_) {}
+
+        // Initialize push notifications (requests permission and registers token)
+        await PushNotificationService.init();
 
         return {
           'success': true,
@@ -231,6 +253,11 @@ class AuthService {
     try {
       _currentUserId = null;
       _currentEmployeeId = null;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('employee_uid');
+      } catch (_) {}
+      await PushNotificationService.onLogout();
     } catch (e) {
       throw Exception('Sign out failed: ${e.toString()}');
     }
