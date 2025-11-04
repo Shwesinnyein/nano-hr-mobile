@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/attendance_service.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/branch_location_service.dart';
 import 'attendance_model.dart';
 
 class AttendanceRepository {
@@ -83,6 +84,26 @@ class AttendanceRepository {
         checkInData['address'] = address;
       }
 
+      // Determine checkInLocation field based on branch proximity
+      if (latitude != null && longitude != null) {
+        // Check if user is within office range
+        final nearestBranch = BranchLocationService.findNearestBranch(
+          latitude,
+          longitude,
+        );
+
+        if (nearestBranch != null) {
+          // Within office range - save branch name
+          checkInData['checkInLocation'] = nearestBranch.branchName;
+        } else {
+          // Outside office range - save current address
+          checkInData['checkInLocation'] = address ?? 'Unknown Location';
+        }
+      } else {
+        // No GPS data - use fallback
+        checkInData['checkInLocation'] = address ?? employeeData['locationName'] ?? 'Unknown Location';
+      }
+
       await _attendanceService.checkInOut(checkInData);
     } catch (e) {
       throw Exception('Check-in failed: ${e.toString()}');
@@ -149,6 +170,26 @@ class AttendanceRepository {
       }
       if (address != null) {
         checkOutData['checkOutAddress'] = address;
+      }
+
+      // Determine checkOutLocation field for checkout based on branch proximity
+      if (latitude != null && longitude != null) {
+        // Check if user is within office range
+        final nearestBranch = BranchLocationService.findNearestBranch(
+          latitude,
+          longitude,
+        );
+
+        if (nearestBranch != null) {
+          // Within office range - save branch name
+          checkOutData['checkOutLocation'] = nearestBranch.branchName;
+        } else {
+          // Outside office range - save current address
+          checkOutData['checkOutLocation'] = address ?? 'Unknown Location';
+        }
+      } else {
+        // No GPS data - use fallback
+        checkOutData['checkOutLocation'] = address ?? checkInRecord['location'] ?? 'Unknown Location';
       }
 
       await _attendanceService.checkInOutWithRecordData(checkOutData);

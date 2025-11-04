@@ -398,7 +398,7 @@ class _AttendanceHistoryScreenState
     final checkIn = record['checkInAt']?.toString();
     final checkOut = record['checkOutAt']?.toString();
     final status = record['status']?.toString() ?? '';
-    final location = record['location']?.toString() ?? '';
+    final location = record['checkInLocation']?.toString() ?? record['location']?.toString() ?? '';
 
     return AnimatedFadeIn(
       child: Container(

@@ -559,7 +559,7 @@ class _EmployeeAttendanceHistoryScreenState
     final checkInAt = record['checkInAt'] as String?;
     final checkOutAt = record['checkOutAt'] as String?;
     final status = record['status'] as String?;
-    final location = record['location'] as String?;
+    final location = record['checkInLocation'] as String? ?? record['location'] as String?;
     final date = record['date'] as String?;
     final lateMinutes = record['lateMinutes'] as int?;
     final branchName = record['branchName'] as String?;

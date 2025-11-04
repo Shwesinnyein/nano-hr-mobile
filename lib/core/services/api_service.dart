@@ -108,6 +108,60 @@ class ApiService {
     );
   }
 
+  // Register device token for push notifications
+  Future<Map<String, dynamic>> registerDevice({
+    required String employeeId,
+    required String token,
+    required String platform,
+    String? appVersion,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.registerDevice,
+        data: {
+          'employeeId': employeeId,
+          'token': token,
+          'platform': platform,
+          if (appVersion != null) 'appVersion': appVersion,
+        },
+      );
+      return {
+        'success': response.statusCode == 200,
+        'data': response.data,
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // Unregister device token (on logout)
+  Future<Map<String, dynamic>> unregisterDevice({
+    required String token,
+  }) async {
+    try {
+      final response = await _dio.delete('${ApiEndpoints.unregisterDevice}/$token');
+      return {
+        'success': response.statusCode == 200,
+        'data': response.data,
+      };
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  // Get unread count for notifications
+  Future<int> getUnreadCount(String employeeId) async {
+    try {
+      final response = await _dio.get('${ApiEndpoints.unreadCount}/$employeeId');
+      if (response.statusCode == 200) {
+        return (response.data['unread'] as num?)?.toInt() ?? 0;
+      }
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   // Check if email already exists
   Future<Map<String, dynamic>> checkEmailExists({required String email}) async {
     try {
@@ -640,6 +694,7 @@ class ApiService {
     double? latitude,
     double? longitude,
     String? address,
+    String? checkInLocation,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -665,6 +720,9 @@ class ApiService {
       }
       if (address != null) {
         data['address'] = address;
+      }
+      if (checkInLocation != null) {
+        data['checkInLocation'] = checkInLocation;
       }
 
       final response = await _dio.post(ApiEndpoints.checkInOut, data: data);

@@ -101,7 +101,8 @@ class Attendance {
     final id = json['id']?.toString() ?? '';
     final uid = json['uid']?.toString() ?? '';
     final employeeId = json['employeeId']?.toString() ?? '';
-    final location = json['location']?.toString() ?? 'Office';
+    // Use checkInLocation first, fall back to location for backward compatibility
+    final location = json['checkInLocation']?.toString() ?? json['location']?.toString() ?? 'Office';
     final company = json['company']?.toString() ?? 'NANO-STORES';
     final branch = json['branch']?.toString() ?? 'Office';
     final type = json['type']?.toString() ?? 'checkin';

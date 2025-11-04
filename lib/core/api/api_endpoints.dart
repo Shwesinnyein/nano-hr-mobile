@@ -49,4 +49,7 @@ class ApiEndpoints {
       '/notifications'; // GET /notifications/{employeeId}
   static const String markNotificationRead =
       '/notifications'; // PUT /notifications/{employeeId}/read/{notificationId}
+  static const String registerDevice = '/notifications/register-device';
+  static const String unregisterDevice = '/notifications/unregister-device';
+  static const String unreadCount = '/notifications/unread-count';
 }
