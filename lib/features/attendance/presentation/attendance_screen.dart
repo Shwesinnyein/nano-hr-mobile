@@ -16,6 +16,7 @@ import '../../../core/services/branch_location_service.dart';
 import '../../../core/widgets/google_map_widget.dart';
 import '../../../core/widgets/location_details_modal.dart';
 import '../../../core/utils/translation_helper.dart';
+import '../../../core/providers/language_provider.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -48,8 +49,21 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   static const Duration _buttonStateCacheTimeout = Duration(seconds: 30);
 
   String fmt(DateTime dt) => DateFormat('HH:mm').format(dt.toLocal());
-  String fmtDate(DateTime dt) =>
-      DateFormat('MMM dd, yyyy').format(dt.toLocal());
+  
+  String fmtDate(DateTime dt) {
+    final isThai = ref.watch(languageProvider);
+    if (isThai) {
+      // Thai format: วันที่ dd เดือน ปี (e.g., 04 พ.ย. 2568)
+      final day = dt.day.toString().padLeft(2, '0');
+      final monthsThai = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 
+                         'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+      final month = monthsThai[dt.month - 1];
+      final year = (dt.year + 543).toString(); // Buddhist year
+      return '$day $month $year';
+    }
+    return DateFormat('MMM dd, yyyy').format(dt.toLocal());
+  }
+  
   String fmtFull(DateTime dt) =>
       DateFormat('MMM dd, yyyy HH:mm').format(dt.toLocal());
 
@@ -81,18 +95,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     bool isEnabled;
 
     if (canCheckIn) {
-      buttonText = 'Check In';
+      buttonText = ref.t('เข้างาน', 'Check In');
       buttonIcon = Icons.login;
       buttonColors = [AppTheme.kNanoGold, AppTheme.kNanoGoldDark];
       isEnabled = true;
     } else if (canCheckOut) {
-      buttonText = 'Check Out';
+      buttonText = ref.t('ออกงาน', 'Check Out');
       buttonIcon = Icons.logout;
       buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
       isEnabled = true;
     } else {
       // Already checked out for today
-      buttonText = 'Already Checked Out';
+      buttonText = ref.t('ออกงานแล้ว', 'Already Checked Out');
       buttonIcon = Icons.check_circle;
       buttonColors = [Colors.grey, Colors.grey.shade600];
       isEnabled = false;
@@ -138,7 +152,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final employeeId = authService.currentEmployeeId;
 
       if (employeeId == null) {
-        setState(() {
+        setState(() { 
           _isLoadingStatus = false;
         });
         return;
@@ -338,17 +352,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (_isLoadingStatus) {
       return Container(
         color: AppTheme.kBackground,
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
+              const CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                'Loading attendance data...',
-                style: TextStyle(
+                ref.t('กำลังโหลดข้อมูลการเข้างาน...', 'Loading attendance data...'),
+                style: const TextStyle(
                   color: AppTheme.kNanoGold,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -483,7 +497,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           const SizedBox(height: 20),
           // Today's date
           Text(
-            'Today',
+            ref.t('วันนี้', 'Today'),
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 16,
@@ -586,7 +600,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (state is AsyncError) {
       return Center(
         child: Text(
-          'Error loading attendance data',
+          ref.t('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้างาน', 'Error loading attendance data'),
           style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 16),
         ),
       );
@@ -649,10 +663,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               // Status text
               Text(
                 checkInTime != null && checkOutTime != null
-                    ? 'Checked Out'
+                    ? ref.t('ออกงานแล้ว', 'Checked Out')
                     : checkInTime != null
-                    ? 'Checked In'
-                    : 'Not Checked In',
+                    ? ref.t('เข้างานแล้ว', 'Checked In')
+                    : ref.t('ยังไม่ได้เข้างาน', 'Not Checked In'),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -663,7 +677,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               // Time display from API response
               if (checkInTime != null) ...[
                 Text(
-                  'Check In: $checkInTime',
+                  '${ref.t('เข้างาน', 'Check In')}: $checkInTime',
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.9),
                     fontSize: 14,
@@ -672,7 +686,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 if (checkOutTime != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Check Out: $checkOutTime',
+                    '${ref.t('ออกงาน', 'Check Out')}: $checkOutTime',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
                       fontSize: 14,
@@ -683,25 +697,25 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ],
           );
         },
-        loading: () => const Center(
+        loading: () => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 16),
               Text(
-                'Loading attendance...',
-                style: TextStyle(color: Colors.white, fontSize: 16),
+                ref.t('กำลังโหลดข้อมูลการเข้างาน...', 'Loading attendance...'),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
             ],
           ),
         ),
         error: (error, stackTrace) => Column(
           children: [
-            Icon(Icons.error_outline, color: Colors.white, size: 40),
+            const Icon(Icons.error_outline, color: Colors.white, size: 40),
             const SizedBox(height: 16),
             Text(
-              'Error loading status',
+              ref.t('เกิดข้อผิดพลาดในการโหลดข้อมูล', 'Error loading status'),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -710,7 +724,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap to retry',
+              ref.t('แตะเพื่อลองใหม่', 'Tap to retry'),
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
                 fontSize: 14,
@@ -746,7 +760,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           final isEnabled = (buttonState['enabled'] as bool) && withinBranch;
           final displayText = withinBranch
               ? buttonState['text'] as String
-              : 'Outside office area';
+              : ref.t('นอกพื้นที่สำนักงาน', 'Outside office area');
 
           return Container(
             width: double.infinity,
@@ -898,38 +912,91 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final longitude = result['longitude'] as double?;
         final address = result['address'] as String?;
 
-        if (isCheckOut) {
-          await controller.checkOut(
-            employeeData,
-            latitude: latitude,
-            longitude: longitude,
-            address: address,
-          );
-        } else {
-          await controller.checkIn(
-            employeeData,
-            latitude: latitude,
-            longitude: longitude,
-            address: address,
+        // Show loading overlay immediately
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return WillPopScope(
+                onWillPop: () async => false,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.kNanoGold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          isCheckOut ? ref.t('กำลังออกงาน...', 'Checking out...') : ref.t('กำลังเข้างาน...', 'Checking in...'),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           );
         }
 
-        // Update local state immediately to avoid loading
-        await _refreshAttendanceStatus();
+        try {
+          if (isCheckOut) {
+            await controller.checkOut(
+              employeeData,
+              latitude: latitude,
+              longitude: longitude,
+              address: address,
+            );
+          } else {
+            await controller.checkIn(
+              employeeData,
+              latitude: latitude,
+              longitude: longitude,
+              address: address,
+            );
+          }
 
-        // Show success message
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isCheckOut
-                    ? 'Checked out successfully!'
-                    : 'Checked in successfully!',
+          // Close loading dialog first
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+
+          // Update local state (this will cause background loading, but dialog is closed)
+          await _refreshAttendanceStatus();
+
+          // Show success message
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isCheckOut
+                      ? ref.t('ออกงานสำเร็จ!', 'Checked out successfully!')
+                      : ref.t('เข้างานสำเร็จ!', 'Checked in successfully!'),
+                ),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
               ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+            );
+          }
+        } catch (e) {
+          // Close loading dialog on error
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+          rethrow;
         }
       }
     } catch (e) {
@@ -937,11 +1004,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('${ref.t('ข้อผิดพลาด', 'Error')}: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
             action: SnackBarAction(
-              label: 'Retry',
+              label: ref.t('ลองอีกครั้ง', 'Retry'),
               textColor: Colors.white,
               onPressed: () => _handleCheckInOut(context, ref, controller),
             ),
@@ -964,6 +1031,22 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     // Use pre-loaded location (much faster)
     final location = _currentLocation;
+    
+    // Get location display text
+    String getLocationText() {
+      if (location != null) {
+        final lat = location['latitude'] as double?;
+        final lng = location['longitude'] as double?;
+        if (lat != null && lng != null) {
+          final nearestBranch = BranchLocationService.findNearestBranch(lat, lng);
+          if (nearestBranch != null) {
+            return nearestBranch.branchName;
+          }
+          return location['address'] as String? ?? ref.t('ตำแหน่งปัจจุบัน', 'Current Location');
+        }
+      }
+      return ref.t('กำลังระบุตำแหน่ง...', 'Getting location...');
+    }
 
     return await showDialog<Map<String, dynamic>>(
       context: context,
@@ -990,7 +1073,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
                     // Title
                     Text(
-                      isCheckOut ? 'Check Out' : 'Check In',
+                      isCheckOut ? ref.t('ออกงาน', 'Check Out') : ref.t('เข้างาน', 'Check In'),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -1001,10 +1084,45 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
                     // Time display
                     Text(
-                      'Time: $timeString',
+                      '${ref.t('เวลา', 'Time')}: $timeString',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Location display
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.blue.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 20,
+                            color: Colors.blue[700],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              getLocationText(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue[900],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -1028,9 +1146,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: const Text(
-                              'Cancel',
-                              style: TextStyle(
+                            child: Text(
+                              ref.t('ยกเลิก', 'Cancel'),
+                              style: const TextStyle(
                                 color: Colors.black87,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -1045,22 +1163,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           child: ElevatedButton(
                             onPressed: _isModalLoading
                                 ? null
-                                : () async {
-                                    setModalState(() {
-                                      _isModalLoading = true;
-                                    });
-
-                                    // If no location, try to get it quickly in background
-                                    if (location == null &&
-                                        !_isLoadingLocation) {
-                                      _loadCurrentLocation(); // Don't await - run in background
-                                    }
-
-                                    // Brief loading to show feedback
-                                    await Future.delayed(
-                                      const Duration(milliseconds: 200),
-                                    );
-
+                                : () {
+                                    // Close dialog immediately with data
                                     Navigator.of(context).pop({
                                       'confirmed': true,
                                       'latitude': location?['latitude'],
@@ -1089,7 +1193,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                     ),
                                   )
                                 : Text(
-                                    isCheckOut ? 'Check Out' : 'Check In',
+                                    isCheckOut ? ref.t('ยืนยันออกงาน', 'Confirm Check Out') : ref.t('ยืนยันเข้างาน', 'Confirm Check In'),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -1123,7 +1227,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final startTime = shift['startTime'];
         final endTime = shift['endTime'];
 
-        return 'Working Hours: $startTime - $endTime';
+        return '${ref.t('เวลาทำงาน', 'Working Hours')}: $startTime - $endTime';
       } else {
         if (kDebugMode) {
           print('⚠️ Shift data list is empty');
@@ -1135,7 +1239,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       }
     }
 
-    return 'Working Hours: Not Available'; // No fallback - use only API data
+    return '${ref.t('เวลาทำงาน', 'Working Hours')}: ${ref.t('ไม่มีข้อมูล', 'Not Available')}'; // No fallback - use only API data
   }
 
   // Removed unused method _getTodayAttendanceFromShiftData
@@ -1301,8 +1405,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Location',
-                      style: TextStyle(
+                      ref.t('สถานที่', 'Location'),
+                      style: const TextStyle(
                         color: AppTheme.kNanoGold,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1354,8 +1458,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'History',
-                      style: TextStyle(
+                      ref.t('ประวัติ', 'History'),
+                      style: const TextStyle(
                         color: AppTheme.kNanoGold,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1412,8 +1516,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     Icon(Icons.gps_fixed, color: AppTheme.kNanoGold, size: 24),
                     const SizedBox(width: 12),
                     Text(
-                      'GPS Location',
-                      style: TextStyle(
+                      ref.t('ตำแหน่ง GPS', 'GPS Location'),
+                      style: const TextStyle(
                         color: AppTheme.kNanoGold,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -1445,7 +1549,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             Icon(Icons.location_off, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 16),
             Text(
-              'Location not available',
+              ref.t('ไม่สามารถระบุตำแหน่งได้', 'Location not available'),
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.grey[600],
@@ -1454,7 +1558,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Please enable GPS and try again',
+              ref.t('กรุณาเปิด GPS และลองใหม่อีกครั้ง', 'Please enable GPS and try again'),
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ],
@@ -1490,8 +1594,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Location Details',
-                  style: TextStyle(
+                  ref.t('รายละเอียดสถานที่', 'Location Details'),
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.kNanoGold,
@@ -1500,11 +1604,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 const SizedBox(height: 16),
                 _buildLocationDetailRow(
                   '📍',
-                  'Address',
-                  address ?? 'Not available',
+                  ref.t('ที่อยู่', 'Address'),
+                  address ?? ref.t('ไม่มีข้อมูล', 'Not available'),
                 ),
                 const SizedBox(height: 12),
-                _buildLocationDetailRow('🕐', 'Last Updated', 'Just now'),
+                _buildLocationDetailRow('🕐', ref.t('อัปเดตล่าสุด', 'Last Updated'), ref.t('เมื่อสักครู่', 'Just now')),
               ],
             ),
           ),
@@ -1615,14 +1719,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               child: state.when(
                 data: (entries) {
                   if (entries.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.access_time, size: 64, color: Colors.grey),
-                          SizedBox(height: 16),
+                          const Icon(Icons.access_time, size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
                           Text(
-                            'No attendance records',
+                            ref.t('ไม่มีบันทึกการเข้างาน', 'No attendance records'),
                             style: TextStyle(color: Colors.grey, fontSize: 16),
                           ),
                         ],
@@ -1791,8 +1895,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        'Attendance Details',
-                        style: TextStyle(
+                        ref.t('รายละเอียดการเข้างาน', 'Attendance Details'),
+                        style: const TextStyle(
                           color: AppTheme.kNanoGold,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -1818,17 +1922,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
   Widget _buildHistoryContent(AsyncSnapshot<List<Attendance>> snapshot) {
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
+            const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              'Loading attendance history...',
-              style: TextStyle(color: Colors.grey, fontSize: 16),
+              ref.t('กำลังโหลดประวัติการเข้างาน...', 'Loading attendance history...'),
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
             ),
           ],
         ),
@@ -1842,9 +1946,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            const Text(
-              'Error loading attendance',
-              style: TextStyle(
+            Text(
+              ref.t('เกิดข้อผิดพลาดในการโหลดข้อมูลการเข้างาน', 'Error loading attendance'),
+              style: const TextStyle(
                 fontSize: 18,
                 color: Colors.red,
                 fontWeight: FontWeight.w500,
@@ -1864,7 +1968,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final entries = snapshot.data ?? [];
 
     if (entries.isEmpty) {
-      return const Center(child: Text('No attendance records'));
+      return Center(child: Text(ref.t('ไม่มีบันทึกการเข้างาน', 'No attendance records')));
     }
 
     return ListView.builder(
@@ -1930,7 +2034,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Check In: ${_formatTimeOnly(entry.checkInAt)}',
+                        '${ref.t('เข้างาน', 'Check In')}: ${_formatTimeOnly(entry.checkInAt)}',
                         style: const TextStyle(fontSize: 16),
                       ),
                     ],
@@ -1945,7 +2049,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       const Icon(Icons.logout, color: Colors.green, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        'Check Out: ${_formatTimeOnly(entry.checkOutAt)}',
+                        '${ref.t('ออกงาน', 'Check Out')}: ${_formatTimeOnly(entry.checkOutAt)}',
                         style: const TextStyle(fontSize: 16),
                       ),
                     ],
@@ -1960,7 +2064,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Location: ${entry.location}',
+                        '${ref.t('สถานที่', 'Location')}: ${entry.location}',
                         style: const TextStyle(fontSize: 16),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 2,

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../providers/notification_provider.dart';
+import '../providers/language_provider.dart';
+import '../utils/translation_helper.dart';
 
 class CustomBottomNavBar extends ConsumerWidget {
   final int currentIndex;
@@ -31,42 +33,47 @@ class CustomBottomNavBar extends ConsumerWidget {
             children: [
               _buildNavItem(
                 context,
+                ref,
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home,
-                label: 'Home',
+                label: ref.t('หน้าหลัก', 'Home'),
                 index: 0,
                 route: '/attendance',
               ),
               _buildNavItem(
                 context,
+                ref,
                 icon: Icons.calendar_today_outlined,
                 activeIcon: Icons.calendar_today,
-                label: 'Leave',
+                label: ref.t('ลางาน', 'Leave'),
                 index: 1,
                 route: '/leave',
               ),
               _buildNavItemWithBadge(
                 context,
+                ref,
                 icon: Icons.notifications_outlined,
                 activeIcon: Icons.notifications,
-                label: 'Notifications',
+                label: ref.t('การแจ้งเตือน', 'Notifications'),
                 index: 2,
                 route: '/notifications',
                 badgeCount: unreadCount,
               ),
               _buildNavItem(
                 context,
+                ref,
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
-                label: 'Profile',
+                label: ref.t('โปรไฟล์', 'Profile'),
                 index: 3,
                 route: '/profile',
               ),
               _buildNavItem(
                 context,
+                ref,
                 icon: Icons.settings_outlined,
                 activeIcon: Icons.settings,
-                label: 'Settings',
+                label: ref.t('ตั้งค่า', 'Settings'),
                 index: 4,
                 route: '/settings',
               ),
@@ -78,7 +85,8 @@ class CustomBottomNavBar extends ConsumerWidget {
   }
 
   Widget _buildNavItem(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required IconData icon,
     required IconData activeIcon,
     required String label,
@@ -121,7 +129,8 @@ class CustomBottomNavBar extends ConsumerWidget {
   }
 
   Widget _buildNavItemWithBadge(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required IconData icon,
     required IconData activeIcon,
     required String label,

@@ -266,6 +266,27 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
     }
   }
 
+  // Silent reload - updates data without showing loading indicator
+  Future<void> silentReload() async {
+    try {
+      // Don't set state to loading - keep existing data visible
+
+      final employeeId = _authService.currentEmployeeId;
+
+      if (employeeId == null) {
+        return;
+      }
+
+      final attendance = await _repository.listMyAttendance(employeeId);
+      state = AsyncValue.data(attendance);
+
+      // Update openId based on attendance data
+      _updateOpenId(attendance);
+    } catch (e) {
+      // Don't show error, just keep existing data
+    }
+  }
+
   Future<void> checkIn(
     Map<String, dynamic> employeeData, {
     double? latitude,
@@ -285,7 +306,7 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         longitude: longitude,
         address: address,
       );
-      await load(); // Reload data after check-in
+      await silentReload(); // Silent reload - no loading indicator
     } catch (e) {
       rethrow;
     }
@@ -310,7 +331,7 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         longitude: longitude,
         address: address,
       );
-      await load(); // Reload data after check-out
+      await silentReload(); // Silent reload - no loading indicator
     } catch (e) {
       rethrow;
     }
