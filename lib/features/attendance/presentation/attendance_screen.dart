@@ -492,6 +492,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ],
                 ),
               ),
+              // Refresh button
+              IconButton(
+                onPressed: () async {
+                  ref.invalidate(attendanceControllerProvider);
+                  await _refreshAttendanceStatus();
+                },
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                tooltip: ref.t('รีเฟรช', 'Refresh'),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -1193,7 +1206,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                     ),
                                   )
                                 : Text(
-                                    isCheckOut ? ref.t('ยืนยันออกงาน', 'Confirm Check Out') : ref.t('ยืนยันเข้างาน', 'Confirm Check In'),
+                                    isCheckOut ? ref.t('ยืนยันออกงาน', 'Confirm') : ref.t('ยืนยันเข้างาน', 'Confirm'),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -1723,11 +1736,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.access_time, size: 64, color: Colors.grey),
+                          Icon(Icons.access_time, size: 64, color: Colors.grey),
                           const SizedBox(height: 16),
                           Text(
                             ref.t('ไม่มีบันทึกการเข้างาน', 'No attendance records'),
-                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                            style: const TextStyle(color: Colors.grey, fontSize: 16),
                           ),
                         ],
                       ),
@@ -1926,7 +1939,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(
+            CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
             ),
             const SizedBox(height: 16),

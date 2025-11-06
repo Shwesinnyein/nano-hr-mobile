@@ -260,7 +260,7 @@ class LeaveService {
 
   // Upload leave request with attachments
   Future<Map<String, dynamic>> createLeaveRequestWithAttachments(
-    Map<String, dynamic> data,
+Map<String, dynamic> data,
     List<File> attachments,
   ) async {
     try {
@@ -272,14 +272,16 @@ class LeaveService {
         }
       });
 
-      // Add attachment files
+      // Add attachment files - backend handles timestamp
       for (int i = 0; i < attachments.length; i++) {
         final file = attachments[i];
         if (await file.exists()) {
+          // Send simple filename - backend adds timestamp and sets originalName
+          final filename = 'photo_$i.jpg';
           formData.files.add(
             MapEntry(
               'attachments', // Field name as per your backend
-              await MultipartFile.fromFile(file.path, filename: 'photo_$i.jpg'),
+              await MultipartFile.fromFile(file.path, filename: filename),
             ),
           );
         } else {
