@@ -240,4 +240,110 @@ class NotificationService {
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }
+
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String employeeId,
+    required String token,
+    required String platform,
+    String? appVersion,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final endpoint = '${ApiEndpoints.baseUrl}${ApiEndpoints.registerDevice}';
+    final payload = {
+      'employeeId': employeeId,
+      'token': token,
+      'platform': platform,
+      if (appVersion != null) 'appVersion': appVersion,
+      if (metadata != null) 'metadata': metadata,
+    };
+
+    try {
+      final response = await _dio.post(endpoint, data: payload);
+      if (response.data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      if (response.data is String) {
+        return Map<String, dynamic>.from(jsonDecode(response.data));
+      }
+      return {
+        'success': false,
+        'message': 'Unexpected response format from register device endpoint',
+      };
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {
+          'success': true,
+          'message': 'Register device endpoint not available (HTTP 404)',
+          'statusCode': 404,
+        };
+      }
+      if (e.response?.data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      if (e.response?.data is String) {
+        try {
+          return Map<String, dynamic>.from(jsonDecode(e.response!.data));
+        } catch (_) {
+          // fall through to generic error response
+        }
+      }
+      return {
+        'success': false,
+        'message': e.message ?? 'Failed to register device token',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Unexpected error registering device token: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> unregisterDeviceToken({
+    required String employeeId,
+    required String token,
+  }) async {
+    final endpoint =
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.unregisterDevice}/$token';
+    final queryParams = {'employeeId': employeeId};
+
+    try {
+      final response = await _dio.delete(endpoint, queryParameters: queryParams);
+      if (response.data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      if (response.data is String) {
+        return Map<String, dynamic>.from(jsonDecode(response.data));
+      }
+      return {
+        'success': false,
+        'message': 'Unexpected response format from unregister device endpoint',
+      };
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {
+          'success': true,
+          'message': 'Unregister device endpoint returned 404 (treated as no-op)',
+          'statusCode': 404,
+        };
+      }
+      if (e.response?.data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(e.response!.data);
+      }
+      if (e.response?.data is String) {
+        try {
+          return Map<String, dynamic>.from(jsonDecode(e.response!.data));
+        } catch (_) {}
+      }
+      return {
+        'success': false,
+        'message': e.message ?? 'Failed to unregister device token',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Unexpected error unregistering device token: $e',
+      };
+    }
+  }
 }

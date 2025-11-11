@@ -18,7 +18,7 @@ class BranchLocationService {
   // Maximum distance (in kilometers) to consider a branch as "nearby"
   // 0.5 km = 500 meters, 1.0 km = 1000 meters, etc.
   // Use 0.060 km (≈60 meters) as the office geofence radius
-  static const double maxBranchRadius = 0.060; // 60 meters
+  static const double maxBranchRadius = 0.070; // 60 meters
 
   // GPS tolerance disabled - strict 60m enforcement
   static const double gpsTolerance = 0.0;

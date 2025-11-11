@@ -221,8 +221,49 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     });
 
     try {
-      final locationData = await _locationService
-          .getCurrentLocationWithAddress();
+      final locationData =
+          await _locationService.getCurrentLocationWithAddress();
+
+      if (kDebugMode) {
+        final latitude = locationData['latitude'] as double?;
+        final longitude = locationData['longitude'] as double?;
+        final address = locationData['address'];
+
+        if (latitude != null && longitude != null) {
+          final nearestBranch = BranchLocationService.findNearestBranch(
+            latitude,
+            longitude,
+            enforceRadius: false,
+          );
+          double? distanceKm;
+          String branchName = 'Unknown';
+
+          if (nearestBranch != null) {
+            branchName = nearestBranch.branchName;
+            distanceKm = BranchLocationService.calculateDistance(
+              latitude,
+              longitude,
+              nearestBranch.latitude,
+              nearestBranch.longitude,
+            );
+          }
+
+          final withinRadius = distanceKm != null &&
+              distanceKm <= BranchLocationService.maxBranchRadius;
+
+          debugPrint(
+            '📍 AttendanceScreen: Current location lat=$latitude, '
+            'lng=$longitude, address=$address',
+          );
+          debugPrint(
+            '🏢 AttendanceScreen: Nearest branch=$branchName, '
+            'distance=${distanceKm?.toStringAsFixed(3) ?? 'n/a'} km, '
+            'withinRadius=$withinRadius (threshold=${BranchLocationService.maxBranchRadius} km)',
+          );
+        } else {
+          debugPrint('⚠️ AttendanceScreen: Location data missing lat/lng');
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -768,6 +809,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             final lng = _currentLocation!['longitude'] as double?;
             if (lat != null && lng != null) {
               withinBranch = BranchLocationService.isWithinBranchRadius(lat, lng);
+              if (kDebugMode) {
+                final nearestInfo =
+                    BranchLocationService.getNearestBranchInfo(lat, lng);
+                debugPrint(
+                  '✅ AttendanceScreen: withinBranch=$withinBranch, '
+                  'nearest=${nearestInfo?['branchName']}, '
+                  'distance=${(nearestInfo?['distance'] as double?)?.toStringAsFixed(3)} km',
+                );
+              }
             }
           }
           final isEnabled = (buttonState['enabled'] as bool) && withinBranch;

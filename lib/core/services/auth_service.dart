@@ -76,10 +76,8 @@ class AuthService {
             '${_currentEmployeeFirstName ?? ''} ${_currentEmployeeLastName ?? ''}'
                 .trim();
         _currentPositionName =
-            employeeData['positionName'] ??
-            employeeData['position_name'] ??
-            employeeData['jobTitle'] ??
-            employeeData['job_title'];
+            employeeData['positionName'];
+            
 
         return {
           'success': true,

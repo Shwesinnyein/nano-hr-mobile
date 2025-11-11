@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/push_notification_service.dart';
 
 class AuthRepository {
   final AuthService _authService;
+  final PushNotificationService _pushNotificationService;
   static const _kLoggedInKey = 'logged_in';
   static const _kUserId = 'user_id';
   static const _kUserToken = 'user_token';
@@ -14,7 +16,7 @@ class AuthRepository {
   static const _kEmployeeLastName = 'employee_last_name';
   static const _kPositionName = 'position_name';
 
-  AuthRepository(this._authService);
+  AuthRepository(this._authService, this._pushNotificationService);
 
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -28,12 +30,15 @@ class AuthRepository {
       // Restore auth service state
       _authService.setCurrentUser(userId);
       _authService.setCurrentEmployeeId(employeeId);
-      
+
       // Restore employee name and position from SharedPreferences
       final firstName = prefs.getString(_kEmployeeFirstName);
       final lastName = prefs.getString(_kEmployeeLastName);
       final positionName = prefs.getString(_kPositionName);
       _authService.setCurrentEmployeeName(firstName, lastName, positionName);
+
+      // Ensure the device token is registered when restoring session
+      await _pushNotificationService.initialize();
 
       return true;
     }
@@ -71,6 +76,14 @@ class AuthRepository {
         // Update auth service with both user ID and employee ID
         _authService.setCurrentUser(userId);
         _authService.setCurrentEmployeeId(employeeId);
+
+        try {
+          await _pushNotificationService.initialize();
+        } catch (e) {
+          // Ignore push notification setup errors so login can proceed
+          // (common on iOS without APNs entitlement)
+          print('⚠️ Push notification initialization failed: $e');
+        }
       } else {
         throw Exception(response['message'] ?? 'Login failed');
       }
@@ -96,13 +109,14 @@ class AuthRepository {
         final employeeId = userData['id'] ?? userData['uid'];
         final token =
             response['token'] ?? userData['token'] ?? userData['accessToken'];
-        
+
         // Get employee name and position
         final firstName = userData['firstName'] ?? userData['first_name'];
         final lastName = userData['lastName'] ?? userData['last_name'];
-        final positionName = userData['positionName'] ?? 
-            userData['position_name'] ?? 
-            userData['jobTitle'] ?? 
+        final positionName =
+            userData['positionName'] ??
+            userData['position_name'] ??
+            userData['jobTitle'] ??
             userData['job_title'];
 
         final prefs = await SharedPreferences.getInstance();
@@ -122,7 +136,7 @@ class AuthRepository {
         } else {
           print('❌ No profile image URL found');
         }
-        
+
         // Save employee name and position to SharedPreferences
         if (firstName != null) {
           await prefs.setString(_kEmployeeFirstName, firstName);
@@ -138,6 +152,12 @@ class AuthRepository {
         _authService.setCurrentUser(userId);
         _authService.setCurrentEmployeeId(employeeId);
         _authService.setCurrentEmployeeName(firstName, lastName, positionName);
+
+        try {
+          await _pushNotificationService.initialize();
+        } catch (e) {
+          print('⚠️ Push notification initialization failed: $e');
+        }
       } else {
         throw Exception(response['message'] ?? 'Mobile login failed');
       }
@@ -153,9 +173,10 @@ class AuthRepository {
       await _authService.signOut();
     } catch (e) {
     } finally {
+      await _pushNotificationService.unregisterDeviceToken();
       // Clear local login state
       await _clearLoginState();
-      
+
       // Clear any cached data that might be user-specific
       await _clearUserSpecificCaches();
     }
@@ -173,13 +194,13 @@ class AuthRepository {
 
   Future<void> _clearLoginState() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Clear ALL SharedPreferences data to prevent data mixing between different users
     await prefs.clear();
-    
+
     // Note: prefs.clear() removes everything, so no need to remove individual keys
     // This ensures no old employee data remains when a new employee logs in
-    
+
     _authService.setCurrentUser(null);
     _authService.setCurrentEmployeeId(null);
     _authService.setCurrentEmployeeName(null, null, null);
@@ -188,15 +209,14 @@ class AuthRepository {
   Future<void> _clearUserSpecificCaches() async {
     // Clear any cached data that might be user-specific
     // This includes leave data caches, attendance caches, etc.
-    
+
     try {
       // Import the leave controller to clear its cache
       // Note: This is a static method, so we can call it directly
       // LeaveController.clearAllCache(); // Uncomment if needed
-      
+
       // Clear any other user-specific caches here
       // For example: AttendanceController.clearAllCache();
-      
     } catch (e) {
       // Don't let cache clearing errors prevent logout
       print('Warning: Failed to clear some caches during logout: $e');
@@ -256,7 +276,10 @@ class AuthController extends StateNotifier<AsyncValue<bool>> {
 }
 
 final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(ref.watch(authServiceProvider)),
+  (ref) => AuthRepository(
+    ref.watch(authServiceProvider),
+    ref.watch(pushNotificationServiceProvider),
+  ),
 );
 
 final authStateProvider =
