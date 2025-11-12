@@ -42,7 +42,7 @@ class PushNotificationService {
     importance: Importance.high,
   );
 
-  static const String _androidNotificationIcon = '@mipmap/ic_launcher';
+  static const String _androidNotificationIcon = '@drawable/nano_notification';
 
   AuthService get _authService => _ref.read(authServiceProvider);
 
@@ -116,13 +116,16 @@ class PushNotificationService {
     final prefs = await SharedPreferences.getInstance();
     _cachedToken ??= prefs.getString(_kStoredTokenKey);
 
+    final cached = prefs.getString(_kStoredTokenKey);
+    final cachedEmployee = prefs.getString(_kStoredEmployeeKey);
     if (kDebugMode) {
-      final cached = prefs.getString(_kStoredTokenKey);
-      final cachedEmployee = prefs.getString(_kStoredEmployeeKey);
       print(
         '📦 PushNotificationService: Stored token=$cached cachedEmployee=$cachedEmployee',
       );
     }
+    debugPrint(
+      '📦 PushNotificationService: Stored token=$cached cachedEmployee=$cachedEmployee',
+    );
 
     final employeeId = _authService.currentEmployeeId;
     if (employeeId == null || employeeId.isEmpty) {
@@ -144,6 +147,7 @@ class PushNotificationService {
     if (kDebugMode) {
       print('🪪 PushNotificationService: Current FCM token $token');
     }
+    debugPrint('🪪 PushNotificationService: Current FCM token $token');
 
     final storedToken = prefs.getString(_kStoredTokenKey);
     final storedEmployeeId = prefs.getString(_kStoredEmployeeKey);
@@ -510,6 +514,7 @@ Future<String?> _getMessagingTokenThrottled() async {
       importance: Importance.high,
       priority: Priority.high,
       icon: _androidNotificationIcon,
+      largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
     );
 
     final iosDetails = DarwinNotificationDetails(

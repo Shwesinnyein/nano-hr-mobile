@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "794565998064",
+    "project_id": "nano-hr",
+    "storage_bucket": "nano-hr.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:794565998064:android:8294c9a8e777bedf12d935",
+        "android_client_info": {
+          "package_name": "com.nano.hr"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxfynMVt7qlX0Zjq2zdpNli-bH_CA63is"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

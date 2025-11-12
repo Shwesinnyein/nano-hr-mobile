@@ -1,4 +1,4 @@
-package com.example.nano_hr_mobile
+package com.nano.hr
 
 import io.flutter.embedding.android.FlutterActivity
 
