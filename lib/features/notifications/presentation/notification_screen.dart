@@ -651,62 +651,28 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Color _getNotificationColor(String type) {
-    // Use string matching for more flexibility
-    if (type.contains('approved') || type.contains('approve')) {
+    final lower = type.toLowerCase();
+    if (lower.contains('approved') || lower.contains('approve')) {
       return AppTheme.successColor;
     }
-    if (type.contains('rejected') || type.contains('reject')) {
+    if (lower.contains('rejected') || lower.contains('reject')) {
       return AppTheme.errorColor;
     }
-    
-    switch (type) {
-      case 'leave_request':
-      case 'pending':
-        return AppTheme.kNanoGold;
-      case 'leave_reminder':
-        return AppTheme.warningColor;
-      case 'policy':
-        return AppTheme.warningColor;
-      case 'system':
-        return AppTheme.errorColor;
-      case 'meeting':
-        return AppTheme.secondaryColor;
-      case 'payroll':
-        return AppTheme.successColor;
-      case 'celebration':
-        return const Color(0xFFE91E63);
-      default:
-        return AppTheme.primaryColor;
-    }
+
+    // Default color (calendar icon) for pending and all other types
+    return AppTheme.kNanoGold;
   }
 
   IconData _getNotificationIcon(String type) {
-    // Use string matching for more flexibility
-    if (type.contains('approved') || type.contains('approve')) {
+    final lower = type.toLowerCase();
+    if (lower.contains('approved') || lower.contains('approve')) {
       return Icons.check_circle;
     }
-    if (type.contains('rejected') || type.contains('reject')) {
+    if (lower.contains('rejected') || lower.contains('reject')) {
       return Icons.cancel;
     }
-    
-    switch (type) {
-      case 'leave_request':
-      case 'pending':
-        return Icons.calendar_today;
-      case 'leave_reminder':
-        return Icons.schedule;
-      case 'policy':
-        return Icons.policy;
-      case 'system':
-        return Icons.settings;
-      case 'meeting':
-        return Icons.meeting_room;
-      case 'payroll':
-        return Icons.account_balance_wallet;
-      case 'celebration':
-        return Icons.celebration;
-      default:
-        return Icons.notifications;
-    }
+
+    // Default icon for pending/other notifications
+    return Icons.calendar_today;
   }
 }
