@@ -74,9 +74,6 @@ class PushNotificationService {
 
       final permissionGranted = await _requestPermission();
       if (!permissionGranted) {
-        if (kDebugMode) {
-          print('⚠️ PushNotificationService: Notification permission denied');
-        }
         return;
       }
 
@@ -98,12 +95,6 @@ class PushNotificationService {
       sound: true,
     );
 
-    if (kDebugMode) {
-      print(
-        '🔔 PushNotificationService: Permission status ${settings.authorizationStatus}',
-      );
-    }
-
     return settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
   }
@@ -118,44 +109,20 @@ class PushNotificationService {
 
     final cached = prefs.getString(_kStoredTokenKey);
     final cachedEmployee = prefs.getString(_kStoredEmployeeKey);
-    if (kDebugMode) {
-      print(
-        '📦 PushNotificationService: Stored token=$cached cachedEmployee=$cachedEmployee',
-      );
-    }
-    debugPrint(
-      '📦 PushNotificationService: Stored token=$cached cachedEmployee=$cachedEmployee',
-    );
-
     final employeeId = _authService.currentEmployeeId;
     if (employeeId == null || employeeId.isEmpty) {
-      if (kDebugMode) {
-        print(
-          '⚠️ PushNotificationService: No employee ID, skipping token sync',
-        );
-      }
       return;
     }
 
     String? token = await _getMessagingTokenThrottled();
     if (token == null || token.isEmpty) {
-      if (kDebugMode) {
-        print('⚠️ PushNotificationService: Unable to retrieve FCM token');
-      }
       return;
     }
-    if (kDebugMode) {
-      print('🪪 PushNotificationService: Current FCM token $token');
-    }
-    debugPrint('🪪 PushNotificationService: Current FCM token $token');
 
     final storedToken = prefs.getString(_kStoredTokenKey);
     final storedEmployeeId = prefs.getString(_kStoredEmployeeKey);
 
     if (storedToken == token && storedEmployeeId == employeeId) {
-      if (kDebugMode) {
-        print('ℹ️ PushNotificationService: Token already registered, skipping');
-      }
       return;
     }
 
@@ -171,20 +138,9 @@ class PushNotificationService {
       if (response['success'] == true) {
         await prefs.setString(_kStoredTokenKey, token);
         await prefs.setString(_kStoredEmployeeKey, employeeId);
-        if (kDebugMode) {
-          print('✅ PushNotificationService: Device token registered');
-        }
-      } else {
-        if (kDebugMode) {
-          print(
-            '❌ PushNotificationService: Failed to register token: ${response['message']}',
-          );
-        }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ PushNotificationService: Error registering token: $e');
-      }
+      // Swallow errors; token will retry on next sync.
     }
   }
 
@@ -196,10 +152,6 @@ class PushNotificationService {
     _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen((
       String newToken,
     ) async {
-      if (kDebugMode) {
-        print('🔄 PushNotificationService: Token refreshed');
-      }
-
       _cachedToken = newToken;
       _lastTokenErrorAt = null;
 
@@ -221,18 +173,13 @@ class PushNotificationService {
           await prefs.setString(_kStoredEmployeeKey, employeeId);
         }
       } catch (e) {
-        if (kDebugMode) {
-          print('❌ PushNotificationService: Failed to refresh token: $e');
-        }
+        // Ignore; will attempt again later.
       }
     });
   }
 Future<String?> _getMessagingTokenThrottled() async {
   // ✅ 1. Use in-memory cache first
   if (_cachedToken != null && _cachedToken!.isNotEmpty) {
-    if (kDebugMode) {
-      print('ℹ️ PushNotificationService: Using cached FCM token (memory)');
-    }
     return _cachedToken;
   }
 
@@ -241,17 +188,11 @@ Future<String?> _getMessagingTokenThrottled() async {
   final savedToken = prefs.getString(_kStoredTokenKey);
   if (savedToken != null && savedToken.isNotEmpty) {
     _cachedToken = savedToken;
-    if (kDebugMode) {
-      print('ℹ️ PushNotificationService: Loaded FCM token from local storage');
-    }
     return _cachedToken;
   }
 
   // ✅ 3. Avoid overlapping token requests
   if (_tokenFetchFuture != null) {
-    if (kDebugMode) {
-      print('ℹ️ PushNotificationService: Token request already in progress');
-    }
     return _tokenFetchFuture!;
   }
 
@@ -259,12 +200,6 @@ Future<String?> _getMessagingTokenThrottled() async {
   const cooldownDuration = Duration(minutes: 5);
   if (_lastTokenErrorAt != null &&
       DateTime.now().difference(_lastTokenErrorAt!) < cooldownDuration) {
-    if (kDebugMode) {
-      print(
-        '⏱️ PushNotificationService: Cooling down for '
-        '${cooldownDuration.inMinutes} min after recent error',
-      );
-    }
     return null;
   }
 
@@ -273,16 +208,10 @@ Future<String?> _getMessagingTokenThrottled() async {
     _cachedToken = token;
     if (token != null && token.isNotEmpty) {
       await prefs.setString(_kStoredTokenKey, token);
-      if (kDebugMode) {
-        print('✅ PushNotificationService: New FCM token fetched and saved');
-      }
     }
     return token;
   }).catchError((Object error) {
     _lastTokenErrorAt = DateTime.now();
-    if (kDebugMode) {
-      print('❌ PushNotificationService: Failed to get FCM token: $error');
-    }
     return null;
   }).whenComplete(() {
     _tokenFetchFuture = null;
@@ -368,12 +297,6 @@ Future<String?> _getMessagingTokenThrottled() async {
     }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      if (kDebugMode) {
-        print(
-          '📩 PushNotificationService: Foreground message received: ${message.messageId}',
-        );
-      }
-
       final notification = message.notification;
       if (notification != null) {
         await _showForegroundNotification(notification, message.data);
@@ -383,9 +306,6 @@ Future<String?> _getMessagingTokenThrottled() async {
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      if (kDebugMode) {
-        print('📬 PushNotificationService: Notification opened');
-      }
       _ref.read(notificationProvider.notifier).refreshUnreadCount();
     });
   }
@@ -416,9 +336,7 @@ Future<String?> _getMessagingTokenThrottled() async {
         token: token,
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ PushNotificationService: Failed to unregister token: $e');
-      }
+      // Ignore cleanup failures.
     } finally {
       await prefs.remove(_kStoredTokenKey);
       await prefs.remove(_kStoredEmployeeKey);
@@ -482,11 +400,6 @@ Future<String?> _getMessagingTokenThrottled() async {
     await _localNotificationsPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        if (kDebugMode) {
-          print(
-            '🔔 PushNotificationService: Notification tapped with payload ${response.payload}',
-          );
-        }
         _ref.read(notificationProvider.notifier).refreshUnreadCount();
       },
     );

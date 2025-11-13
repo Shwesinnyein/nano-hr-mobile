@@ -2,7 +2,8 @@ class LeaveSetting {
   final String id;
   final String uid;
   final String leaveType;
-  final String leaveTypeEng;
+  final String leaveTypeName;
+  final String leaveTypeNameEng;
   final String maxDays;
   final String gender;
   final String description;
@@ -13,7 +14,8 @@ class LeaveSetting {
     required this.id,
     required this.uid,
     required this.leaveType,
-    required this.leaveTypeEng,
+    required this.leaveTypeName,
+    required this.leaveTypeNameEng,
     required this.maxDays,
     required this.gender,
     required this.description,
@@ -26,7 +28,9 @@ class LeaveSetting {
       id: json['id'] ?? '',
       uid: json['uid'] ?? '',
       leaveType: json['leaveType'] ?? '',
-      leaveTypeEng: json['leaveTypeEng'] ?? '',
+      leaveTypeName: json['leaveTypeName'] ?? '',
+      leaveTypeNameEng:
+          json['leaveTypeNameEng'] ?? json['leaveTypeEng'] ?? '',
       maxDays: json['maxDays'] ?? '0',
       gender: json['gender'] ?? 'All',
       description: json['description'] ?? '',
@@ -40,7 +44,8 @@ class LeaveSetting {
       'id': id,
       'uid': uid,
       'leaveType': leaveType,
-      'leaveTypeEng': leaveTypeEng,
+      'leaveTypeName': leaveTypeName,
+      'leaveTypeNameEng': leaveTypeNameEng,
       'maxDays': maxDays,
       'gender': gender,
       'description': description,
@@ -52,7 +57,8 @@ class LeaveSetting {
   // Helper getters
   int get maxDaysInt => int.tryParse(maxDays) ?? 0;
   bool get isAvailableForAll => gender == 'All';
-  String get displayName => leaveTypeEng.isNotEmpty ? leaveTypeEng : leaveType;
+  String get displayName =>
+      leaveTypeNameEng.isNotEmpty ? leaveTypeNameEng : leaveType;
 }
 
 class LeaveSettingsResponse {
@@ -183,7 +189,7 @@ class LeaveBalance {
 class LeaveTypeBalance {
   final String leaveTypeId;
   final String leaveTypeName;
-  final String? leaveTypeEng;
+  final String? leaveTypeNameEng;
   final int totalAllocated;
   final double used;
   final double remaining;
@@ -196,7 +202,7 @@ class LeaveTypeBalance {
   LeaveTypeBalance({
     required this.leaveTypeId,
     required this.leaveTypeName,
-    this.leaveTypeEng,
+    this.leaveTypeNameEng,
     required this.totalAllocated,
     required this.used,
     required this.remaining,
@@ -211,14 +217,15 @@ class LeaveTypeBalance {
     return LeaveTypeBalance(
       leaveTypeId: json['leaveTypeId'] ?? '',
       leaveTypeName: json['leaveTypeName'] ?? '',
-      leaveTypeEng: json['leaveTypeEng'],
+      leaveTypeNameEng:
+          json['leaveTypeNameEng'] ?? json['leaveTypeEng'],
       totalAllocated:
           int.tryParse(json['totalAllocated']?.toString() ?? '0') ?? 0,
-      used: (json['used'] is int) 
-          ? (json['used'] as int).toDouble() 
+      used: (json['used'] is int)
+          ? (json['used'] as int).toDouble()
           : (json['used'] as double? ?? 0.0),
-      remaining: (json['remaining'] is int) 
-          ? (json['remaining'] as int).toDouble() 
+      remaining: (json['remaining'] is int)
+          ? (json['remaining'] as int).toDouble()
           : (json['remaining'] as double? ?? 0.0),
       remainingHours: (json['remainingHours'] is int)
           ? (json['remainingHours'] as int).toDouble()
@@ -234,7 +241,7 @@ class LeaveTypeBalance {
     return LeaveTypeBalance(
       leaveTypeId: '',
       leaveTypeName: '',
-      leaveTypeEng: null,
+      leaveTypeNameEng: null,
       totalAllocated: 0,
       used: 0.0,
       remaining: 0.0,
@@ -249,8 +256,8 @@ class LeaveTypeBalance {
   // Helper method to get localized name
   // isThai: true = Thai, false = English
   String getLocalizedName(bool isThai) {
-    if (!isThai && leaveTypeEng != null && leaveTypeEng!.isNotEmpty) {
-      return leaveTypeEng!;
+    if (!isThai && leaveTypeNameEng != null && leaveTypeNameEng!.isNotEmpty) {
+      return leaveTypeNameEng!;
     }
     return leaveTypeName;
   }
@@ -259,7 +266,7 @@ class LeaveTypeBalance {
     return {
       'leaveTypeId': leaveTypeId,
       'leaveTypeName': leaveTypeName,
-      'leaveTypeEng': leaveTypeEng,
+      'leaveTypeNameEng': leaveTypeNameEng,
       'totalAllocated': totalAllocated,
       'used': used,
       'remaining': remaining,

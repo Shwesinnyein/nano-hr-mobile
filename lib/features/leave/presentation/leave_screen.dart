@@ -439,11 +439,13 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
           borderRadius: BorderRadius.circular(16),
           onTap: isAvailable
               ? () => _navigateToLeaveRequest(
-                  context,
-                  leaveTypeBalance.leaveTypeId,
-                  leaveTypeBalance.getLocalizedName(ref.watch(languageProvider)),
-                  leaveTypeBalance.totalAllocated,
-                )
+                    context,
+                    leaveTypeBalance.leaveTypeId,
+                    leaveTypeBalance.leaveTypeName,
+                    leaveTypeBalance.totalAllocated,
+                    leaveTypeNameEng: leaveTypeBalance.leaveTypeNameEng ??
+                        leaveTypeBalance.leaveTypeName,
+                  )
               : null,
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -492,37 +494,13 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} ${LeaveTranslations.days(ref)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.kOnSurface.withOpacity(0.8),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          if (leaveTypeBalance.percentageUsed > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.kNanoGold.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${leaveTypeBalance.percentageUsed}% ${LeaveTranslations.used(ref)}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.kNanoGold,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                        ],
+                      Text(
+                        '${leaveTypeBalance.used} / ${leaveTypeBalance.totalAllocated} ${LeaveTranslations.days(ref)}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.kOnSurface.withOpacity(0.8),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       // Progress bar
@@ -749,12 +727,22 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     BuildContext context,
     String leaveTypeId,
     String leaveTypeName,
-    int maxDays,
-  ) {
-    // Pass leave type ID, name, and max days as query parameters
-    context.push(
-      '/leave/request/$leaveTypeId?name=${Uri.encodeComponent(leaveTypeName)}&maxDays=$maxDays',
+    int maxDays, {
+    String? leaveTypeNameEng,
+  }) {
+    final buffer = StringBuffer(
+      '/leave/request/$leaveTypeId'
+      '?name=${Uri.encodeComponent(leaveTypeName)}'
+      '&maxDays=$maxDays',
     );
+
+    if (leaveTypeNameEng != null && leaveTypeNameEng.isNotEmpty) {
+      buffer.write(
+        '&engName=${Uri.encodeComponent(leaveTypeNameEng)}',
+      );
+    }
+
+    context.push(buffer.toString());
   }
 
   void _navigateToLeaveList(BuildContext context) {

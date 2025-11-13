@@ -18,12 +18,14 @@ class LeaveRequestScreen extends ConsumerStatefulWidget {
   final String leaveType;
   final String leaveTypeName;
   final int maxDays;
+  final String leaveTypeNameEng;
 
   const LeaveRequestScreen({
     super.key,
     required this.leaveType,
     this.leaveTypeName = '',
     this.maxDays = 0,
+    this.leaveTypeNameEng = '',
   });
 
   @override
@@ -1256,6 +1258,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             : _getLeaveTypeName(
                 widget.leaveType,
               ), // Use provided name or fallback
+        'leaveTypeNameEng': widget.leaveTypeNameEng.isNotEmpty
+            ? widget.leaveTypeNameEng
+            : _getLeaveTypeName(widget.leaveType),
         'requestType': _durationType, // Use 'daily' or 'hourly'
         'reason': _reason.text.trim(),
         'isHalfDay': false,
@@ -1499,6 +1504,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return 'Leave of absence (paid)';
     }
   }
+
 
   IconData _getLeaveTypeIcon(String type) {
     switch (type) {
