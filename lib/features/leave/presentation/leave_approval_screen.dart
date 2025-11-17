@@ -117,14 +117,16 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   }
 
   // Load employee leaves based on user role
-  Future<void> _loadEmployeeLeaves() async {
+  Future<void> _loadEmployeeLeaves({bool silent = false}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) return;
 
-    setState(() {
-      _loadingEmployeeLeaves = true;
-    });
+    if (!silent) {
+      setState(() {
+        _loadingEmployeeLeaves = true;
+      });
+    }
 
     try {
       final leaveService = LeaveService();
@@ -175,11 +177,15 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       // The API already provides employee details, no need to enhance
       setState(() {
         _employeeLeaves = allEmployeeLeaves;
-        _loadingEmployeeLeaves = false;
+        if (!silent) {
+          _loadingEmployeeLeaves = false;
+        }
       });
     } catch (e) {
       setState(() {
-        _loadingEmployeeLeaves = false;
+        if (!silent) {
+          _loadingEmployeeLeaves = false;
+        }
       });
       print('Error loading employee leaves: $e');
     }
@@ -244,7 +250,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     );
   }
 
-  Future<void> _loadAllLeaveRequests() async {
+  Future<void> _loadAllLeaveRequests({bool silent = false}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) {
@@ -255,10 +261,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final userLevel = _getUserLevel(auth);
@@ -306,11 +314,15 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       setState(() {
         _pending = pendingList;
-        _loading = false;
+        if (!silent) {
+          _loading = false;
+        }
       });
     } catch (e) {
       setState(() {
-        _loading = false;
+        if (!silent) {
+          _loading = false;
+        }
         _error = 'Failed to load leave requests: $e';
       });
     }
@@ -1497,152 +1509,80 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       final details = await service.getLeaveDetails(leaveId);
       detailsStopwatch.stop();
 
-    if (details['success'] == true) {
-      final currentStatus =
-          details['leaveRequest']?['status'] ??
-          details['data']?['status'] ??
-          details['status'];
+      if (details['success'] == true) {
+        final currentStatus =
+            details['leaveRequest']?['status'] ??
+            details['data']?['status'] ??
+            details['status'];
 
-      final userLevel = _getUserLevel(auth);
-      final statusLower = currentStatus?.toString().toLowerCase() ?? '';
+        final userLevel = _getUserLevel(auth);
+        final statusLower = currentStatus?.toString().toLowerCase() ?? '';
 
-      // Check if user can act on this status (same logic as action button visibility)
-      final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
-      final isApprovedByManager =
-          statusLower == 'approved_manager' ||
-          statusLower == 'approved_by_manager' ||
-          (statusLower.contains('approved') && statusLower.contains('manager'));
-      final isApprovedByTeamLead =
-          statusLower == 'approved_team_lead' ||
-          statusLower == 'approved_by_team_lead' ||
-          (statusLower.contains('approved') &&
-              statusLower.contains('team_lead'));
-      final isApprovedByHR =
-          statusLower == 'approved_hr' ||
-          statusLower == 'approved_by_hr' ||
-          (statusLower.contains('approved') && statusLower.contains('hr'));
+        // Check if user can act on this status (same logic as action button visibility)
+        final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
+        final isApprovedByManager =
+            statusLower == 'approved_manager' ||
+            statusLower == 'approved_by_manager' ||
+            (statusLower.contains('approved') && statusLower.contains('manager'));
+        final isApprovedByTeamLead =
+            statusLower == 'approved_team_lead' ||
+            statusLower == 'approved_by_team_lead' ||
+            (statusLower.contains('approved') &&
+                statusLower.contains('team_lead'));
+        final isApprovedByHR =
+            statusLower == 'approved_hr' ||
+            statusLower == 'approved_by_hr' ||
+            (statusLower.contains('approved') && statusLower.contains('hr'));
 
-      final canAct = userLevel == 'hr'
-          ? (isPendingOrSent ||
-                isApprovedByManager ||
-                isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
-          : userLevel == 'approver'
-          ? (isPendingOrSent ||
-                isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
-          : isPendingOrSent; // Managers can only act on pending/sent
+        final canAct = userLevel == 'hr'
+            ? (isPendingOrSent ||
+                  isApprovedByManager ||
+                  isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
+            : userLevel == 'approver'
+            ? (isPendingOrSent ||
+                  isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+            : isPendingOrSent; // Managers can only act on pending/sent
 
-      if (currentStatus != null && !canAct) {
-        // Close loading dialog
-        if (mounted) Navigator.of(context).pop();
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'This request is already $currentStatus. Refreshing list.',
-            ),
-            backgroundColor: AppTheme.warningColor,
-          ),
-        );
-        await _loadAllLeaveRequests();
-        return;
-      }
-    }
-
-    final approvalStopwatch = Stopwatch()..start();
-    final status = approve ? 'approved' : 'rejected';
-    final userRole = _getUserLevel(auth);
-    final res = await service.updateLeaveStatus(
-      leaveId: leaveId,
-      status: status,
-      approverId: approverId,
-      userRole: userRole,
-      note: note,
-    );
-    approvalStopwatch.stop();
-
-    if (res['success'] == true) {
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      // Store the processed request in local cache
-      final leaveId =
-          notification.data['leaveRequestId'] ??
-          notification.data['leaveId'] ??
-          notification.data['id'] ??
-          '';
-
-      if (leaveId.isNotEmpty) {
-        final processedRequest = Map<String, dynamic>.from(notification.data);
-        processedRequest['status'] = approve ? 'approved' : 'rejected';
-        processedRequest['approvedBy'] = approve ? approverId : null;
-        processedRequest['rejectedBy'] = !approve ? approverId : null;
-        processedRequest['updatedAt'] = DateTime.now().toIso8601String();
-
-        _processedRequests[leaveId] = processedRequest;
-      }
-
-      final refreshStopwatch = Stopwatch()..start();
-      LeaveController.clearAllCache();
-      // Refresh the leave controller data
-      ref.invalidate(leaveControllerProvider(approverId));
-
-      // Refresh both pending requests and employee leaves
-      await _loadAllLeaveRequests();
-      await _loadEmployeeLeaves();
-      refreshStopwatch.stop();
-
-      totalStopwatch.stop();
-
-      // Show success alert dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            icon: Icon(
-              Icons.check_circle,
-              color: AppTheme.successColor,
-              size: 48,
-            ),
-            title: Text(
-              approve ? 'Approved!' : 'Rejected!',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.kOnSurface,
+        if (currentStatus != null && !canAct) {
+          // Close loading dialog
+          if (mounted) Navigator.of(context).pop();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'This request is already $currentStatus. Refreshing list.',
               ),
+              backgroundColor: AppTheme.warningColor,
             ),
-            content: Text(
-              approve
-                  ? 'Leave request approved successfully!'
-                  : 'Leave request rejected.',
-              style: TextStyle(color: AppTheme.kOnSurface),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'OK',
-                  style: TextStyle(color: AppTheme.kNanoGold),
-                ),
-              ),
-            ],
-          ),
-        );
+          );
+          await _loadAllLeaveRequests(silent: true);
+          return;
+        }
       }
-    } else {
-      // Fallback: try the alternate endpoint once
-      final alt = await service.approveOrRejectLeave(
+
+      final approvalStopwatch = Stopwatch()..start();
+      final status = approve ? 'approved' : 'rejected';
+      final userRole = _getUserLevel(auth);
+      final res = await service.updateLeaveStatus(
         leaveId: leaveId,
-        action: approve ? 'approve' : 'reject',
+        status: status,
         approverId: approverId,
         userRole: userRole,
         note: note,
       );
-      
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-      
-      if (alt['success'] == true) {
+      approvalStopwatch.stop();
+
+      if (res['success'] == true) {
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
         // Store the processed request in local cache
+        final leaveId =
+            notification.data['leaveRequestId'] ??
+            notification.data['leaveId'] ??
+            notification.data['id'] ??
+            '';
+
         if (leaveId.isNotEmpty) {
           final processedRequest = Map<String, dynamic>.from(notification.data);
           processedRequest['status'] = approve ? 'approved' : 'rejected';
@@ -1653,8 +1593,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           _processedRequests[leaveId] = processedRequest;
         }
 
-        await _loadAllLeaveRequests();
-        await _loadEmployeeLeaves();
+        final refreshStopwatch = Stopwatch()..start();
+        LeaveController.clearAllCache();
+        // Refresh the leave controller data
+        ref.invalidate(leaveControllerProvider(approverId));
+
+        // Refresh both pending requests and employee leaves (silent - no loading indicator)
+        await _loadAllLeaveRequests(silent: true);
+        await _loadEmployeeLeaves(silent: true);
+        refreshStopwatch.stop();
+
+        totalStopwatch.stop();
 
         // Show success alert dialog
         if (mounted) {
@@ -1692,38 +1641,102 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           );
         }
       } else {
-        // Show error alert dialog
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              icon: Icon(
-                Icons.error,
-                color: AppTheme.errorColor,
-                size: 48,
-              ),
-              title: Text(
-                'Error',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.kOnSurface,
+        // Fallback: try the alternate endpoint once
+        final alt = await service.approveOrRejectLeave(
+          leaveId: leaveId,
+          action: approve ? 'approve' : 'reject',
+          approverId: approverId,
+          userRole: userRole,
+          note: note,
+        );
+        
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+        
+        if (alt['success'] == true) {
+          // Store the processed request in local cache
+          if (leaveId.isNotEmpty) {
+            final processedRequest = Map<String, dynamic>.from(notification.data);
+            processedRequest['status'] = approve ? 'approved' : 'rejected';
+            processedRequest['approvedBy'] = approve ? approverId : null;
+            processedRequest['rejectedBy'] = !approve ? approverId : null;
+            processedRequest['updatedAt'] = DateTime.now().toIso8601String();
+
+            _processedRequests[leaveId] = processedRequest;
+          }
+
+          await _loadAllLeaveRequests(silent: true);
+          await _loadEmployeeLeaves(silent: true);
+
+          // Show success alert dialog
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                icon: Icon(
+                  Icons.check_circle,
+                  color: AppTheme.successColor,
+                  size: 48,
                 ),
-              ),
-              content: Text(
-                alt['message'] ?? res['message'] ?? 'Failed to update leave',
-                style: TextStyle(color: AppTheme.kOnSurface),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'OK',
-                    style: TextStyle(color: AppTheme.kNanoGold),
+                title: Text(
+                  approve ? 'Approved!' : 'Rejected!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.kOnSurface,
                   ),
                 ),
-              ],
-            ),
-          );
+                content: Text(
+                  approve
+                      ? 'Leave request approved successfully!'
+                      : 'Leave request rejected.',
+                  style: TextStyle(color: AppTheme.kOnSurface),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(color: AppTheme.kNanoGold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+        } else {
+          // Show error alert dialog
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                icon: Icon(
+                  Icons.error,
+                  color: AppTheme.errorColor,
+                  size: 48,
+                ),
+                title: Text(
+                  'Error',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.kOnSurface,
+                  ),
+                ),
+                content: Text(
+                  alt['message'] ?? res['message'] ?? 'Failed to update leave',
+                  style: TextStyle(color: AppTheme.kOnSurface),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(color: AppTheme.kNanoGold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
         }
       }
     } catch (e) {
