@@ -80,14 +80,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (context, state) async {
-      // Redirect from splash to employee login
-      if (state.matchedLocation == '/splash') return '/login';
-
       // Check authentication for protected routes using AuthRepository
       final authState = ref.read(auth_repo.authStateProvider);
+      
+      // Handle splash screen - wait for auth state to resolve
+      if (state.matchedLocation == '/splash') {
+        return authState.when(
+          data: (loggedIn) => loggedIn ? '/attendance' : '/login',
+          loading: () => null, // Stay on splash while loading
+          error: (_, __) => '/login',
+        );
+      }
+
       final isAuthenticated = authState.when(
         data: (loggedIn) => loggedIn,
-        loading: () => false,
+        loading: () => false, // While loading, treat as not authenticated for protected routes
         error: (_, __) => false,
       );
 

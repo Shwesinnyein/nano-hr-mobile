@@ -117,12 +117,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   }
 
   // Load employee leaves based on user role
-  Future<void> _loadEmployeeLeaves({bool silent = false}) async {
+  Future<void> _loadEmployeeLeaves({bool showLoading = true}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) return;
 
-    if (!silent) {
+    if (showLoading) {
       setState(() {
         _loadingEmployeeLeaves = true;
       });
@@ -177,15 +177,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       // The API already provides employee details, no need to enhance
       setState(() {
         _employeeLeaves = allEmployeeLeaves;
-        if (!silent) {
-          _loadingEmployeeLeaves = false;
-        }
+        _loadingEmployeeLeaves = false;
       });
     } catch (e) {
       setState(() {
-        if (!silent) {
-          _loadingEmployeeLeaves = false;
-        }
+        _loadingEmployeeLeaves = false;
       });
       print('Error loading employee leaves: $e');
     }
@@ -250,7 +246,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     );
   }
 
-  Future<void> _loadAllLeaveRequests({bool silent = false}) async {
+  Future<void> _loadAllLeaveRequests({bool showLoading = true}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) {
@@ -261,7 +257,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    if (!silent) {
+    if (showLoading) {
       setState(() {
         _loading = true;
         _error = null;
@@ -314,15 +310,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       setState(() {
         _pending = pendingList;
-        if (!silent) {
-          _loading = false;
-        }
+        _loading = false;
       });
     } catch (e) {
       setState(() {
-        if (!silent) {
-          _loading = false;
-        }
+        _loading = false;
         _error = 'Failed to load leave requests: $e';
       });
     }
@@ -1474,32 +1466,48 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
     // Show loading dialog immediately
     if (!mounted) return;
+    String loadingText = 'Saving...';
+    StateSetter? setDialogState;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => WillPopScope(
+      builder: (dialogContext) => WillPopScope(
         onWillPop: () async => false,
-        child: AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            setDialogState = setState;
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    loadingText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.kOnSurface,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Saving...',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.kOnSurface,
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
+    
+    // Helper function to update loading dialog text
+    void updateLoadingText(String text) {
+      if (mounted && setDialogState != null) {
+        loadingText = text;
+        setDialogState!(() {});
+      }
+    }
 
     try {
       final totalStopwatch = Stopwatch()..start();
@@ -1555,7 +1563,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
               backgroundColor: AppTheme.warningColor,
             ),
           );
-          await _loadAllLeaveRequests(silent: true);
+          await _loadAllLeaveRequests();
           return;
         }
       }
@@ -1573,9 +1581,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       approvalStopwatch.stop();
 
       if (res['success'] == true) {
-        // Close loading dialog
-        if (mounted) Navigator.of(context).pop();
-
         // Store the processed request in local cache
         final leaveId =
             notification.data['leaveRequestId'] ??
@@ -1593,17 +1598,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           _processedRequests[leaveId] = processedRequest;
         }
 
-        final refreshStopwatch = Stopwatch()..start();
-        LeaveController.clearAllCache();
-        // Refresh the leave controller data
-        ref.invalidate(leaveControllerProvider(approverId));
-
-        // Refresh both pending requests and employee leaves (silent - no loading indicator)
-        await _loadAllLeaveRequests(silent: true);
-        await _loadEmployeeLeaves(silent: true);
-        refreshStopwatch.stop();
-
         totalStopwatch.stop();
+
+        // Close loading dialog immediately after saving
+        if (mounted) Navigator.of(context).pop();
 
         // Show success alert dialog
         if (mounted) {
@@ -1640,6 +1638,12 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             ),
           );
         }
+        
+        // Refresh data in the background (after showing success dialog)
+        LeaveController.clearAllCache();
+        ref.invalidate(leaveControllerProvider(approverId));
+        _loadAllLeaveRequests(showLoading: false);
+        _loadEmployeeLeaves(showLoading: false);
       } else {
         // Fallback: try the alternate endpoint once
         final alt = await service.approveOrRejectLeave(
@@ -1649,9 +1653,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           userRole: userRole,
           note: note,
         );
-        
-        // Close loading dialog
-        if (mounted) Navigator.of(context).pop();
         
         if (alt['success'] == true) {
           // Store the processed request in local cache
@@ -1665,8 +1666,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             _processedRequests[leaveId] = processedRequest;
           }
 
-          await _loadAllLeaveRequests(silent: true);
-          await _loadEmployeeLeaves(silent: true);
+          // Close loading dialog immediately after saving
+          if (mounted) Navigator.of(context).pop();
 
           // Show success alert dialog
           if (mounted) {
@@ -1699,11 +1700,20 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                       style: TextStyle(color: AppTheme.kNanoGold),
                     ),
                   ),
-                ],
-              ),
-            );
-          }
+              ],
+            ),
+          );
+        }
+        
+        // Refresh data in the background (after showing success dialog)
+        LeaveController.clearAllCache();
+        ref.invalidate(leaveControllerProvider(approverId));
+        _loadAllLeaveRequests(showLoading: false);
+        _loadEmployeeLeaves(showLoading: false);
         } else {
+          // Close loading dialog
+          if (mounted) Navigator.of(context).pop();
+          
           // Show error alert dialog
           if (mounted) {
             showDialog(
