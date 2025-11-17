@@ -1446,8 +1446,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     bool approve,
     String note,
   ) async {
-    final totalStopwatch = Stopwatch()..start();
-
     final auth = ref.read(authServiceProvider);
     final approverId = auth.currentEmployeeId;
     if (approverId == null) return;
@@ -1462,11 +1460,42 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    final service = LeaveService();
+    // Show loading dialog immediately
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Saving...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.kOnSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
-    final detailsStopwatch = Stopwatch()..start();
-    final details = await service.getLeaveDetails(leaveId);
-    detailsStopwatch.stop();
+    try {
+      final totalStopwatch = Stopwatch()..start();
+      final service = LeaveService();
+
+      final detailsStopwatch = Stopwatch()..start();
+      final details = await service.getLeaveDetails(leaveId);
+      detailsStopwatch.stop();
 
     if (details['success'] == true) {
       final currentStatus =
@@ -1503,6 +1532,9 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           : isPendingOrSent; // Managers can only act on pending/sent
 
       if (currentStatus != null && !canAct) {
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1529,11 +1561,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     approvalStopwatch.stop();
 
     if (res['success'] == true) {
-      _showSuccessMessage(
-        approve
-            ? 'Leave request approved successfully!'
-            : 'Leave request rejected.',
-      );
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
 
       // Store the processed request in local cache
       final leaveId =
@@ -1563,6 +1592,42 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       refreshStopwatch.stop();
 
       totalStopwatch.stop();
+
+      // Show success alert dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            icon: Icon(
+              Icons.check_circle,
+              color: AppTheme.successColor,
+              size: 48,
+            ),
+            title: Text(
+              approve ? 'Approved!' : 'Rejected!',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.kOnSurface,
+              ),
+            ),
+            content: Text(
+              approve
+                  ? 'Leave request approved successfully!'
+                  : 'Leave request rejected.',
+              style: TextStyle(color: AppTheme.kOnSurface),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'OK',
+                  style: TextStyle(color: AppTheme.kNanoGold),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
     } else {
       // Fallback: try the alternate endpoint once
       final alt = await service.approveOrRejectLeave(
@@ -1572,13 +1637,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         userRole: userRole,
         note: note,
       );
+      
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
       if (alt['success'] == true) {
-        _showSuccessMessage(
-          approve
-              ? 'Leave request approved successfully!'
-              : 'Leave request rejected.',
-        );
-
         // Store the processed request in local cache
         if (leaveId.isNotEmpty) {
           final processedRequest = Map<String, dynamic>.from(notification.data);
@@ -1592,13 +1655,111 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
         await _loadAllLeaveRequests();
         await _loadEmployeeLeaves();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              alt['message'] ?? res['message'] ?? 'Failed to update leave',
+
+        // Show success alert dialog
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              icon: Icon(
+                Icons.check_circle,
+                color: AppTheme.successColor,
+                size: 48,
+              ),
+              title: Text(
+                approve ? 'Approved!' : 'Rejected!',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.kOnSurface,
+                ),
+              ),
+              content: Text(
+                approve
+                    ? 'Leave request approved successfully!'
+                    : 'Leave request rejected.',
+                style: TextStyle(color: AppTheme.kOnSurface),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'OK',
+                    style: TextStyle(color: AppTheme.kNanoGold),
+                  ),
+                ),
+              ],
             ),
-            backgroundColor: AppTheme.errorColor,
+          );
+        }
+      } else {
+        // Show error alert dialog
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              icon: Icon(
+                Icons.error,
+                color: AppTheme.errorColor,
+                size: 48,
+              ),
+              title: Text(
+                'Error',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.kOnSurface,
+                ),
+              ),
+              content: Text(
+                alt['message'] ?? res['message'] ?? 'Failed to update leave',
+                style: TextStyle(color: AppTheme.kOnSurface),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'OK',
+                    style: TextStyle(color: AppTheme.kNanoGold),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog on error
+      if (mounted) Navigator.of(context).pop();
+      
+      // Show error alert dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            icon: Icon(
+              Icons.error,
+              color: AppTheme.errorColor,
+              size: 48,
+            ),
+            title: Text(
+              'Error',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.kOnSurface,
+              ),
+            ),
+            content: Text(
+              'An error occurred: ${e.toString()}',
+              style: TextStyle(color: AppTheme.kOnSurface),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'OK',
+                  style: TextStyle(color: AppTheme.kNanoGold),
+                ),
+              ),
+            ],
           ),
         );
       }
