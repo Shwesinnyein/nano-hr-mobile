@@ -317,6 +317,66 @@ class ApiService {
     }
   }
 
+  // Change password
+  Future<Map<String, dynamic>> changePassword({
+    required String employeeId,
+    required String currentPassword,
+    required String newPassword,
+    required String confirmNewPassword,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.changePassword,
+        data: {
+          'employeeId': employeeId,
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+          'confirmNewPassword': confirmNewPassword,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // ✅ Ensure response.data is always a Map
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else {
+          return {
+            'success': false,
+            'message': 'Invalid response format',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Password change failed: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // ✅ Ensure response.data is always a Map, not a String
+        final responseData = e.response!.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else if (responseData is String) {
+          return {
+            'success': false,
+            'message': responseData,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'Password change failed: ${e.response!.statusCode}',
+          };
+        }
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   // Get employee profile
   Future<Map<String, dynamic>> getEmployeeProfile({
     required String employeeId,

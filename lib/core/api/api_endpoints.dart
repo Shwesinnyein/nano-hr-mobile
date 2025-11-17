@@ -6,6 +6,7 @@ class ApiEndpoints {
   static const String loginUserMobile = '/auth/mobile-login';
   static const String registerUser = '/auth/register-user';
   static const String checkEmailExists = '/auth/check-email';
+  static const String changePassword = '/auth/change-password';
 
   // Attendance endpoints
   static const String checkInOut = '/attendance/check-in-out';

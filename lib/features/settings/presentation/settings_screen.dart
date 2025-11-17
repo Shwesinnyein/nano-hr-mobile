@@ -7,6 +7,7 @@ import '../../employee/presentation/employee_list_screen.dart';
 import '../../attendance/presentation/employee_attendance_history_screen.dart';
 import '../../attendance/presentation/attendance_history_screen.dart';
 import '../../auth/data/auth_repository.dart' as auth;
+import 'change_password_screen.dart';
 import '../../../core/providers/language_provider.dart';
 import '../../../core/utils/translation_helper.dart';
 import '../../../core/constants/app_constants.dart';
@@ -171,6 +172,18 @@ class SettingsScreen extends ConsumerWidget {
                 Icons.support_agent,
                 () =>
                     _showComingSoon(context, ref.t('ติดต่อ IT', 'Contact IT')),
+              ),
+            ]),
+            const SizedBox(height: 24),
+            _buildSettingsSection(ref.t('บัญชี', 'Account'), [
+              _buildSettingsItem(
+                ref.t('เปลี่ยนรหัสผ่าน', 'Change Password'),
+                ref.t(
+                  'เปลี่ยนรหัสผ่านของคุณ',
+                  'Change your password',
+                ),
+                Icons.lock,
+                () => _navigateToChangePassword(context),
               ),
             ]),
             const SizedBox(height: 24),
@@ -733,6 +746,15 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AttendanceHistoryScreen()),
+    );
+  }
+
+  void _navigateToChangePassword(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ChangePasswordScreen(),
+      ),
     );
   }
 
