@@ -10,12 +10,36 @@ import '../../auth/data/auth_repository.dart' as auth;
 import '../../../core/providers/language_provider.dart';
 import '../../../core/utils/translation_helper.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/auth_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
+  // Check if user is HR or approver
+  bool _isHROrApprover(AuthService auth) {
+    final position = auth.currentPositionName ?? '';
+    final positionLower = position.toLowerCase();
+    
+    // Check if user is HR
+    if (positionLower.contains('hr') ||
+        positionLower.contains('human resource')) {
+      return true;
+    }
+    
+    // Check if user is an approver
+    if (positionLower.contains('approver') ||
+        positionLower.contains('management')) {
+      return true;
+    }
+    
+    return false;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authService = ref.watch(authServiceProvider);
+    final isHROrApprover = _isHROrApprover(authService);
+    
     return Scaffold(
       backgroundColor: AppTheme.kBackground,
       appBar: AppBar(
@@ -87,18 +111,20 @@ class SettingsScreen extends ConsumerWidget {
                 Icons.history,
                 () => _navigateToAttendanceHistory(context),
               ),
-              _buildSettingsItem(
-                ref.t(
-                  'ประวัติการเข้างานของพนักงาน',
-                  'Attendance History by Employee',
+              // Only show "Attendance History by Employee" for HR and approvers
+              if (isHROrApprover)
+                _buildSettingsItem(
+                  ref.t(
+                    'ประวัติการเข้างานของพนักงาน',
+                    'Attendance History by Employee',
+                  ),
+                  ref.t(
+                    'ดูประวัติการเข้างานของพนักงานทั้งหมด',
+                    'View attendance records for all employees',
+                  ),
+                  Icons.people_alt,
+                  () => _navigateToEmployeeAttendanceHistory(context),
                 ),
-                ref.t(
-                  'ดูประวัติการเข้างานของพนักงานทั้งหมด',
-                  'View attendance records for all employees',
-                ),
-                Icons.people_alt,
-                () => _navigateToEmployeeAttendanceHistory(context),
-              ),
               // _buildSettingsItem(
               //   ref.t('ติดตามเวลา', 'Time Tracking'),
               //   ref.t('เช็คอิน/เช็คเอาท์และเวลาพัก', 'Check in/out and break times'),
