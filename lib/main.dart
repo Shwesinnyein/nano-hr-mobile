@@ -26,7 +26,12 @@ Future<void> _ensureBackgroundNotificationsInitialized() async {
   if (_backgroundNotificationsInitialized) return;
 
   const androidInit = AndroidInitializationSettings('@drawable/nano_notification');
-  const iosInit = DarwinInitializationSettings();
+  // ✅ Request iOS permissions for local notifications (needed for foreground notifications)
+  const iosInit = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
 
   await _backgroundNotificationsPlugin.initialize(
     const InitializationSettings(
@@ -102,6 +107,9 @@ void main() async {
           badge: true,
           sound: true,
         );
+
+    // ✅ Note: Foreground message handling is done by PushNotificationService
+    // No need to set up listener here to avoid duplicate notifications
   } catch (e) {
     // In release mode, we need to handle errors gracefully
     debugPrint('❌ Firebase initialization error: $e');

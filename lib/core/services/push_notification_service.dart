@@ -30,6 +30,8 @@ class PushNotificationService {
   Future<String?>? _tokenFetchFuture;
   DateTime? _lastTokenErrorAt;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
   bool _initialized = false;
   Future<void>? _initializing;
   bool _localNotificationsInitialized = false;
@@ -80,7 +82,17 @@ class PushNotificationService {
       // ✅ Force re-register token on app reopen to ensure backend knows it's still active
       await _syncTokenWithBackend(forceReRegister: true);
       _listenForTokenRefresh();
-      await _initializeLocalNotifications();
+      
+      // Initialize local notifications BEFORE setting up listeners
+      // This ensures notifications can be shown immediately when messages arrive
+      try {
+        await _initializeLocalNotifications();
+        debugPrint('✅ Local notifications initialized successfully');
+      } catch (e) {
+        debugPrint('⚠️ Local notifications initialization failed, will retry when needed: $e');
+      }
+      
+      // Set up foreground message listener AFTER local notifications are initialized
       _listenForForegroundMessages();
 
       _initialized = true;
@@ -334,58 +346,120 @@ Future<String?> _getMessagingTokenThrottled() async {
   }
 void _listenForForegroundMessages() {
   if (!kPushNotificationsEnabled) {
+    debugPrint('⚠️ Push notifications are disabled');
     return;
   }
 
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    // ✅ Add debug logs
-    debugPrint('📩 Foreground message: ${message.messageId}');
-    debugPrint('📩 Has notification: ${message.notification != null}');
-    if (message.data.isNotEmpty) {
-      debugPrint('📩 Payload: ${message.data}');
-    }
+  // Cancel existing subscriptions if any
+  _foregroundMessageSubscription?.cancel();
+  _messageOpenedSubscription?.cancel();
 
+  debugPrint('🔔 Setting up foreground message listener...');
+  
+  _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    // ✅ Comprehensive debug logs
+    debugPrint('═══════════════════════════════════════');
+    debugPrint('📩 FOREGROUND MESSAGE RECEIVED');
+    debugPrint('📩 Message ID: ${message.messageId}');
+    debugPrint('📩 Has notification block: ${message.notification != null}');
+    debugPrint('📩 Data payload: ${message.data}');
+    debugPrint('📩 Local notifications initialized: $_localNotificationsInitialized');
+    
+    // Check permission status
+    final settings = await _messaging.getNotificationSettings();
+    debugPrint('📩 Notification permission: ${settings.authorizationStatus}');
+    debugPrint('═══════════════════════════════════════');
+
+    // ✅ On iOS, notifications are automatically shown by the system when 
+    // setForegroundNotificationPresentationOptions has alert: true
+    // So we only need to manually show on Android
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+    
     RemoteNotification? notification = message.notification;
     
     // ✅ Handle notification block (preferred)
     if (notification != null) {
-      debugPrint('📩 Using notification block: ${notification.title} - ${notification.body}');
-      try {
-        await _showForegroundNotification(notification, message.data);
-        debugPrint('✅ Foreground notification shown');
-      } catch (e) {
-        debugPrint('❌ Failed to show foreground notification: $e');
+      debugPrint('📩 Using notification block:');
+      debugPrint('   Title: ${notification.title}');
+      debugPrint('   Body: ${notification.body}');
+      
+      // Only show manually on Android (iOS shows automatically)
+      if (!isIOS) {
+        try {
+          await _showForegroundNotification(notification, message.data);
+          debugPrint('✅ Foreground notification displayed successfully');
+        } catch (e, stackTrace) {
+          debugPrint('❌ Failed to show foreground notification: $e');
+          debugPrint('❌ Stack trace: $stackTrace');
+        }
+      } else {
+        debugPrint('ℹ️ iOS will show notification automatically, skipping manual display');
       }
     } 
     // ✅ FALLBACK: Handle data-only payload
     else if (message.data.isNotEmpty) {
-      final title = message.data['title']?.toString() ?? 'NANO Work';
-      final body = message.data['body']?.toString() ?? message.data['message']?.toString() ?? 'New notification';
-      debugPrint('📩 Building notification from data: $title - $body');
+      // Try multiple possible keys for title and body
+      final title = message.data['title']?.toString() ?? 
+                   message.data['notification']?['title']?.toString() ?? 
+                   message.data['aps']?['alert']?['title']?.toString() ??
+                   'NANO Work';
+      final body = message.data['body']?.toString() ?? 
+                  message.data['message']?.toString() ?? 
+                  message.data['notification']?['body']?.toString() ?? 
+                  message.data['aps']?['alert']?['body']?.toString() ??
+                  'New notification';
       
-      final dataNotification = RemoteNotification(
-        title: title,
-        body: body,
-        android: null,
-        apple: null,
-      );
+      debugPrint('📩 Building notification from data payload:');
+      debugPrint('   Title: $title');
+      debugPrint('   Body: $body');
       
-      try {
-        await _showForegroundNotification(dataNotification, message.data);
-        debugPrint('✅ Foreground notification shown from data');
-      } catch (e) {
-        debugPrint('❌ Failed to show foreground notification: $e');
+      // Only show notification if we have meaningful content
+      if (title != 'NANO Work' || body != 'New notification') {
+        final dataNotification = RemoteNotification(
+          title: title,
+          body: body,
+          android: null,
+          apple: null,
+        );
+        
+        // Only show manually on Android (iOS shows automatically)
+        if (!isIOS) {
+          try {
+            await _showForegroundNotification(dataNotification, message.data);
+            debugPrint('✅ Foreground notification displayed from data');
+          } catch (e, stackTrace) {
+            debugPrint('❌ Failed to show foreground notification: $e');
+            debugPrint('❌ Stack trace: $stackTrace');
+          }
+        } else {
+          debugPrint('ℹ️ iOS will show notification automatically, skipping manual display');
+        }
+      } else {
+        debugPrint('⚠️ Data payload exists but no title/body found to display');
       }
     } else {
       debugPrint('⚠️ Foreground message received but no notification or data to display');
+      debugPrint('⚠️ Message structure: ${message.toString()}');
     }
 
-    _ref.read(notificationProvider.notifier).refreshUnreadCount();
+    // Always refresh unread count when a message is received
+    try {
+      _ref.read(notificationProvider.notifier).refreshUnreadCount();
+    } catch (e) {
+      debugPrint('⚠️ Failed to refresh unread count: $e');
+    }
+  }, onError: (error) {
+    debugPrint('❌ Error in foreground message listener: $error');
   });
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+  _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    debugPrint('📬 Notification opened from background/terminated state');
     _ref.read(notificationProvider.notifier).refreshUnreadCount();
+  }, onError: (error) {
+    debugPrint('❌ Error in message opened listener: $error');
   });
+
+  debugPrint('✅ Foreground message listeners set up successfully');
 }
   Future<void> unregisterDeviceToken() async {
     if (!kPushNotificationsEnabled) {
@@ -432,6 +506,10 @@ void _listenForForegroundMessages() {
   void dispose() {
     _tokenRefreshSubscription?.cancel();
     _tokenRefreshSubscription = null;
+    _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription = null;
+    _messageOpenedSubscription?.cancel();
+    _messageOpenedSubscription = null;
     _initializing = null;
     _initialized = false;
   }
@@ -462,31 +540,44 @@ void _listenForForegroundMessages() {
       return;
     }
 
-    const androidInit = AndroidInitializationSettings(_androidNotificationIcon);
-    final iosInit = DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    );
+    try {
+      const androidInit = AndroidInitializationSettings(_androidNotificationIcon);
+      // ✅ Request iOS permissions for local notifications (needed for foreground notifications)
+      final iosInit = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
 
-    final initSettings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
+      final initSettings = InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      );
 
-    await _localNotificationsPlugin.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _ref.read(notificationProvider.notifier).refreshUnreadCount();
-      },
-    );
+      final initialized = await _localNotificationsPlugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          _ref.read(notificationProvider.notifier).refreshUnreadCount();
+        },
+      );
 
-    final androidPlugin =
-        _localNotificationsPlugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(_foregroundChannel);
+      if (initialized != true) {
+        debugPrint('❌ Local notifications plugin initialization returned false');
+        return;
+      }
 
-    _localNotificationsInitialized = true;
+      final androidPlugin =
+          _localNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(_foregroundChannel);
+
+      _localNotificationsInitialized = true;
+      debugPrint('✅ Local notifications plugin initialized successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize local notifications plugin: $e');
+      _localNotificationsInitialized = false;
+      rethrow;
+    }
   }
 
   Future<void> _showForegroundNotification(
@@ -494,32 +585,47 @@ void _listenForForegroundMessages() {
     Map<String, dynamic> data,
   ) async {
     if (!_localNotificationsInitialized) {
-      await _initializeLocalNotifications();
+      try {
+        await _initializeLocalNotifications();
+      } catch (e) {
+        debugPrint('❌ Cannot show foreground notification: initialization failed: $e');
+        return;
+      }
     }
 
-    final androidDetails = AndroidNotificationDetails(
-      _foregroundChannel.id,
-      _foregroundChannel.name,
-      channelDescription: _foregroundChannel.description,
-      importance: Importance.high,
-      priority: Priority.high,
-      icon: _androidNotificationIcon,
-      largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
-    );
+    // Double-check initialization was successful
+    if (!_localNotificationsInitialized) {
+      debugPrint('❌ Cannot show foreground notification: plugin not initialized');
+      return;
+    }
 
-    final iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        _foregroundChannel.id,
+        _foregroundChannel.name,
+        channelDescription: _foregroundChannel.description,
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: _androidNotificationIcon,
+        largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
+      );
 
-    await _localNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
-      notification.title ?? 'NANO Work',
-      notification.body ?? '',
-      NotificationDetails(android: androidDetails, iOS: iosDetails),
-      payload: data.isNotEmpty ? jsonEncode(data) : null,
-    );
+      final iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      await _localNotificationsPlugin.show(
+        DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
+        notification.title ?? 'NANO Work',
+        notification.body ?? '',
+        NotificationDetails(android: androidDetails, iOS: iosDetails),
+        payload: data.isNotEmpty ? jsonEncode(data) : null,
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to show foreground notification: $e');
+    }
   }
 }
 
