@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_badger/app_badger.dart';
 
 import '../providers/notification_provider.dart';
 import 'auth_service.dart';
@@ -501,6 +502,35 @@ void _listenForForegroundMessages() {
     }
 
     await _syncTokenWithBackend();
+  }
+
+  // ✅ Update iOS app icon badge count
+  Future<void> updateBadgeCount(int count) async {
+    if (!kPushNotificationsEnabled) {
+      return;
+    }
+
+    if (kIsWeb) {
+      return; // Web doesn't support badges
+    }
+
+    try {
+      // Check if badge is supported on this platform
+      final isSupported = await AppBadger.isBadgeSupported();
+      if (isSupported) {
+        if (count > 0) {
+          await AppBadger.updateBadgeCount(count);
+          debugPrint('📊 Badge count updated to: $count');
+        } else {
+          await AppBadger.removeBadge();
+          debugPrint('📊 Badge removed (count is 0)');
+        }
+      } else {
+        debugPrint('ℹ️ Badge not supported on this platform');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to update badge count: $e');
+    }
   }
 
   void dispose() {

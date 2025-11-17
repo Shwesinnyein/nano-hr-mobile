@@ -6,6 +6,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/providers/notification_provider.dart';
+import '../../../core/services/push_notification_service.dart';
 import '../../../core/utils/translation_helper.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
@@ -86,6 +87,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           ref
               .read(notificationProvider.notifier)
               .updateUnreadCount(unreadCount);
+          
+          // ✅ Update iOS app icon badge
+          final pushService = ref.read(pushNotificationServiceProvider);
+          await pushService.updateBadgeCount(unreadCount);
         } catch (parseError) {
           setState(() {
             _error = 'Error parsing notifications: $parseError';
@@ -223,6 +228,11 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
         // Update the badge count
         ref.read(notificationProvider.notifier).markAsRead();
+        
+        // ✅ Update iOS app icon badge
+        final unreadCount = _notifications.where((n) => !n.isRead).length;
+        final pushService = ref.read(pushNotificationServiceProvider);
+        await pushService.updateBadgeCount(unreadCount);
       } else {
         _showErrorSnackBar(response['message'] ?? 'Failed to mark as read');
       }
@@ -256,6 +266,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
       // Update badge count to 0 immediately
       ref.read(notificationProvider.notifier).markAllAsRead();
+      
+      // ✅ Update iOS app icon badge to 0
+      final pushService = ref.read(pushNotificationServiceProvider);
+      await pushService.updateBadgeCount(0);
 
       // Call API in background
       final response = await _notificationService.markAllAsRead(
