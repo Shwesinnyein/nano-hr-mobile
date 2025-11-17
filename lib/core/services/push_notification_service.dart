@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -78,7 +77,8 @@ class PushNotificationService {
         return;
       }
 
-      await _syncTokenWithBackend();
+      // ✅ Force re-register token on app reopen to ensure backend knows it's still active
+      await _syncTokenWithBackend(forceReRegister: true);
       _listenForTokenRefresh();
       await _initializeLocalNotifications();
       _listenForForegroundMessages();
@@ -100,45 +100,42 @@ class PushNotificationService {
         settings.authorizationStatus == AuthorizationStatus.provisional;
   }
 
-  Future<void> _syncTokenWithBackend() async {
+  Future<void> _syncTokenWithBackend({bool forceReRegister = false}) async {
     if (!kPushNotificationsEnabled) {
       return;
     }
 
     final prefs = await SharedPreferences.getInstance();
-    _cachedToken ??= prefs.getString(_kStoredTokenKey);
-
-    final cached = prefs.getString(_kStoredTokenKey);
-    final cachedEmployee = prefs.getString(_kStoredEmployeeKey);
     final employeeId = _authService.currentEmployeeId;
     if (employeeId == null || employeeId.isEmpty) {
       return;
     }
 
-    if (!kIsWeb && Platform.isIOS) {
+    // ✅ When forcing re-register, get fresh token from Firebase (don't use cache)
+    // This ensures we always send a valid token, even if cached one was invalidated
+    String? token;
+    if (forceReRegister) {
+      // Clear cache to force fresh token fetch
+      _cachedToken = null;
+      _tokenFetchFuture = null;
+      _lastTokenErrorAt = null;
+      
+      // Get fresh token directly from Firebase
       try {
-        String? apnsToken = await _messaging.getAPNSToken();
-        if (apnsToken == null || apnsToken.isEmpty) {
-          const retryAttempts = 5;
-          for (var attempt = 0; attempt < retryAttempts; attempt++) {
-            await Future.delayed(const Duration(seconds: 1));
-            apnsToken = await _messaging.getAPNSToken();
-            if (apnsToken != null && apnsToken.isNotEmpty) {
-              break;
-            }
-          }
-        }
-        if (apnsToken == null || apnsToken.isEmpty) {
-          debugPrint('⚠️ APNs token still unavailable after retries.');
-        } else {
-          debugPrint('📬 APNs token: $apnsToken');
+        token = await _messaging.getToken();
+        if (token != null && token.isNotEmpty) {
+          _cachedToken = token;
+          await prefs.setString(_kStoredTokenKey, token);
         }
       } catch (e) {
-        debugPrint('❌ Failed to fetch APNs token: $e');
+        // If fresh token fetch fails, fall back to cached token
+        token = await _getMessagingTokenThrottled();
       }
+    } else {
+      // Normal flow: use cached token if available
+      token = await _getMessagingTokenThrottled();
     }
 
-    String? token = await _getMessagingTokenThrottled();
     if (token == null || token.isEmpty) {
       return;
     }
@@ -146,7 +143,9 @@ class PushNotificationService {
     final storedToken = prefs.getString(_kStoredTokenKey);
     final storedEmployeeId = prefs.getString(_kStoredEmployeeKey);
 
-    if (storedToken == token && storedEmployeeId == employeeId) {
+    // ✅ Always re-register on app reopen to ensure backend knows token is still active
+    // Skip only if token/employee unchanged AND not forcing re-registration
+    if (!forceReRegister && storedToken == token && storedEmployeeId == employeeId) {
       return;
     }
 
@@ -231,7 +230,6 @@ Future<String?> _getMessagingTokenThrottled() async {
   _tokenFetchFuture = _messaging.getToken().then((token) async {
     _cachedToken = token;
     if (token != null && token.isNotEmpty) {
-      debugPrint('📱 Current FCM token: $token');
       await prefs.setString(_kStoredTokenKey, token);
     }
     return token;
@@ -316,44 +314,15 @@ Future<String?> _getMessagingTokenThrottled() async {
   //     _ref.read(notificationProvider.notifier).refreshUnreadCount();
   //   });
   // }
-  void _listenForForegroundMessages() {
+  void _listenForForegroundMessages1() {
     if (!kPushNotificationsEnabled) {
       return;
     }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      debugPrint('📩 Foreground message: ${message.messageId}');
-      debugPrint('📩 Has notification: ${message.notification != null}');
-      if (message.data.isNotEmpty) {
-        debugPrint('📩 Payload: ${message.data}');
-      }
-
-      // ✅ FIX: Always show notification in foreground, even for data-only payloads
-      RemoteNotification? notification = message.notification;
-      
-      // If notification block exists, use it (preferred)
+      final notification = message.notification;
       if (notification != null) {
-        debugPrint('📩 Using notification block: ${notification.title} - ${notification.body}');
         await _showForegroundNotification(notification, message.data);
-      } 
-      // ✅ FALLBACK: If notification block is null, try to build from data payload
-      else if (message.data.isNotEmpty) {
-        final title = message.data['title']?.toString() ?? 'NANO Work';
-        final body = message.data['body']?.toString() ?? message.data['message']?.toString() ?? 'New notification';
-        
-        debugPrint('📩 Building notification from data: $title - $body');
-        
-        // Create a RemoteNotification from data payload
-        final dataNotification = RemoteNotification(
-          title: title,
-          body: body,
-          android: null,
-          apple: null,
-        );
-        
-        await _showForegroundNotification(dataNotification, message.data);
-      } else {
-        debugPrint('⚠️ Foreground message received but no notification or data to display');
       }
 
       _ref.read(notificationProvider.notifier).refreshUnreadCount();
@@ -363,7 +332,61 @@ Future<String?> _getMessagingTokenThrottled() async {
       _ref.read(notificationProvider.notifier).refreshUnreadCount();
     });
   }
+void _listenForForegroundMessages() {
+  if (!kPushNotificationsEnabled) {
+    return;
+  }
 
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    // ✅ Add debug logs
+    debugPrint('📩 Foreground message: ${message.messageId}');
+    debugPrint('📩 Has notification: ${message.notification != null}');
+    if (message.data.isNotEmpty) {
+      debugPrint('📩 Payload: ${message.data}');
+    }
+
+    RemoteNotification? notification = message.notification;
+    
+    // ✅ Handle notification block (preferred)
+    if (notification != null) {
+      debugPrint('📩 Using notification block: ${notification.title} - ${notification.body}');
+      try {
+        await _showForegroundNotification(notification, message.data);
+        debugPrint('✅ Foreground notification shown');
+      } catch (e) {
+        debugPrint('❌ Failed to show foreground notification: $e');
+      }
+    } 
+    // ✅ FALLBACK: Handle data-only payload
+    else if (message.data.isNotEmpty) {
+      final title = message.data['title']?.toString() ?? 'NANO Work';
+      final body = message.data['body']?.toString() ?? message.data['message']?.toString() ?? 'New notification';
+      debugPrint('📩 Building notification from data: $title - $body');
+      
+      final dataNotification = RemoteNotification(
+        title: title,
+        body: body,
+        android: null,
+        apple: null,
+      );
+      
+      try {
+        await _showForegroundNotification(dataNotification, message.data);
+        debugPrint('✅ Foreground notification shown from data');
+      } catch (e) {
+        debugPrint('❌ Failed to show foreground notification: $e');
+      }
+    } else {
+      debugPrint('⚠️ Foreground message received but no notification or data to display');
+    }
+
+    _ref.read(notificationProvider.notifier).refreshUnreadCount();
+  });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    _ref.read(notificationProvider.notifier).refreshUnreadCount();
+  });
+}
   Future<void> unregisterDeviceToken() async {
     if (!kPushNotificationsEnabled) {
       return;
@@ -440,10 +463,10 @@ Future<String?> _getMessagingTokenThrottled() async {
     }
 
     const androidInit = AndroidInitializationSettings(_androidNotificationIcon);
-    const iosInit = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+    final iosInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     final initSettings = InitializationSettings(
@@ -507,303 +530,3 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((
   ref.onDispose(service.dispose);
   return service;
 });
-// import 'dart:async';
-// import 'dart:convert';
-// import 'dart:io';
-
-// import 'package:firebase_messaging/firebase_messaging.dart';
-// import 'package:flutter/foundation.dart';
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
-
-// import '../providers/notification_provider.dart';
-// import 'auth_service.dart';
-// import 'notification_service.dart';
-
-// const bool kPushNotificationsEnabled = true;
-
-// class PushNotificationService {
-//   PushNotificationService(this._ref) : _notificationService = NotificationService();
-
-//   static const _kStoredTokenKey = 'fcm_device_token';
-//   static const _kStoredEmployeeKey = 'fcm_employee_id';
-
-//   final Ref _ref;
-//   final NotificationService _notificationService;
-//   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-//   final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
-//       FlutterLocalNotificationsPlugin();
-
-//   String? _cachedToken;
-//   Future<String?>? _tokenFetchFuture;
-//   DateTime? _lastTokenErrorAt;
-//   StreamSubscription<String>? _tokenRefreshSubscription;
-//   bool _initialized = false;
-//   Future<void>? _initializing;
-//   bool _localNotificationsInitialized = false;
-
-//   static const AndroidNotificationChannel _foregroundChannel = AndroidNotificationChannel(
-//     'nano_hr_foreground',
-//     'In-app notifications',
-//     description: 'Notifications displayed while the app is open',
-//     importance: Importance.high,
-//   );
-
-//   static const String _androidNotificationIcon = '@drawable/nano_notification';
-
-//   AuthService get _authService => _ref.read(authServiceProvider);
-
-//   Future<void> initialize() {
-//     if (!kPushNotificationsEnabled || _initialized) return Future.value();
-//     _initializing ??= _initializeInternal();
-//     return _initializing!;
-//   }
-
-//   Future<void> _initializeInternal() async {
-//     try {
-//       if (!kPushNotificationsEnabled || kIsWeb) {
-//         _initialized = true;
-//         return;
-//       }
-
-//       final permissionGranted = await _requestPermission();
-//       if (!permissionGranted) return;
-
-//       await _syncTokenWithBackend();
-//       _listenForTokenRefresh();
-//       await _initializeLocalNotifications();
-//       _listenForForegroundMessages();
-
-//       _initialized = true;
-//     } finally {
-//       _initializing = null;
-//     }
-//   }
-
-//   Future<bool> _requestPermission() async {
-//     final settings = await _messaging.requestPermission(alert: true, badge: true, sound: true);
-//     return settings.authorizationStatus == AuthorizationStatus.authorized ||
-//         settings.authorizationStatus == AuthorizationStatus.provisional;
-//   }
-
-//   Future<void> _syncTokenWithBackend() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     _cachedToken ??= prefs.getString(_kStoredTokenKey);
-
-//     final employeeId = _authService.currentEmployeeId;
-//     if (employeeId == null || employeeId.isEmpty) return;
-
-//     if (!kIsWeb && Platform.isIOS) {
-//       try {
-//         String? apnsToken = await _messaging.getAPNSToken();
-//         for (var i = 0; i < 5 && (apnsToken == null || apnsToken.isEmpty); i++) {
-//           await Future.delayed(const Duration(seconds: 1));
-//           apnsToken = await _messaging.getAPNSToken();
-//         }
-//         if (apnsToken != null && apnsToken.isNotEmpty) debugPrint('📬 APNs token: $apnsToken');
-//       } catch (e) {
-//         debugPrint('❌ Failed to fetch APNs token: $e');
-//       }
-//     }
-
-//     final token = await _getMessagingTokenThrottled();
-//     if (token == null || token.isEmpty) return;
-
-//     final storedToken = prefs.getString(_kStoredTokenKey);
-//     final storedEmployeeId = prefs.getString(_kStoredEmployeeKey);
-
-//     if (storedToken == token && storedEmployeeId == employeeId) return;
-
-//     try {
-//       final response = await _notificationService.registerDeviceToken(
-//         employeeId: employeeId,
-//         token: token,
-//         platform: _resolvePlatformLabel(),
-//       );
-//       if (response['success'] == true) {
-//         await prefs.setString(_kStoredTokenKey, token);
-//         await prefs.setString(_kStoredEmployeeKey, employeeId);
-//       }
-//     } catch (_) {
-//       // Ignore errors, will retry next sync
-//     }
-//   }
-
-//   void _listenForTokenRefresh() {
-//     if (!kPushNotificationsEnabled) return;
-
-//     _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen((newToken) async {
-//       _cachedToken = newToken;
-//       _lastTokenErrorAt = null;
-
-//       final employeeId = _authService.currentEmployeeId;
-//       if (employeeId == null || employeeId.isEmpty) return;
-
-//       try {
-//         final response = await _notificationService.registerDeviceToken(
-//           employeeId: employeeId,
-//           token: newToken,
-//           platform: _resolvePlatformLabel(),
-//         );
-//         if (response['success'] == true) {
-//           final prefs = await SharedPreferences.getInstance();
-//           await prefs.setString(_kStoredTokenKey, newToken);
-//           await prefs.setString(_kStoredEmployeeKey, employeeId);
-//         }
-//       } catch (_) {}
-//     });
-//   }
-
-//   Future<String?> _getMessagingTokenThrottled() async {
-//     if (_cachedToken != null && _cachedToken!.isNotEmpty) return _cachedToken;
-
-//     final prefs = await SharedPreferences.getInstance();
-//     final savedToken = prefs.getString(_kStoredTokenKey);
-//     if (savedToken != null && savedToken.isNotEmpty) {
-//       _cachedToken = savedToken;
-//       return _cachedToken;
-//     }
-
-//     if (_tokenFetchFuture != null) return _tokenFetchFuture;
-
-//     const cooldownDuration = Duration(minutes: 5);
-//     if (_lastTokenErrorAt != null &&
-//         DateTime.now().difference(_lastTokenErrorAt!) < cooldownDuration) return null;
-
-//     _tokenFetchFuture = _messaging.getToken().then((token) async {
-//       _cachedToken = token;
-//       if (token != null && token.isNotEmpty) await prefs.setString(_kStoredTokenKey, token);
-//       return token;
-//     }).catchError((_) {
-//       _lastTokenErrorAt = DateTime.now();
-//       return null;
-//     }).whenComplete(() => _tokenFetchFuture = null);
-
-//     return _tokenFetchFuture;
-//   }
-
-//   void _listenForForegroundMessages() {
-//     if (!kPushNotificationsEnabled) return;
-
-//     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-//       debugPrint('📩 Foreground message: ${message.messageId}');
-//       if (message.notification != null) {
-//         await _showForegroundNotification(message.notification!, message.data);
-//       }
-//       _ref.read(notificationProvider.notifier).refreshUnreadCount();
-//     });
-
-//     FirebaseMessaging.onMessageOpenedApp.listen((_) {
-//       _ref.read(notificationProvider.notifier).refreshUnreadCount();
-//     });
-//   }
-
-//   Future<void> unregisterDeviceToken() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     _cachedToken ??= prefs.getString(_kStoredTokenKey);
-//     final token = _cachedToken ?? await _getMessagingTokenThrottled();
-//     final employeeId =
-//         _authService.currentEmployeeId ?? prefs.getString(_kStoredEmployeeKey);
-
-//     if (token == null || employeeId == null) {
-//       await prefs.remove(_kStoredTokenKey);
-//       await prefs.remove(_kStoredEmployeeKey);
-//       _cachedToken = null;
-//       return;
-//     }
-
-//     try {
-//       await _notificationService.unregisterDeviceToken(employeeId: employeeId, token: token);
-//     } catch (_) {}
-
-//     await prefs.remove(_kStoredTokenKey);
-//     await prefs.remove(_kStoredEmployeeKey);
-//     _cachedToken = null;
-//   }
-
-//   Future<void> refreshTokenRegistration() async {
-//     if (!kPushNotificationsEnabled) return;
-//     await _syncTokenWithBackend();
-//   }
-
-//   void dispose() {
-//     _tokenRefreshSubscription?.cancel();
-//     _tokenRefreshSubscription = null;
-//     _initializing = null;
-//     _initialized = false;
-//   }
-
-//   String _resolvePlatformLabel() {
-//     if (kIsWeb) return 'web';
-
-//     switch (defaultTargetPlatform) {
-//       case TargetPlatform.android:
-//         return 'android';
-//       case TargetPlatform.iOS:
-//         return 'ios';
-//       case TargetPlatform.macOS:
-//         return 'macos';
-//       case TargetPlatform.windows:
-//         return 'windows';
-//       case TargetPlatform.linux:
-//         return 'linux';
-//       case TargetPlatform.fuchsia:
-//         return 'fuchsia';
-//     }
-//   }
-
-//   Future<void> _initializeLocalNotifications() async {
-//     if (_localNotificationsInitialized) return;
-
-//     const androidInit = AndroidInitializationSettings(_androidNotificationIcon);
-//     const iosInit = DarwinInitializationSettings(
-//       requestAlertPermission: true,
-//       requestBadgePermission: true,
-//       requestSoundPermission: true,
-//     );
-
-//     final initSettings = InitializationSettings(android: androidInit, iOS: iosInit);
-
-//     await _localNotificationsPlugin.initialize(initSettings,
-//         onDidReceiveNotificationResponse: (_) {
-//       _ref.read(notificationProvider.notifier).refreshUnreadCount();
-//     });
-
-//     final androidPlugin =
-//         _localNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-//     await androidPlugin?.createNotificationChannel(_foregroundChannel);
-
-//     _localNotificationsInitialized = true;
-//   }
-
-//   Future<void> _showForegroundNotification(RemoteNotification notification, Map<String, dynamic> data) async {
-//     if (!_localNotificationsInitialized) await _initializeLocalNotifications();
-
-//     final androidDetails = AndroidNotificationDetails(
-//       _foregroundChannel.id,
-//       _foregroundChannel.name,
-//       channelDescription: _foregroundChannel.description,
-//       importance: Importance.high,
-//       priority: Priority.high,
-//       icon: _androidNotificationIcon,
-//       largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
-//     );
-
-//     final iosDetails = DarwinNotificationDetails(presentAlert: true, presentBadge: true, presentSound: true);
-
-//     await _localNotificationsPlugin.show(
-//       DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
-//       notification.title ?? 'NANO Work',
-//       notification.body ?? '',
-//       NotificationDetails(android: androidDetails, iOS: iosDetails),
-//       payload: data.isNotEmpty ? jsonEncode(data) : null,
-//     );
-//   }
-// }
-
-// final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) {
-//   final service = PushNotificationService(ref);
-//   ref.onDispose(service.dispose);
-//   return service;
-// });
