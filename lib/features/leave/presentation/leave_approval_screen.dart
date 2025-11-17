@@ -31,9 +31,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   List<Map<String, dynamic>> _employeeLeaves = [];
   bool _loadingEmployeeLeaves = false;
 
-  // Track which leave request is currently being processed
-  String? _processingLeaveId;
-
   // Tab controller for the new tabs
   late TabController _tabController;
   int _currentTabIndex = 0;
@@ -120,23 +117,14 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   }
 
   // Load employee leaves based on user role
-  Future<void> _loadEmployeeLeaves({bool showLoader = true}) async {
+  Future<void> _loadEmployeeLeaves() async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
-    if (currentEmployeeId == null) {
-      setState(() {
-        if (showLoader) {
-          _loadingEmployeeLeaves = false;
-        }
-      });
-      return;
-    }
+    if (currentEmployeeId == null) return;
 
-    if (showLoader) {
-      setState(() {
-        _loadingEmployeeLeaves = true;
-      });
-    }
+    setState(() {
+      _loadingEmployeeLeaves = true;
+    });
 
     try {
       final leaveService = LeaveService();
@@ -187,15 +175,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       // The API already provides employee details, no need to enhance
       setState(() {
         _employeeLeaves = allEmployeeLeaves;
-        if (showLoader) {
-          _loadingEmployeeLeaves = false;
-        }
+        _loadingEmployeeLeaves = false;
       });
     } catch (e) {
       setState(() {
-        if (showLoader) {
-          _loadingEmployeeLeaves = false;
-        }
+        _loadingEmployeeLeaves = false;
       });
       print('Error loading employee leaves: $e');
     }
@@ -260,29 +244,21 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     );
   }
 
-  Future<void> _loadAllLeaveRequests({bool showLoader = true}) async {
+  Future<void> _loadAllLeaveRequests() async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) {
       setState(() {
-        if (showLoader) {
-          _loading = false;
-        }
+        _loading = false;
         _error = 'User not logged in';
       });
       return;
     }
 
-    if (showLoader) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    } else {
-      setState(() {
-        _error = null;
-      });
-    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     try {
       final userLevel = _getUserLevel(auth);
@@ -330,15 +306,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       setState(() {
         _pending = pendingList;
-        if (showLoader) {
-          _loading = false;
-        }
+        _loading = false;
       });
     } catch (e) {
       setState(() {
-        if (showLoader) {
-          _loading = false;
-        }
+        _loading = false;
         _error = 'Failed to load leave requests: $e';
       });
     }
@@ -1061,89 +1033,51 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
               // Debug: Buttons should be visible
               // This is a debug print that won't show in UI
               const SizedBox(height: 16),
-              Builder(
-                builder: (_) {
-                  final leaveId = notification.data['leaveRequestId'] ??
-                      notification.data['leaveId'] ??
-                      notification.data['id'] ??
-                      '';
-                  final isProcessing = _processingLeaveId == leaveId;
-
-                  Widget buildLabel(String text) {
-                    if (!isProcessing) return Text(text);
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: const [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Saving...'),
-                      ],
-                    );
-                  }
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 48,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          child: ElevatedButton.icon(
-                            onPressed: isProcessing
-                                ? null
-                                : () => _decide(notification, false, ''),
-                            icon: isProcessing
-                                ? const SizedBox.shrink()
-                                : const Icon(Icons.close, size: 18),
-                            label: buildLabel('Reject'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red[50],
-                              foregroundColor: Colors.red[600],
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: Colors.red[200]!),
-                              ),
-                            ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _decide(notification, false, ''),
+                        icon: const Icon(Icons.close, size: 18),
+                        label: const Text('Reject'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[50],
+                          foregroundColor: Colors.red[600],
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.red[200]!),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Container(
-                          height: 48,
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          child: ElevatedButton.icon(
-                            onPressed: isProcessing
-                                ? null
-                                : () => _decide(notification, true, ''),
-                            icon: isProcessing
-                                ? const SizedBox.shrink()
-                                : const Icon(Icons.check, size: 18),
-                            label: buildLabel('Approve'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green[50],
-                              foregroundColor: Colors.green[600],
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: BorderSide(color: Colors.green[200]!),
-                              ),
-                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      height: 48,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ElevatedButton.icon(
+                        onPressed: () => _decide(notification, true, ''),
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Approve'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[50],
+                          foregroundColor: Colors.green[600],
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.green[200]!),
                           ),
                         ),
                       ),
-                    ],
-                  );
-                },
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -1528,80 +1462,117 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    setState(() {
-      _processingLeaveId = leaveId;
-    });
-
     final service = LeaveService();
 
-    try {
-      final detailsStopwatch = Stopwatch()..start();
-      final details = await service.getLeaveDetails(leaveId);
-      detailsStopwatch.stop();
+    final detailsStopwatch = Stopwatch()..start();
+    final details = await service.getLeaveDetails(leaveId);
+    detailsStopwatch.stop();
 
-      if (details['success'] == true) {
-        final currentStatus =
-            details['leaveRequest']?['status'] ??
-            details['data']?['status'] ??
-            details['status'];
+    if (details['success'] == true) {
+      final currentStatus =
+          details['leaveRequest']?['status'] ??
+          details['data']?['status'] ??
+          details['status'];
 
-        final userLevel = _getUserLevel(auth);
-        final statusLower = currentStatus?.toString().toLowerCase() ?? '';
+      final userLevel = _getUserLevel(auth);
+      final statusLower = currentStatus?.toString().toLowerCase() ?? '';
 
-        // Check if user can act on this status (same logic as action button visibility)
-        final isPendingOrSent =
-            statusLower == 'pending' || statusLower == 'sent';
-        final isApprovedByManager =
-            statusLower == 'approved_manager' ||
-            statusLower == 'approved_by_manager' ||
-            (statusLower.contains('approved') &&
-                statusLower.contains('manager'));
-        final isApprovedByTeamLead =
-            statusLower == 'approved_team_lead' ||
-            statusLower == 'approved_by_team_lead' ||
-            (statusLower.contains('approved') &&
-                statusLower.contains('team_lead'));
-        final isApprovedByHR =
-            statusLower == 'approved_hr' ||
-            statusLower == 'approved_by_hr' ||
-            (statusLower.contains('approved') && statusLower.contains('hr'));
+      // Check if user can act on this status (same logic as action button visibility)
+      final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
+      final isApprovedByManager =
+          statusLower == 'approved_manager' ||
+          statusLower == 'approved_by_manager' ||
+          (statusLower.contains('approved') && statusLower.contains('manager'));
+      final isApprovedByTeamLead =
+          statusLower == 'approved_team_lead' ||
+          statusLower == 'approved_by_team_lead' ||
+          (statusLower.contains('approved') &&
+              statusLower.contains('team_lead'));
+      final isApprovedByHR =
+          statusLower == 'approved_hr' ||
+          statusLower == 'approved_by_hr' ||
+          (statusLower.contains('approved') && statusLower.contains('hr'));
 
-        final canAct = userLevel == 'hr'
-            ? (isPendingOrSent ||
+      final canAct = userLevel == 'hr'
+          ? (isPendingOrSent ||
                 isApprovedByManager ||
                 isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
-            : userLevel == 'approver'
-                ? (isPendingOrSent ||
-                    isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
-                : isPendingOrSent; // Managers can only act on pending/sent
+          : userLevel == 'approver'
+          ? (isPendingOrSent ||
+                isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+          : isPendingOrSent; // Managers can only act on pending/sent
 
-        if (currentStatus != null && !canAct) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'This request is already $currentStatus. Refreshing list.',
-              ),
-              backgroundColor: AppTheme.warningColor,
+      if (currentStatus != null && !canAct) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'This request is already $currentStatus. Refreshing list.',
             ),
-          );
-          await _loadAllLeaveRequests();
-          return;
-        }
+            backgroundColor: AppTheme.warningColor,
+          ),
+        );
+        await _loadAllLeaveRequests();
+        return;
+      }
+    }
+
+    final approvalStopwatch = Stopwatch()..start();
+    final status = approve ? 'approved' : 'rejected';
+    final userRole = _getUserLevel(auth);
+    final res = await service.updateLeaveStatus(
+      leaveId: leaveId,
+      status: status,
+      approverId: approverId,
+      userRole: userRole,
+      note: note,
+    );
+    approvalStopwatch.stop();
+
+    if (res['success'] == true) {
+      _showSuccessMessage(
+        approve
+            ? 'Leave request approved successfully!'
+            : 'Leave request rejected.',
+      );
+
+      // Store the processed request in local cache
+      final leaveId =
+          notification.data['leaveRequestId'] ??
+          notification.data['leaveId'] ??
+          notification.data['id'] ??
+          '';
+
+      if (leaveId.isNotEmpty) {
+        final processedRequest = Map<String, dynamic>.from(notification.data);
+        processedRequest['status'] = approve ? 'approved' : 'rejected';
+        processedRequest['approvedBy'] = approve ? approverId : null;
+        processedRequest['rejectedBy'] = !approve ? approverId : null;
+        processedRequest['updatedAt'] = DateTime.now().toIso8601String();
+
+        _processedRequests[leaveId] = processedRequest;
       }
 
-      final approvalStopwatch = Stopwatch()..start();
-      final status = approve ? 'approved' : 'rejected';
-      final userRole = _getUserLevel(auth);
-      final res = await service.updateLeaveStatus(
+      final refreshStopwatch = Stopwatch()..start();
+      LeaveController.clearAllCache();
+      // Refresh the leave controller data
+      ref.invalidate(leaveControllerProvider(approverId));
+
+      // Refresh both pending requests and employee leaves
+      await _loadAllLeaveRequests();
+      await _loadEmployeeLeaves();
+      refreshStopwatch.stop();
+
+      totalStopwatch.stop();
+    } else {
+      // Fallback: try the alternate endpoint once
+      final alt = await service.approveOrRejectLeave(
         leaveId: leaveId,
-        status: status,
+        action: approve ? 'approve' : 'reject',
         approverId: approverId,
         userRole: userRole,
         note: note,
       );
-      approvalStopwatch.stop();
-
-      if (res['success'] == true) {
+      if (alt['success'] == true) {
         _showSuccessMessage(
           approve
               ? 'Leave request approved successfully!'
@@ -1609,81 +1580,27 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         );
 
         // Store the processed request in local cache
-        final processedLeaveId =
-            notification.data['leaveRequestId'] ??
-            notification.data['leaveId'] ??
-            notification.data['id'] ??
-            '';
-
-        if (processedLeaveId.isNotEmpty) {
+        if (leaveId.isNotEmpty) {
           final processedRequest = Map<String, dynamic>.from(notification.data);
           processedRequest['status'] = approve ? 'approved' : 'rejected';
           processedRequest['approvedBy'] = approve ? approverId : null;
           processedRequest['rejectedBy'] = !approve ? approverId : null;
           processedRequest['updatedAt'] = DateTime.now().toIso8601String();
 
-          _processedRequests[processedLeaveId] = processedRequest;
+          _processedRequests[leaveId] = processedRequest;
         }
 
-        final refreshStopwatch = Stopwatch()..start();
-        LeaveController.clearAllCache();
-        // Refresh the leave controller data
-        ref.invalidate(leaveControllerProvider(approverId));
-
-        // Refresh both pending requests and employee leaves
-        await _loadAllLeaveRequests(showLoader: false);
-        await _loadEmployeeLeaves(showLoader: false);
-        refreshStopwatch.stop();
-
-        totalStopwatch.stop();
+        await _loadAllLeaveRequests();
+        await _loadEmployeeLeaves();
       } else {
-        // Fallback: try the alternate endpoint once
-        final alt = await service.approveOrRejectLeave(
-          leaveId: leaveId,
-          action: approve ? 'approve' : 'reject',
-          approverId: approverId,
-          userRole: userRole,
-          note: note,
-        );
-        if (alt['success'] == true) {
-          _showSuccessMessage(
-            approve
-                ? 'Leave request approved successfully!'
-                : 'Leave request rejected.',
-          );
-
-          // Store the processed request in local cache
-          if (leaveId.isNotEmpty) {
-            final processedRequest =
-                Map<String, dynamic>.from(notification.data);
-            processedRequest['status'] = approve ? 'approved' : 'rejected';
-            processedRequest['approvedBy'] = approve ? approverId : null;
-            processedRequest['rejectedBy'] = !approve ? approverId : null;
-            processedRequest['updatedAt'] = DateTime.now().toIso8601String();
-
-            _processedRequests[leaveId] = processedRequest;
-          }
-
-          await _loadAllLeaveRequests(showLoader: false);
-          await _loadEmployeeLeaves(showLoader: false);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                alt['message'] ?? res['message'] ?? 'Failed to update leave',
-              ),
-              backgroundColor: AppTheme.errorColor,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              alt['message'] ?? res['message'] ?? 'Failed to update leave',
             ),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          if (_processingLeaveId == leaveId) {
-            _processingLeaveId = null;
-          }
-        });
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
       }
     }
   }
