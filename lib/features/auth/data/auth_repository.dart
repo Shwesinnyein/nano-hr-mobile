@@ -173,8 +173,10 @@ class AuthRepository {
       await _authService.signOut();
     } catch (e) {
     } finally {
-      await _pushNotificationService.unregisterDeviceToken();
-      // Clear local login state
+      // Don't unregister FCM token - keep it for the device
+      // The token will be re-registered with the new user when they log in
+      
+      // Clear local login state (but preserve FCM token)
       await _clearLoginState();
 
       // Clear any cached data that might be user-specific
@@ -195,11 +197,19 @@ class AuthRepository {
   Future<void> _clearLoginState() async {
     final prefs = await SharedPreferences.getInstance();
 
+    // Preserve FCM token before clearing (device token persists across logins)
+    const fcmTokenKey = 'fcm_device_token';
+    final fcmToken = prefs.getString(fcmTokenKey);
+
     // Clear ALL SharedPreferences data to prevent data mixing between different users
     await prefs.clear();
 
-    // Note: prefs.clear() removes everything, so no need to remove individual keys
-    // This ensures no old employee data remains when a new employee logs in
+    // Restore FCM token after clearing
+    // The token will be re-registered with the new user when they log in
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      await prefs.setString(fcmTokenKey, fcmToken);
+      // Don't restore employeeId - it will be updated when new user logs in
+    }
 
     _authService.setCurrentUser(null);
     _authService.setCurrentEmployeeId(null);

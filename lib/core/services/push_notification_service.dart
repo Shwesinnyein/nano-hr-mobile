@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_badger/app_badger.dart';
 
 import '../providers/notification_provider.dart';
+import '../providers/otp_provider.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
 
@@ -384,6 +385,9 @@ void _listenForForegroundMessages() {
       debugPrint('   Title: ${notification.title}');
       debugPrint('   Body: ${notification.body}');
       
+      // Extract OTP from notification body if it's a password reset notification
+      _extractAndStoreOTP(notification.body ?? '', message.data);
+      
       // Only show manually on Android (iOS shows automatically)
       if (!isIOS) {
         try {
@@ -413,6 +417,9 @@ void _listenForForegroundMessages() {
       debugPrint('📩 Building notification from data payload:');
       debugPrint('   Title: $title');
       debugPrint('   Body: $body');
+      
+      // Extract OTP from notification body if it's a password reset notification
+      _extractAndStoreOTP(body, message.data);
       
       // Only show notification if we have meaningful content
       if (title != 'NANO Work' || body != 'New notification') {
@@ -455,6 +462,19 @@ void _listenForForegroundMessages() {
 
   _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
     debugPrint('📬 Notification opened from background/terminated state');
+    
+    // Extract OTP if it's a password reset notification
+    final notification = message.notification;
+    if (notification != null) {
+      _extractAndStoreOTP(notification.body ?? '', message.data);
+    } else if (message.data.isNotEmpty) {
+      final body = message.data['body']?.toString() ?? 
+                  message.data['message']?.toString() ?? 
+                  message.data['notification']?['body']?.toString() ?? 
+                  '';
+      _extractAndStoreOTP(body, message.data);
+    }
+    
     _ref.read(notificationProvider.notifier).refreshUnreadCount();
   }, onError: (error) {
     debugPrint('❌ Error in message opened listener: $error');
@@ -462,6 +482,41 @@ void _listenForForegroundMessages() {
 
   debugPrint('✅ Foreground message listeners set up successfully');
 }
+
+  // Extract OTP from notification body and store it
+  void _extractAndStoreOTP(String body, Map<String, dynamic> data) {
+    try {
+      // Check if this is a password reset notification
+      final isPasswordReset = body.toLowerCase().contains('otp') ||
+          body.toLowerCase().contains('password') ||
+          data['type']?.toString().toLowerCase() == 'password_reset' ||
+          data['type']?.toString().toLowerCase() == 'forgot_password';
+
+      if (isPasswordReset) {
+        // Extract 6-digit OTP using regex
+        final otpRegex = RegExp(r'\b\d{6}\b');
+        final match = otpRegex.firstMatch(body);
+        
+        if (match != null) {
+          final otp = match.group(0);
+          if (otp != null && otp.length == 6) {
+            debugPrint('🔑 OTP extracted from notification: $otp');
+            _ref.read(otpProvider.notifier).setOTP(otp);
+          }
+        } else {
+          // Also check data payload for OTP
+          final otpFromData = data['otp']?.toString();
+          if (otpFromData != null && otpFromData.length == 6) {
+            debugPrint('🔑 OTP found in data payload: $otpFromData');
+            _ref.read(otpProvider.notifier).setOTP(otpFromData);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error extracting OTP: $e');
+    }
+  }
+
   Future<void> unregisterDeviceToken() async {
     if (!kPushNotificationsEnabled) {
       return;

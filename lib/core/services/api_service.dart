@@ -377,6 +377,170 @@ class ApiService {
     }
   }
 
+  // Forgot password
+  Future<Map<String, dynamic>> forgotPassword({
+    required String email,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.forgotPassword,
+        data: {
+          'email': email,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else {
+          return {
+            'success': false,
+            'message': 'Invalid response format',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Forgot password request failed: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final responseData = e.response!.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else if (responseData is String) {
+          return {
+            'success': false,
+            'message': responseData,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'Forgot password failed: ${e.response!.statusCode}',
+          };
+        }
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Verify Reset OTP
+  Future<Map<String, dynamic>> verifyResetOTP({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.verifyResetOTP,
+        data: {
+          'email': email,
+          'otp': otp,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else {
+          return {
+            'success': false,
+            'message': 'Invalid response format',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'OTP verification failed: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final responseData = e.response!.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else if (responseData is String) {
+          return {
+            'success': false,
+            'message': responseData,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'OTP verification failed: ${e.response!.statusCode}',
+          };
+        }
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
+  // Reset password
+  Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiEndpoints.resetPassword,
+        data: {
+          'email': email,
+          'otp': otp,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else {
+          return {
+            'success': false,
+            'message': 'Invalid response format',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Password reset failed: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        final responseData = e.response!.data;
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else if (responseData is String) {
+          return {
+            'success': false,
+            'message': responseData,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': 'Password reset failed: ${e.response!.statusCode}',
+          };
+        }
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   // Get employee profile
   Future<Map<String, dynamic>> getEmployeeProfile({
     required String employeeId,

@@ -7,6 +7,9 @@ class ApiEndpoints {
   static const String registerUser = '/auth/register-user';
   static const String checkEmailExists = '/auth/check-email';
   static const String changePassword = '/auth/change-password';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String verifyResetOTP = '/auth/verify-reset-otp';
+  static const String resetPassword = '/auth/reset-password';
 
   // Attendance endpoints
   static const String checkInOut = '/attendance/check-in-out';

@@ -17,7 +17,7 @@ class LeaveApprovalScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   List<NotificationModel> _pending = [];
   bool _loading = true;
   String? _error;
@@ -42,6 +42,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       setState(() {
@@ -54,16 +55,26 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       });
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAllLeaveRequests();
+      _loadAllLeaveRequests(forceRefresh: true);
       _loadEmployeeLeaves();
     });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Refresh data when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadAllLeaveRequests(forceRefresh: true, showLoading: false);
+    }
   }
 
   // Filter leave requests based on search query
@@ -246,7 +257,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     );
   }
 
-  Future<void> _loadAllLeaveRequests({bool showLoading = true}) async {
+  Future<void> _loadAllLeaveRequests({bool showLoading = true, bool forceRefresh = false}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
     if (currentEmployeeId == null) {
@@ -267,6 +278,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     try {
       final userLevel = _getUserLevel(auth);
       final leaveService = LeaveService();
+      
+      // Clear cache if force refresh is requested
+      if (forceRefresh) {
+        LeaveService.clearApprovalCache();
+      }
 
       // Load all leave requests for the user
       List<Map<String, dynamic>> leaveRequests;
@@ -349,7 +365,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: AppTheme.kOnBackground),
-            onPressed: _loadAllLeaveRequests,
+            onPressed: () => _loadAllLeaveRequests(forceRefresh: true),
           ),
         ],
         bottom: PreferredSize(
@@ -531,7 +547,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
   Widget _buildLeaveApprovalContent(List<NotificationModel> leaveRequests) {
     return RefreshIndicator(
-      onRefresh: _loadAllLeaveRequests,
+      onRefresh: () => _loadAllLeaveRequests(forceRefresh: true),
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [

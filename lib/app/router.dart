@@ -84,13 +84,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Check authentication for protected routes using AuthRepository
       final authState = ref.read(auth_repo.authStateProvider);
       
-      // Handle splash screen - wait for auth state to resolve
+      // Splash screen handles its own navigation with minimum display time
       if (state.matchedLocation == '/splash') {
-        return authState.when(
-          data: (loggedIn) => loggedIn ? '/attendance' : '/login',
-          loading: () => null, // Stay on splash while loading
-          error: (_, __) => '/login',
-        );
+        return null; // Stay on splash - it will navigate itself
       }
 
       final isAuthenticated = authState.when(
@@ -145,14 +141,14 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-class _SplashScreen extends StatefulWidget {
+class _SplashScreen extends ConsumerStatefulWidget {
   const _SplashScreen();
 
   @override
-  State<_SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<_SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<_SplashScreen>
+class _SplashScreenState extends ConsumerState<_SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -168,6 +164,36 @@ class _SplashScreenState extends State<_SplashScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeIn),
     );
     _controller.forward();
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    // Minimum display time to ensure splash is visible
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (!mounted) return;
+
+    // Wait for auth state to resolve
+    final authState = ref.read(auth_repo.authStateProvider);
+    
+    // If still loading, wait a bit more
+    if (authState.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    if (!mounted) return;
+
+    // Navigate based on auth state
+    final authStateAfterWait = ref.read(auth_repo.authStateProvider);
+    final targetRoute = authStateAfterWait.when(
+      data: (loggedIn) => loggedIn ? '/attendance' : '/login',
+      loading: () => '/login', // Fallback if still loading
+      error: (_, __) => '/login',
+    );
+
+    if (mounted) {
+      context.go(targetRoute);
+    }
   }
 
   @override
