@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
 import '../../employee/presentation/employee_list_screen.dart';
 import '../../attendance/presentation/employee_attendance_history_screen.dart';
@@ -768,33 +767,8 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openPrivacyPolicy(BuildContext context) async {
-    try {
-      final url = Uri.parse(AppConstants.privacyPolicyUrl);
-      
-      // Try to launch URL directly (more reliable on Android)
-      final launched = await launchUrl(
-        url,
-        mode: LaunchMode.externalApplication,
-      );
-      
-      if (!launched) {
-        // Fallback: try with platformDefault mode
-        await launchUrl(
-          url,
-          mode: LaunchMode.platformDefault,
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not open privacy policy: ${e.toString()}'),
-            backgroundColor: AppTheme.errorColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    }
+  void _openPrivacyPolicy(BuildContext context) {
+    // Navigate to in-app privacy policy screen
+    context.push('/privacy-policy');
   }
 }

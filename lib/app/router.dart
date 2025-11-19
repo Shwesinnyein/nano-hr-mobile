@@ -12,6 +12,7 @@ import '../features/leave/presentation/leave_approval_screen.dart';
 import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/settings/presentation/privacy_policy_screen.dart';
 import '../core/widgets/main_layout.dart';
 import '../features/auth/data/auth_repository.dart' as auth_repo;
 import 'theme.dart';
@@ -78,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leave/approval',
         builder: (_, __) => const LeaveApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        builder: (_, __) => const PrivacyPolicyScreen(),
       ),
     ],
     redirect: (context, state) async {

@@ -15,6 +15,7 @@ class App extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
+      debugShowCheckedModeBanner: false, // Hide debug banner in all modes
     );
   }
 }
