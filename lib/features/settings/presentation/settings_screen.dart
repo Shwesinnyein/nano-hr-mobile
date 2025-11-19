@@ -771,24 +771,27 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _openPrivacyPolicy(BuildContext context) async {
     try {
       final url = Uri.parse(AppConstants.privacyPolicyUrl);
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not open privacy policy'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
+      
+      // Try to launch URL directly (more reliable on Android)
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+      
+      if (!launched) {
+        // Fallback: try with platformDefault mode
+        await launchUrl(
+          url,
+          mode: LaunchMode.platformDefault,
+        );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Could not open privacy policy: ${e.toString()}'),
             backgroundColor: AppTheme.errorColor,
+            duration: const Duration(seconds: 3),
           ),
         );
       }

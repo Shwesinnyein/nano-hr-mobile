@@ -8,6 +8,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/services/push_notification_service.dart';
 import '../../../core/utils/translation_helper.dart';
+import '../../../core/providers/language_provider.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -154,15 +155,19 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   ) {
     // 1) Base filtering rules
     final filtered = notifications.where((notification) {
-      // Hide self-originated leave_request (employee shouldn't see their own request)
+      // Hide self-originated initial leave_request notifications from requester
+      // (They don't need to see their own request notification)
+      // But allow requesters to see approval/rejection status updates (approved_*, approved, rejected)
       if (notification.type == 'leave_request') {
-        // If sender is missing or equals current user, hide it (defensive until backend fixes senderId)
-        if (notification.senderId == null ||
-            notification.senderId == currentEmployeeId) {
-          return false;
+        // Only hide if sender is the current user (their own initial request)
+        if (notification.senderId == currentEmployeeId) {
+          return false; // Hide initial request notification from requester
         }
       }
-
+      
+      // All other notifications (including approved_team_lead, approved_manager, 
+      // approved_hr, approved, rejected) will be shown to the requester
+      // The backend should send these with the requester as userId (recipient)
       return true;
     }).toList();
 
@@ -217,6 +222,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
               userId: notification.userId,
               title: notification.title,
               message: notification.message,
+              titleTh: notification.titleTh,
+              messageTh: notification.messageTh,
               type: notification.type,
               data: notification.data,
               isRead: true, // Mark as read
@@ -255,6 +262,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             senderId: n.senderId,
             title: n.title,
             message: n.message,
+            titleTh: n.titleTh,
+            messageTh: n.messageTh,
             type: n.type,
             data: n.data,
             isRead: true, // Mark as read
@@ -591,7 +600,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              notification.title,
+                              notification.getLocalizedTitle(ref.watch(languageProvider)),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -612,7 +621,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        notification.message,
+                        notification.getLocalizedMessage(ref.watch(languageProvider)),
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.kOnSurface.withOpacity(0.7),
@@ -695,7 +704,20 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   IconData _getNotificationIcon(String type) {
-    // Use string matching for more flexibility
+    // For leave-related notifications
+    if (type.contains('leave') || type == 'leave_request' || type == 'pending') {
+      // Check if it's approved or rejected first
+      if (type.contains('approved') || type.contains('approve')) {
+        return Icons.check_circle; // Green checkmark for approved
+      }
+      if (type.contains('rejected') || type.contains('reject')) {
+        return Icons.cancel; // Red cross for rejected
+      }
+      // For pending/request leave notifications, use calendar icon
+      return Icons.calendar_today;
+    }
+    
+    // For other approved notifications (non-leave)
     if (type.contains('approved') || type.contains('approve')) {
       return Icons.check_circle;
     }
@@ -704,9 +726,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
     
     switch (type) {
-      case 'leave_request':
-      case 'pending':
-        return Icons.calendar_today;
       case 'leave_reminder':
         return Icons.schedule;
       case 'policy':

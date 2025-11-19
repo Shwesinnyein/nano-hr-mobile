@@ -113,10 +113,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // If logged in and trying to access login page, redirect to attendance
-      if (isAuthenticated &&
+      // But only if auth state is fully resolved (not loading)
+      if (!authState.isLoading && isAuthenticated &&
           (state.matchedLocation == '/login' ||
               state.matchedLocation == '/employee-login')) {
         return '/attendance';
+      }
+      
+      // If auth is still loading and on login page, stay on login (don't redirect yet)
+      if (authState.isLoading &&
+          (state.matchedLocation == '/login' ||
+              state.matchedLocation == '/employee-login')) {
+        return null; // Stay on login while loading
       }
 
       return null;
@@ -173,21 +181,25 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
 
     if (!mounted) return;
 
-    // Wait for auth state to resolve
-    final authState = ref.read(auth_repo.authStateProvider);
+    // Wait for auth state to fully resolve (no loading state)
+    var authState = ref.read(auth_repo.authStateProvider);
+    int maxWaitAttempts = 10; // Maximum 5 seconds (10 * 500ms)
+    int attempts = 0;
     
-    // If still loading, wait a bit more
-    if (authState.isLoading) {
+    // Keep waiting until auth state is resolved (not loading)
+    while (authState.isLoading && attempts < maxWaitAttempts) {
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      authState = ref.read(auth_repo.authStateProvider);
+      attempts++;
     }
 
     if (!mounted) return;
 
-    // Navigate based on auth state
-    final authStateAfterWait = ref.read(auth_repo.authStateProvider);
-    final targetRoute = authStateAfterWait.when(
+    // Navigate based on auth state (should be resolved by now)
+    final targetRoute = authState.when(
       data: (loggedIn) => loggedIn ? '/attendance' : '/login',
-      loading: () => '/login', // Fallback if still loading
+      loading: () => '/login', // Fallback if still loading after max attempts
       error: (_, __) => '/login',
     );
 

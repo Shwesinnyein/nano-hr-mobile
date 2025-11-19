@@ -4,6 +4,8 @@ class NotificationModel {
   final String? senderId;
   final String title;
   final String message;
+  final String? titleTh;
+  final String? messageTh;
   final String type;
   final Map<String, dynamic> data;
   final bool isRead;
@@ -16,6 +18,8 @@ class NotificationModel {
     this.senderId,
     required this.title,
     required this.message,
+    this.titleTh,
+    this.messageTh,
     required this.type,
     required this.data,
     required this.isRead,
@@ -30,6 +34,8 @@ class NotificationModel {
       senderId: json['senderId'] as String?,
       title: json['title'] as String,
       message: json['message'] as String,
+      titleTh: json['titleTh'] as String?,
+      messageTh: json['messageTh'] as String?,
       type: json['type'] as String,
       data: (json['data'] as Map<String, dynamic>?) ?? {},
       isRead: json['isRead'] == true || json['isRead'] == 'true',
@@ -45,6 +51,8 @@ class NotificationModel {
       'senderId': senderId,
       'title': title,
       'message': message,
+      'titleTh': titleTh,
+      'messageTh': messageTh,
       'type': type,
       'data': data,
       'isRead': isRead,
@@ -57,6 +65,22 @@ class NotificationModel {
   String get timeAgo => _getTimeAgo(createdAt);
   bool get isImportant => _isImportantNotification(type, title);
   String get displayType => _getDisplayType(type);
+  
+  // Get localized title based on language preference
+  String getLocalizedTitle(bool isThai) {
+    if (isThai && titleTh != null && titleTh!.isNotEmpty) {
+      return titleTh!;
+    }
+    return title;
+  }
+  
+  // Get localized message based on language preference
+  String getLocalizedMessage(bool isThai) {
+    if (isThai && messageTh != null && messageTh!.isNotEmpty) {
+      return messageTh!;
+    }
+    return message;
+  }
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
