@@ -165,13 +165,13 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
 
-              _buildSettingsItem(
-                ref.t('ติดต่อ IT', 'Contact IT'),
-                ref.t('ติดต่อฝ่ายสนับสนุน IT', 'Contact IT support'),
-                Icons.support_agent,
-                () =>
-                    _showComingSoon(context, ref.t('ติดต่อ IT', 'Contact IT')),
-              ),
+              // _buildSettingsItem(
+              //   ref.t('ติดต่อ IT', 'Contact IT'),
+              //   ref.t('ติดต่อฝ่ายสนับสนุน IT', 'Contact IT support'),
+              //   Icons.support_agent,
+              //   () =>
+              //       _showComingSoon(context, ref.t('ติดต่อ IT', 'Contact IT')),
+              // ), // Commented out - Contact IT feature not needed
             ]),
             const SizedBox(height: 24),
             _buildSettingsSection(ref.t('บัญชี', 'Account'), [
@@ -188,7 +188,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             _buildSettingsSection(ref.t('การตั้งค่าแอป', 'App Settings'), [
               _buildLanguageSelector(context, ref),
-              _buildNotificationToggle(context, ref),
+              // _buildNotificationToggle(context, ref), // Commented out - notification toggle not implemented yet
               _buildSettingsItem(
                 ref.t('การตั้งค่าความเป็นส่วนตัว', 'Privacy Settings'),
                 ref.t(

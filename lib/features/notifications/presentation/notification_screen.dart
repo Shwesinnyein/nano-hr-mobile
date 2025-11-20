@@ -155,19 +155,31 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   ) {
     // 1) Base filtering rules
     final filtered = notifications.where((notification) {
+      // Debug: Log notification details for troubleshooting
+      debugPrint('📬 Notification: type=${notification.type}, userId=${notification.userId}, senderId=${notification.senderId}, currentUserId=$currentEmployeeId');
+      
       // Hide self-originated initial leave_request notifications from requester
       // (They don't need to see their own request notification)
       // But allow requesters to see approval/rejection status updates (approved_*, approved, rejected)
       if (notification.type == 'leave_request') {
         // Only hide if sender is the current user (their own initial request)
         if (notification.senderId == currentEmployeeId) {
+          debugPrint('   ❌ Filtered out: Own leave_request notification');
           return false; // Hide initial request notification from requester
         }
+      }
+      
+      // Ensure notification is for the current user (userId should match)
+      // This is important for requester notifications
+      if (notification.userId != currentEmployeeId) {
+        debugPrint('   ❌ Filtered out: Notification userId (${notification.userId}) does not match current user ($currentEmployeeId)');
+        return false; // Hide notifications not meant for this user
       }
       
       // All other notifications (including approved_team_lead, approved_manager, 
       // approved_hr, approved, rejected) will be shown to the requester
       // The backend should send these with the requester as userId (recipient)
+      debugPrint('   ✅ Showing notification: ${notification.type}');
       return true;
     }).toList();
 

@@ -1343,6 +1343,60 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           }
         }
       } else {
+        // Check for WARNING_DAYS_VALIDATION error
+        if (response['code'] == 'WARNING_DAYS_VALIDATION') {
+          // Close loading dialog first
+          Navigator.pop(context);
+          
+          // Show warning dialog
+          if (context.mounted) {
+            final isThai = ref.read(languageProvider);
+            final warningMessage = isThai && response['messageTh'] != null
+                ? response['messageTh']
+                : response['message'] ?? 'Leave request validation failed';
+            
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: AppTheme.warningColor, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        isThai ? 'คำเตือน' : 'Warning',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.kOnBackground,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  warningMessage,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.kOnBackground,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      isThai ? 'ตกลง' : 'OK',
+                      style: TextStyle(color: AppTheme.kNanoGold),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          return; // Don't throw exception, just return
+        }
+        
+        // For other errors, throw exception as before
         throw Exception(
           response['message'] ?? LeaveTranslations.failedToSubmitRequest(ref),
         );
@@ -1378,19 +1432,62 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           .firstMatch(message);
       final remainingText = _remainingDaysHours ??
           (match != null ? '${match.group(1)} days' : null);
+      
       if (remainingText != null) {
-        message = isThai
-            ? 'วันลาที่เหลือไม่เพียงพอสำหรับคำขอนี้ ($remainingText)'
-            : 'Your remaining leave days are not enough for this request ($remainingText)';
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
+        // Show warning dialog for remaining days issue
+        if (context.mounted) {
+          final warningMessage = isThai
+              ? 'วันลาที่เหลือไม่เพียงพอสำหรับคำขอนี้ ($remainingText)'
+              : 'Your remaining leave days are not enough for this request ($remainingText)';
+          
+          await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: AppTheme.warningColor, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      isThai ? 'คำเตือน' : 'Warning',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.kOnBackground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                warningMessage,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.kOnBackground,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    isThai ? 'ตกลง' : 'OK',
+                    style: TextStyle(color: AppTheme.kNanoGold),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        // For other errors, show SnackBar
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
       }
     }
   }
