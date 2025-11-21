@@ -6,7 +6,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/providers/language_provider.dart';
 import '../data/auth_repository.dart' as auth_repo;
-import 'forgot_password_screen.dart';
+// import 'forgot_password_screen.dart';
 
 class EmployeeLoginScreen extends ConsumerStatefulWidget {
   const EmployeeLoginScreen({super.key});
@@ -189,14 +189,14 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  void _handleForgotPassword() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ForgotPasswordScreen(),
-      ),
-    );
-  }
+  // void _handleForgotPassword() {
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder: (context) => const ForgotPasswordScreen(),
+  //     ),
+  //   );
+  // }
 
   void _showLoadingSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -358,33 +358,33 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                                 ],
 
                                 // Forgot Password link (only show in login mode)
-                                if (!_showRegistration) ...[
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: _handleForgotPassword,
-                                      style: TextButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        _t(
-                                          ref,
-                                          'ลืมรหัสผ่าน?',
-                                          'Forgot Password?',
-                                        ),
-                                        style: TextStyle(
-                                          color: AppTheme.kNanoGold,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                // if (!_showRegistration) ...[
+                                //   const SizedBox(height: 12),
+                                //   Align(
+                                //     alignment: Alignment.centerRight,
+                                //     child: TextButton(
+                                //       onPressed: _handleForgotPassword,
+                                //       style: TextButton.styleFrom(
+                                //         padding: const EdgeInsets.symmetric(
+                                //           horizontal: 8,
+                                //           vertical: 4,
+                                //         ),
+                                //       ),
+                                //       child: Text(
+                                //         _t(
+                                //           ref,
+                                //           'ลืมรหัสผ่าน?',
+                                //           'Forgot Password?',
+                                //         ),
+                                //         style: TextStyle(
+                                //           color: AppTheme.kNanoGold,
+                                //           fontSize: 14,
+                                //           fontWeight: FontWeight.w600,
+                                //         ),
+                                //       ),
+                                //     ),
+                                //   ),
+                                // ],
 
                                 const SizedBox(height: 24),
 
