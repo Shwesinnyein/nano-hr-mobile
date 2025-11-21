@@ -162,27 +162,100 @@ class _SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<_SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _backgroundController;
+  late AnimationController _dotsController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _logoDropAnimation;
+  late Animation<double> _logoBounceAnimation;
+  late Animation<double> _logoNameSlideAnimation;
+  late Animation<double> _gradientAnimation;
+  late Animation<double> _pulseAnimation;
+  late List<Animation<double>> _dotAnimations;
 
   @override
   void initState() {
     super.initState();
+    // Logo/content animation
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
+      ),
+    );
+    // Logo drop animation (drop from top)
+    _logoDropAnimation = Tween<double>(begin: -200.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.5, curve: Curves.bounceOut),
+      ),
+    );
+    // Logo bounce animation (bounce after landing)
+    _logoBounceAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.5, 0.7, curve: Curves.elasticOut),
+      ),
+    );
+    // Logo name slide animation (slide in from right)
+    _logoNameSlideAnimation = Tween<double>(begin: 200.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+      ),
     );
     _controller.forward();
+    
+    // Background animation (gradient shift + pulse)
+    _backgroundController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    )..repeat(); // Loop continuously
+    
+    _gradientAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _backgroundController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    
+    _pulseAnimation = Tween<double>(begin: 0.5, end: 1.5).animate(
+      CurvedAnimation(
+        parent: _backgroundController,
+        curve: Curves.easeInOut,
+      ),
+    );
+    
+    // Dots animation (staggered bounce effect)
+    _dotsController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+    
+    _dotAnimations = List.generate(3, (index) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _dotsController,
+          curve: Interval(
+            index * 0.2, // Stagger each dot
+            (index * 0.2) + 0.6,
+            curve: Curves.easeInOut,
+          ),
+        ),
+      );
+    });
+    
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Minimum display time to ensure splash is visible
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Minimum display time to ensure splash is visible (3.5 seconds)
+    await Future.delayed(const Duration(milliseconds: 3500));
 
     if (!mounted) return;
 
@@ -216,27 +289,53 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _backgroundController.dispose();
+    _dotsController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFC7A27B).withOpacity(0.15),
-              AppTheme.kBackground,
-              const Color(0xFFC7A27B).withOpacity(0.08),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
+      body: AnimatedBuilder(
+        animation: _backgroundController,
+        builder: (context, child) {
+          // Animated gradient colors that shift
+          final gradientValue = _gradientAnimation.value;
+          final pulseValue = _pulseAnimation.value;
+          
+          // Calculate animated colors (shifting between different opacities)
+          // More visible animation: opacity ranges from 0.08 to 0.25
+          final topColorOpacity = 0.08 + (0.25 - 0.08) * (0.5 + 0.5 * (gradientValue * 2 - 1).abs());
+          final bottomColorOpacity = 0.05 + (0.20 - 0.05) * (0.5 + 0.5 * (gradientValue * 2 - 1).abs());
+          
+          // Animated gradient direction for more visible effect
+          final beginX = -1.0 + 2.0 * gradientValue; // Animate from -1 to 1
+          final beginY = -1.0 + 2.0 * (1.0 - gradientValue); // Opposite direction
+          
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(beginX * 0.5, beginY * 0.5), // Subtle movement
+                end: Alignment(-beginX * 0.5, -beginY * 0.5),
+                colors: [
+                  // Beige/cream gradient (lighter at top, warmer at bottom)
+                  Color(0xFFF5F0E8), // Light beige (top)
+                  Color(0xFFE8DDD0), // Warmer beige (middle)
+                  Color(0xFFE0D5C8), // Slightly darker warm beige (bottom)
+                ],
+                stops: [
+                  0.0,
+                  0.4 + 0.2 * gradientValue, // More animated stop position
+                  1.0,
+                ],
+              ),
+            ),
+            child: child,
+          );
+        },
         child: SafeArea(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -244,62 +343,172 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
               // Top spacing
               const Spacer(flex: 2),
               
-              // Logo with fade-in animation
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/icon/nano-icon-square.png',
-                    width: 120,
-                    height: 120,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Subtitle with fade-in
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  children: [
-                    Text(
-                      'NANO HR SYSTEM',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.kOnBackground,
-                        letterSpacing: 1.2,
+              // Logo icon - drops from top
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final dropY = _logoDropAnimation.value;
+                  final bounce = _logoBounceAnimation.value;
+                  
+                  return Opacity(
+                    opacity: _fadeAnimation.value,
+                    child: Transform.translate(
+                      offset: Offset(0, dropY),
+                      child: Transform.scale(
+                        scale: bounce,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 15,
+                                offset: const Offset(0, 8),
+                                spreadRadius: 2,
+                              ),
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(15),
+                            child: Image.asset(
+                              'assets/icon/nano-store-dark.png',
+                              width: 100,
+                              height: 60,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Smart HR for modern teams',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppTheme.kOnBackground.withOpacity(0.6),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               
-              const SizedBox(height: 32),
+              const SizedBox(height: 10),
               
-              // Clean loading animation
+              // // Logo name - slides in from right
+               AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final slideX = _logoNameSlideAnimation.value;
+                  
+                  return Opacity(
+                    opacity: slideX < 200 ? 1.0 : 0.0,
+                    child: Transform.translate(
+                      offset: Offset(slideX, 0),
+                      child: Text(
+                        'NANO HR SYSTEM',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.kOnBackground,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(2, 2),
+                            ),
+                            Shadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(1, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // AnimatedBuilder(
+              //   animation: _controller,
+              //   builder: (context, child) {
+              //     final slideX = _logoNameSlideAnimation.value;
+                  
+              //     return Opacity(
+              //       opacity: slideX < 200 ? 1.0 : 0.0,
+              //       child: Transform.translate(
+              //         offset: Offset(slideX, 0),
+              //         child: Image.asset(
+              //           'assets/icon/logo-name.png',
+              //           width: 320,
+              //           height: 90,
+              //           fit: BoxFit.contain,
+              //         ),
+              //       ),
+              //     );
+              //   },
+              // ),
+              
+             // const SizedBox(height: 10),
+              
+              // Subtitle with fade-in - commented out
+              // FadeTransition(
+              //   opacity: _fadeAnimation,
+              //   child: Column(
+              //     children: [
+              //       Text(
+              //         'NANO HR SYSTEM',
+              //         style: TextStyle(
+              //           fontSize: 18,
+              //           fontWeight: FontWeight.bold,
+              //           color: AppTheme.kOnBackground,
+              //           letterSpacing: 1.2,
+              //         ),
+              //       ),
+              //       const SizedBox(height: 6),
+              //       Text(
+              //         'Smart HR for modern teams',
+              //         style: TextStyle(
+              //           fontSize: 12,
+              //           fontWeight: FontWeight.w400,
+              //           color: AppTheme.kOnBackground.withOpacity(0.6),
+              //           letterSpacing: 0.5,
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              
+              const SizedBox(height: 8),
+              
+              // Animated dots (•••)
               FadeTransition(
                 opacity: _fadeAnimation,
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.kNanoGold),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (index) {
+                    return AnimatedBuilder(
+                      animation: _dotAnimations[index],
+                      builder: (context, child) {
+                        final scale = 0.5 + (_dotAnimations[index].value * 0.5); // Scale from 0.5 to 1.0
+                        final opacity = 0.3 + (_dotAnimations[index].value * 0.7); // Opacity from 0.3 to 1.0
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Transform.scale(
+                            scale: scale,
+                            child: Opacity(
+                              opacity: opacity,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.kNanoGold,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }),
                 ),
               ),
               
