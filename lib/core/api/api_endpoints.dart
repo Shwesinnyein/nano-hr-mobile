@@ -1,5 +1,6 @@
 class ApiEndpoints {
-  static const String baseUrl = 'https://nano-hr-api.vercel.app';
+//   static const String baseUrl = 'https://nano-hr-api.vercel.app';
+static const String baseUrl = 'https://nano-api-production.vercel.app';
 
   // Auth endpoints
   static const String loginUser = '/auth/login-user';
