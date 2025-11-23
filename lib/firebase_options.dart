@@ -57,12 +57,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBvQvQvQvQvQvQvQvQvQvQvQvQvQvQvQvQ',
-    appId: '1:123456789:ios:abcdef1234567890',
-    messagingSenderId: '123456789',
+    apiKey: 'AIzaSyB5v-2rW5RzAsTifA7SCavd3lm7K9fUShk',
+    appId: '1:794565998064:ios:7d36587abdbcdae712d935',
+    messagingSenderId: '794565998064',
     projectId: 'nano-hr',
     storageBucket: 'nano-hr.firebasestorage.app',
-    iosBundleId: 'com.shwesin.nanohr',
+    iosBundleId: 'com.nano.hr',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

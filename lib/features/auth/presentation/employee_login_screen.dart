@@ -66,27 +66,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     try {
       final authService = ref.read(authServiceProvider);
 
-      // Check if email exists in employee system
-      final emailCheckResult = await authService.checkEmailExists(email);
-
-      if (emailCheckResult['success'] == false) {
-        _showErrorSnackBar('Failed to verify email. Please try again.');
-        return;
-      }
-
-      // If email doesn't exist in system, show error
-      if (emailCheckResult['exists'] == false) {
-        _showErrorSnackBar('Email not found in system. Please contact HR.');
-        return;
-      }
-
-      // If exists is null or undefined, assume it doesn't exist for safety
-      if (emailCheckResult['exists'] == null) {
-        _showErrorSnackBar(
-          'Email verification failed. Please contact HR to verify your email.',
-        );
-        return;
-      }
+      // Registration flow: check Firebase Auth first, then employee table
       final result = await authService.registerUser(
         email,
         password,
@@ -118,8 +98,19 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Show API error message directly
-        _showErrorSnackBar(e.toString());
+        final errorMessage = e.toString();
+        
+        // Check if email already exists in Firebase Auth
+        if (errorMessage.contains('EMAIL_ALREADY_IN_FIREBASE_AUTH')) {
+          _showEmailAlreadyRegisteredAlert();
+        }
+        // Check if email doesn't exist in employee table
+        else if (errorMessage.contains('EMAIL_NOT_FOUND_IN_EMPLOYEE_TABLE')) {
+          _showEmailNotFoundInEmployeeTableAlert();
+        } else {
+          // Show other errors as snackbar
+          _showErrorSnackBar(errorMessage);
+        }
       }
     } finally {
       if (mounted) {
@@ -157,8 +148,28 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Show API error message directly
-        _showErrorSnackBar(e.toString());
+        final errorMessage = e.toString();
+        
+        // Check if password is incorrect
+        if (errorMessage.contains('PASSWORD_INCORRECT')) {
+          _showPasswordIncorrectAlert();
+        }
+        // Check if email exists in employee table but not Firebase Auth
+        else if (errorMessage.contains('EMAIL_EXISTS_IN_EMPLOYEE_TABLE')) {
+          _showEmailExistsInEmployeeTableAlert();
+        } 
+        // Check if email doesn't exist in either system
+        else if (errorMessage.contains('EMAIL_NOT_FOUND_IN_SYSTEM')) {
+          _showEmailNotFoundAlert();
+        }
+        // Check if it's a generic "user not found" error (needs registration)
+        else if (errorMessage.contains('You need to register first') || 
+            errorMessage.contains('user-not-found')) {
+          _showRegistrationRequiredAlert();
+        } else {
+          // Show other errors as snackbar
+          _showErrorSnackBar(errorMessage);
+        }
       }
     } finally {
       if (mounted) {
@@ -186,6 +197,279 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         backgroundColor: AppTheme.successColor,
         duration: const Duration(seconds: 2),
       ),
+    );
+  }
+
+  void _showRegistrationRequiredAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'บัญชีไม่พบ', 'Account Not Found'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.errorColor,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'อีเมลนี้ยังไม่ได้ลงทะเบียนในระบบ\nกรุณาลงทะเบียนก่อนเข้าสู่ระบบ',
+              'This email is not registered in the system.\nPlease register first before logging in.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Optionally switch to registration mode
+                setState(() {
+                  _showRegistration = true;
+                });
+              },
+              child: Text(
+                _t(ref, 'ลงทะเบียน', 'Register'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ปิด', 'Close'),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEmailExistsInEmployeeTableAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'อีเมลพบในระบบ', 'Email Found in System'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.kNanoGold,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'อีเมลนี้พบในระบบพนักงานแล้ว แต่ยังไม่ได้ลงทะเบียนในระบบ\nกรุณาลงทะเบียนเพื่อสร้างบัญชีและเข้าสู่ระบบ',
+              'This email is found in the employee system but not yet registered.\nPlease register to create your account and login.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Switch to registration mode
+                setState(() {
+                  _showRegistration = true;
+                });
+              },
+              child: Text(
+                _t(ref, 'ลงทะเบียน', 'Register'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ปิด', 'Close'),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEmailNotFoundAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'อีเมลไม่พบในระบบ', 'Email Not Found'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.errorColor,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'อีเมลนี้ไม่พบในระบบพนักงาน\nกรุณาติดต่อ HR เพื่อเพิ่มอีเมลของคุณในระบบ',
+              'This email is not found in the employee system.\nPlease contact HR to add your email to the system.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ตกลง', 'OK'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPasswordIncorrectAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'รหัสผ่านไม่ถูกต้อง', 'Password Incorrect'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.errorColor,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'รหัสผ่านที่คุณป้อนไม่ถูกต้อง\nกรุณาตรวจสอบรหัสผ่านและลองอีกครั้ง',
+              'The password you entered is incorrect.\nPlease check your password and try again.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ตกลง', 'OK'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEmailAlreadyRegisteredAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'อีเมลลงทะเบียนแล้ว', 'Email Already Registered'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.errorColor,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'อีเมลนี้ได้ลงทะเบียนในระบบแล้ว\nกรุณาเข้าสู่ระบบแทน',
+              'This email is already registered in the system.\nPlease login instead.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Switch to login mode
+                setState(() {
+                  _showRegistration = false;
+                });
+              },
+              child: Text(
+                _t(ref, 'เข้าสู่ระบบ', 'Login'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ปิด', 'Close'),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEmailNotFoundInEmployeeTableAlert() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            _t(ref, 'อีเมลไม่พบในระบบ', 'Email Not Found'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.errorColor,
+            ),
+          ),
+          content: Text(
+            _t(
+              ref,
+              'อีเมลนี้ไม่พบในระบบพนักงาน\nกรุณาติดต่อ HR เพื่อเพิ่มอีเมลของคุณในระบบก่อนลงทะเบียน',
+              'This email is not found in the employee system.\nPlease contact HR to add your email to the system before registering.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text(
+                _t(ref, 'ตกลง', 'OK'),
+                style: const TextStyle(
+                  color: AppTheme.kNanoGold,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
