@@ -57,13 +57,8 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () {
-                    // Refresh location
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.refresh, color: Colors.white),
-                ),
+                // Spacer to balance the back button
+                const SizedBox(width: 48),
               ],
             ),
           ),
