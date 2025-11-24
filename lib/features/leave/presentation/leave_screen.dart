@@ -163,8 +163,8 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
             const SizedBox(height: 24),
           ],
           _buildLeaveTypesList(context, leaveVm.balance),
-          const SizedBox(height: 24),
-          _buildRecentRequests(leaveVm.requests),
+          // const SizedBox(height: 24),
+          // _buildRecentRequests(leaveVm.requests),
         ],
       ),
     );
@@ -294,11 +294,45 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     }
 
     if (balance.balances.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          LeaveTranslations.failedToLoadLeaveBalance(ref),
-          style: TextStyle(color: AppTheme.errorColor),
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: AppTheme.kSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.withOpacity(0.2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 48,
+                color: Colors.grey.withOpacity(0.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                LeaveTranslations.noDataAvailable(ref),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                LeaveTranslations.failedToLoadLeaveBalance(ref),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.withOpacity(0.6),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -573,50 +607,50 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     );
   }
 
-  Widget _buildRecentRequests(List<LeaveRequest> requests) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          LeaveTranslations.recentRequests(ref),
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.kOnBackground,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (requests.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppTheme.kSurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.inbox_outlined,
-                  size: 48,
-                  color: Colors.grey.withOpacity(0.5),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  LeaveTranslations.noLeaveRequests(ref),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey.withOpacity(0.7),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...requests.take(3).map((request) => _buildRequestCard(request)),
-      ],
-    );
-  }
+  // Widget _buildRecentRequests(List<LeaveRequest> requests) {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Text(
+  //         LeaveTranslations.recentRequests(ref),
+  //         style: TextStyle(
+  //           fontSize: 20,
+  //           fontWeight: FontWeight.bold,
+  //           color: AppTheme.kOnBackground,
+  //         ),
+  //       ),
+  //       const SizedBox(height: 16),
+  //       if (requests.isEmpty)
+  //         Container(
+  //           padding: const EdgeInsets.all(24),
+  //           decoration: BoxDecoration(
+  //             color: AppTheme.kSurface,
+  //             borderRadius: BorderRadius.circular(12),
+  //             border: Border.all(color: Colors.grey.withOpacity(0.2)),
+  //           ),
+  //           child: Column(
+  //             children: [
+  //               Icon(
+  //                 Icons.inbox_outlined,
+  //                 size: 48,
+  //                 color: Colors.grey.withOpacity(0.5),
+  //               ),
+  //               const SizedBox(height: 12),
+  //               Text(
+  //                 LeaveTranslations.noLeaveRequests(ref),
+  //                 style: TextStyle(
+  //                   fontSize: 16,
+  //                   color: Colors.grey.withOpacity(0.7),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         )
+  //       else
+  //         ...requests.take(3).map((request) => _buildRequestCard(request)),
+  //     ],
+  //   );
+  // }
 
   // Normalize status for employee view - show simple statuses only
   String _normalizeStatusForEmployee(String status) {

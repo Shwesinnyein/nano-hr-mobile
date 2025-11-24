@@ -706,40 +706,31 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           height: 120,
           width: 120,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Colors.white, Color(0xFFf8f9fa)],
-            ),
-            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 15,
+                offset: const Offset(5, 5),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.7),
-                blurRadius: 10,
-                offset: const Offset(-5, -5),
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 8,
+                offset: const Offset(2, 2),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(30),
-            child: Image.asset(
-              'assets/icon/nano-store-dark.png',
-              height: 80,
-              width: 80,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.business_rounded,
-                  size: 60,
-                  color: Color(0xFFc7a27b),
-                );
-              },
-            ),
+          child: Image.asset(
+            'assets/icon/nano-store3.png',
+            height: 80,
+            width: 80,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(
+                Icons.business_rounded,
+                size: 60,
+                color: Color(0xFFc7a27b),
+              );
+            },
           ),
         ),
         const SizedBox(height: 24),
