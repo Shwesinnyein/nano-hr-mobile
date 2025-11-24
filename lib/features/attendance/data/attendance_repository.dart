@@ -12,12 +12,12 @@ class AttendanceRepository {
   Map<String, String> _getThailandTime() {
     final currentDate = DateTime.now().toUtc().add(const Duration(hours: 7));
     return {
-      'date': currentDate.toIso8601String().split('T')[0], // YYYY-MM-DD
+      'date': currentDate.toIso8601String().split('T')[0],
       'time': currentDate
           .toIso8601String()
           .split('T')[1]
-          .split('.')[0], // HH:MM:SS
-      'timestamp': currentDate.toIso8601String(), // Full ISO string
+          .split('.')[0], 
+      'timestamp': currentDate.toIso8601String(), 
     };
   }
 
@@ -73,7 +73,6 @@ class AttendanceRepository {
         'type': 'checkin',
       };
 
-      // Add GPS coordinates if provided
       if (latitude != null) {
         checkInData['latitude'] = latitude;
       }
@@ -84,23 +83,18 @@ class AttendanceRepository {
         checkInData['address'] = address;
       }
 
-      // Determine checkInLocation field based on branch proximity
       if (latitude != null && longitude != null) {
-        // Check if user is within office range
         final nearestBranch = BranchLocationService.findNearestBranch(
           latitude,
           longitude,
         );
 
         if (nearestBranch != null) {
-          // Within office range - save branch name
           checkInData['checkInLocation'] = nearestBranch.branchName;
         } else {
-          // Outside office range - save current address
           checkInData['checkInLocation'] = address ?? 'Unknown Location';
         }
       } else {
-        // No GPS data - use fallback
         checkInData['checkInLocation'] = address ?? employeeData['locationName'] ?? 'Unknown Location';
       }
 
@@ -128,40 +122,35 @@ class AttendanceRepository {
         );
       }
 
-      // Get the record from the status response
       final checkInRecord = statusResponse['record'];
       if (checkInRecord == null) {
         throw Exception('No open check-in record found for today.');
       }
 
-      // Get Thailand local time (UTC+7)
       final thailandTime = _getThailandTime();
       final dateString = thailandTime['date']!;
       final localTimeString = thailandTime['time']!;
       final timestamp = thailandTime['timestamp']!;
 
-      // Update the existing record with checkout information
-
       final checkOutData = {
-        'id': checkInRecord['id'], // Use existing record ID
-        'uid': checkInRecord['uid'], // Use existing UID
-        'employeeId': checkInRecord['employeeId'], // Use existing employeeId
+        'id': checkInRecord['id'], 
+        'uid': checkInRecord['uid'], 
+        'employeeId': checkInRecord['employeeId'], 
         'employeeName':
-            checkInRecord['employeeName'], // Use existing employeeName
-        'location': address ?? checkInRecord['location'], // Use new address if provided
-        'branch': checkInRecord['branch'], // Use existing branch
-        'branchName': checkInRecord['branchName'], // Use existing branchName
-        'type': 'checkout', // Change type to checked_out
-        'date': dateString, // Update date
-        'time': localTimeString, // Update time
-        'checkInAt': checkInRecord['checkInAt'], // Keep existing checkInAt
-        'checkOutAt': localTimeString, // Add checkout time
-        'timestamp': timestamp, // Update timestamp with Thailand time
-        'createdAt': checkInRecord['createdAt'], // Keep existing createdAt
-        'updatedAt': timestamp, // Update updatedAt with Thailand time
+            checkInRecord['employeeName'], 
+        'location': address ?? checkInRecord['location'], 
+        'branch': checkInRecord['branch'], 
+        'branchName': checkInRecord['branchName'], 
+        'type': 'checkout', 
+        'date': dateString, 
+        'time': localTimeString, 
+        'checkInAt': checkInRecord['checkInAt'], 
+        'checkOutAt': localTimeString, 
+        'timestamp': timestamp, 
+        'createdAt': checkInRecord['createdAt'], 
+        'updatedAt': timestamp, 
       };
 
-      // Add GPS coordinates if provided for checkout
       if (latitude != null) {
         checkOutData['checkOutLatitude'] = latitude;
       }
@@ -172,23 +161,18 @@ class AttendanceRepository {
         checkOutData['checkOutAddress'] = address;
       }
 
-      // Determine checkOutLocation field for checkout based on branch proximity
       if (latitude != null && longitude != null) {
-        // Check if user is within office range
         final nearestBranch = BranchLocationService.findNearestBranch(
           latitude,
           longitude,
         );
 
         if (nearestBranch != null) {
-          // Within office range - save branch name
           checkOutData['checkOutLocation'] = nearestBranch.branchName;
         } else {
-          // Outside office range - save current address
           checkOutData['checkOutLocation'] = address ?? 'Unknown Location';
         }
       } else {
-        // No GPS data - use fallback
         checkOutData['checkOutLocation'] = address ?? checkInRecord['location'] ?? 'Unknown Location';
       }
 
@@ -248,7 +232,6 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
     try {
       state = const AsyncValue.loading();
 
-      // Get real employee ID from auth service
       final employeeId = _authService.currentEmployeeId;
 
       if (employeeId == null) {
@@ -259,17 +242,14 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
       final attendance = await _repository.listMyAttendance(employeeId);
       state = AsyncValue.data(attendance);
 
-      // Update openId based on attendance data
       _updateOpenId(attendance);
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
 
-  // Silent reload - updates data without showing loading indicator
   Future<void> silentReload() async {
     try {
-      // Don't set state to loading - keep existing data visible
 
       final employeeId = _authService.currentEmployeeId;
 
@@ -280,10 +260,8 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
       final attendance = await _repository.listMyAttendance(employeeId);
       state = AsyncValue.data(attendance);
 
-      // Update openId based on attendance data
       _updateOpenId(attendance);
     } catch (e) {
-      // Don't show error, just keep existing data
     }
   }
 
@@ -306,7 +284,7 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         longitude: longitude,
         address: address,
       );
-      await silentReload(); // Silent reload - no loading indicator
+      await silentReload(); 
     } catch (e) {
       rethrow;
     }
@@ -331,7 +309,7 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         longitude: longitude,
         address: address,
       );
-      await silentReload(); // Silent reload - no loading indicator
+      await silentReload(); 
     } catch (e) {
       rethrow;
     }
@@ -364,13 +342,11 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
 
   Future<void> toggleCheck() async {
     try {
-      // Get real employee data from auth service
       final employeeId = _authService.currentEmployeeId;
       if (employeeId == null) {
         throw Exception('No employee ID found, user not logged in');
       }
 
-      // Get employee profile data
       final profileResponse = await _authService.getEmployeeProfile();
       if (profileResponse['success'] != true) {
         throw Exception(
@@ -389,7 +365,6 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         'branchName': employeeProfile['branchName'] ?? '',
       };
 
-      // Check current status using status API
       final attendanceService = _ref.read(attendanceServiceProvider);
       final statusResponse = await attendanceService.getTodayAttendanceStatus(
         employeeId: employeeId,
@@ -399,27 +374,16 @@ class AttendanceController extends StateNotifier<AsyncValue<List<Attendance>>> {
         final status = statusResponse['status'];
 
         if (status == 'checked_in') {
-          // User is checked in, so check out
-
           await checkOut(employeeData);
         } else if (status == 'checked_out') {
-          // User is already checked out
           throw Exception('You have already checked out today');
         } else {
-          // User is not checked in, so check in
-
           await checkIn(employeeData);
         }
       } else {
-        // Status API failed, fall back to local data logic
-
         if (_openId == null) {
-          // No open record, check in
-
           await checkIn(employeeData);
         } else {
-          // Has open record, check out
-
           await checkOut(employeeData);
         }
       }

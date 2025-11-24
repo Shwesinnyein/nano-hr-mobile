@@ -64,7 +64,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       final employeeRepository = ref.read(employeeRepositoryProvider);
       final employees = await employeeRepository.getEmployees(
         page: _currentPage,
-        limit: 20, // Load 20 employees per page
+        limit: 20, 
       );
 
       setState(() {
@@ -77,7 +77,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         }
         _isLoading = false;
         _hasMoreData =
-            employees.length == 20; // If we got 20, there might be more
+            employees.length == 20; 
         _currentPage++;
       });
     } catch (e) {
@@ -138,7 +138,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       return;
     }
 
-    // Debounce search to avoid excessive filtering
+    
     _searchTimer = Timer(const Duration(milliseconds: 300), () {
       _performSearch(query);
     });
@@ -274,7 +274,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   Widget _buildSkeletonLoading() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: 8, // Show 8 skeleton items
+      itemCount: 8, 
       itemBuilder: (context, index) {
         return AnimatedFadeIn(
           delay: Duration(milliseconds: index * 100),
@@ -450,7 +450,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   }
 
   Widget _buildProfileAvatar(Employee employee) {
-    // Check if employee has a profile image URL
+    
     if (employee.profileImage != null && employee.profileImage!.isNotEmpty) {
       return Container(
         width: 50,
@@ -469,7 +469,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             height: 50,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              // Fallback to initials if image fails to load
+              
               return _buildInitialsAvatar(employee);
             },
             loadingBuilder: (context, child, loadingProgress) {
@@ -481,7 +481,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       );
     }
 
-    // Fallback to initials if no profile image
+    
     return _buildInitialsAvatar(employee);
   }
 
@@ -534,7 +534,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   String _getInitials(Employee employee) {
     String initials = '';
 
-    // Try to get initials from firstName and lastName
+    
     if (employee.firstName != null && employee.firstName!.isNotEmpty) {
       initials += employee.firstName![0].toUpperCase();
     }
@@ -542,12 +542,12 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       initials += employee.lastName![0].toUpperCase();
     }
 
-    // Fallback to name field
+    
     if (initials.isEmpty && employee.name.isNotEmpty) {
       initials = employee.name[0].toUpperCase();
     }
 
-    // Final fallback
+    
     if (initials.isEmpty) {
       initials = '?';
     }

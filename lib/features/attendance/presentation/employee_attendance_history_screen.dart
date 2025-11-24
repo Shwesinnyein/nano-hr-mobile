@@ -20,14 +20,13 @@ class _EmployeeAttendanceHistoryScreenState
   bool _isLoading = false;
   String? _error;
   DateTime _selectedDate = DateTime.now();
-  String _selectedPeriod = 'month'; // 'date' or 'month' - default to month
+  String _selectedPeriod = 'month'; 
   final TextEditingController _searchController = TextEditingController();
   Map<String, dynamic>? _summary;
 
   @override
   void initState() {
     super.initState();
-    // Load all attendance data on init
     _loadAttendanceData();
   }
 
@@ -47,19 +46,18 @@ class _EmployeeAttendanceHistoryScreenState
       final apiService = ref.read(apiServiceProvider);
       final searchName = _searchController.text.trim();
       
-      // Call API with search parameters
       Map<String, dynamic> response;
       
       if (_selectedPeriod == 'date') {
         final dateString = DateFormat('yyyy-MM-dd').format(_selectedDate);
         response = await apiService.searchAttendanceByName(
-          name: searchName, // Can be empty to get all
+          name: searchName, 
           date: dateString,
         );
       } else {
-        // Month view
+        
         response = await apiService.searchAttendanceByName(
-          name: searchName, // Can be empty to get all
+          name: searchName, 
           year: _selectedDate.year,
           month: _selectedDate.month,
         );
@@ -107,7 +105,7 @@ class _EmployeeAttendanceHistoryScreenState
                 height: 400,
                 child: Column(
                   children: [
-                    // Year Selection
+                    
                     Text(
                       _t('ปี', 'Year'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -156,7 +154,7 @@ class _EmployeeAttendanceHistoryScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Month Selection
+                    
                     Text(
                       _t('เดือน', 'Month'),
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -304,13 +302,12 @@ class _EmployeeAttendanceHistoryScreenState
         ),
         body: Column(
           children: [
-            // Filters Section
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
               child: Column(
                 children: [
-                  // Summary Statistics
+                  
                   if (_summary != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -331,7 +328,6 @@ class _EmployeeAttendanceHistoryScreenState
                     const SizedBox(height: 16),
                   ],
 
-                  // Employee Search Input
                   TextFormField(
                     controller: _searchController,
                     decoration: InputDecoration(
@@ -355,7 +351,6 @@ class _EmployeeAttendanceHistoryScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // Period Selection Toggle
                   Row(
                     children: [
                       Expanded(
@@ -421,11 +416,9 @@ class _EmployeeAttendanceHistoryScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // Date/Month Selection
                   InkWell(
                     onTap: () async {
                       if (_selectedPeriod == 'date') {
-                        // Date picker
                         final date = await showDatePicker(
                           context: context,
                           initialDate: _selectedDate,
@@ -439,7 +432,6 @@ class _EmployeeAttendanceHistoryScreenState
                           _loadAttendanceData();
                         }
                       } else {
-                        // Month picker
                         final result = await _showMonthYearPicker(context);
                         if (result != null) {
                           setState(() {
@@ -489,7 +481,6 @@ class _EmployeeAttendanceHistoryScreenState
               ),
             ),
 
-            // Content Section
             Expanded(child: _buildContent()),
           ],
         ),
@@ -581,7 +572,6 @@ class _EmployeeAttendanceHistoryScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Employee Name & Date Header
           Row(
             children: [
               Expanded(
@@ -605,7 +595,6 @@ class _EmployeeAttendanceHistoryScreenState
                   ],
                 ),
               ),
-              // Status Badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -625,7 +614,6 @@ class _EmployeeAttendanceHistoryScreenState
           ),
           const SizedBox(height: 12),
 
-          // Check In/Out Times
           Row(
             children: [
               if (checkInAt != null) ...[
@@ -650,7 +638,6 @@ class _EmployeeAttendanceHistoryScreenState
             ],
           ),
 
-          // Branch
           if (branchName != null) ...[
             const SizedBox(height: 8),
             Row(

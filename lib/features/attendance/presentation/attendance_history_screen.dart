@@ -45,7 +45,7 @@ class _AttendanceHistoryScreenState
         throw Exception('No employee ID found');
       }
 
-      // Get attendance history for the selected month/year
+      
       final response = await apiService.getAttendanceListWithFilter(
         employeeId: employeeId,
         month: _selectedMonth,
@@ -66,15 +66,15 @@ class _AttendanceHistoryScreenState
           );
         }
       } else {
-        // Handle "no records found" case
+        
         final message = response['message'] ?? 'Failed to load attendance data';
         if (message.contains('No attendance records found') || 
             message.contains('No attendance records found for the specified period')) {
-          // Show empty state instead of error
+          
           setState(() {
             _attendanceHistory = [];
             _isLoading = false;
-            _error = null; // Clear any previous errors
+            _error = null; 
           });
         } else {
           throw Exception(message);
@@ -104,7 +104,7 @@ class _AttendanceHistoryScreenState
 
   String _formatTime(String timeString) {
     try {
-      return timeString.substring(0, 5); // Show HH:MM format
+      return timeString.substring(0, 5); 
     } catch (e) {
       return timeString;
     }
@@ -234,7 +234,7 @@ class _AttendanceHistoryScreenState
                 height: 400,
                 child: Column(
                   children: [
-                    // Year Selection
+                    
                     Text(
                       isThai ? 'ปี' : 'Year',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -283,7 +283,7 @@ class _AttendanceHistoryScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Month Selection
+                    
                     Text(
                       isThai ? 'เดือน' : 'Month',
                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -420,7 +420,7 @@ class _AttendanceHistoryScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Date and Status Row
+              
               Row(
                 children: [
                   Icon(
@@ -462,7 +462,7 @@ class _AttendanceHistoryScreenState
               ),
               const SizedBox(height: 12),
 
-              // Check In Time
+              
               if (checkIn != null) ...[
                 Row(
                   children: [
@@ -482,7 +482,7 @@ class _AttendanceHistoryScreenState
                 const SizedBox(height: 8),
               ],
 
-              // Check Out Time
+              
               if (checkOut != null) ...[
                 Row(
                   children: [
@@ -502,7 +502,7 @@ class _AttendanceHistoryScreenState
                 const SizedBox(height: 8),
               ],
 
-              // Location
+              
               if (location.isNotEmpty) ...[
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

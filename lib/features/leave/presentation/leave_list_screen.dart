@@ -23,7 +23,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh the leave list data when screen is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshData();
     });
@@ -37,11 +36,9 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
     if (currentEmployeeId != null) {
-      // Force refresh and show loading state
       ref.invalidate(employeeLeaveListProvider(currentEmployeeId));
     }
 
-    // Add a small delay to ensure loading state is visible
     await Future.delayed(const Duration(milliseconds: 500));
 
     setState(() {
@@ -105,7 +102,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   Widget _buildSkeletonLoading() {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: 6, // Show 6 skeleton items
+      itemCount: 6, 
       itemBuilder: (context, index) {
         return AnimatedFadeIn(
           delay: Duration(milliseconds: index * 100),
@@ -166,7 +163,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
   Widget _buildLeaveList(List<LeaveRequest> requests) {
     return Column(
       children: [
-        // Show message when no leave requests are available
         if (requests.isEmpty)
           Container(
             margin: const EdgeInsets.all(16),
@@ -197,7 +193,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
               ],
             ),
           ),
-        // Show leave requests if available
         if (requests.isNotEmpty) ...[
           _buildSummaryCard(requests),
           Expanded(
@@ -339,7 +334,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
         statusIcon = Icons.pending;
     }
 
-    // Calculate duration based on request type
     String durationText;
     if (request.startTime != null && request.endTime != null) {
       durationText = '${request.startTime} - ${request.endTime}';
@@ -368,7 +362,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with leave type and status
               Row(
                 children: [
                   Container(
@@ -439,9 +432,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
               const SizedBox(height: 12),
 
-              // Date/Time information based on leave type
               if (request.requestType == 'daily') ...[
-                // Daily leave: Show From Date - To Date
                 if (request.startDate != null && request.endDate != null) ...[
                   Row(
                     children: [
@@ -472,7 +463,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   ),
                 ] else if (request.fromDate != null &&
                     request.toDate != null) ...[
-                  // Fallback to fromDate/toDate if startDate/endDate not available
                   Row(
                     children: [
                       Icon(Icons.calendar_today, size: 16, color: Colors.grey),
@@ -517,7 +507,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 ],
               ] else if (request.requestType == 'hourly' &&
                   request.date != null) ...[
-                // Hourly leave: Show Date and Start Time - End Time
                 Row(
                   children: [
                     Icon(Icons.calendar_today, size: 16, color: Colors.grey),
@@ -548,7 +537,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   ),
                 ],
               ] else ...[
-                // Fallback for other cases
+                
                 Row(
                   children: [
                     Icon(Icons.calendar_today, size: 16, color: Colors.grey),
@@ -564,7 +553,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 ),
               ],
 
-              // Total days for daily leave
               if (request.requestType == 'daily' &&
                   request.totalDays != null) ...[
                 const SizedBox(height: 8),
@@ -583,7 +571,6 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 ),
               ],
 
-              // Reason
               if (request.reason.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Row(
@@ -606,13 +593,13 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 ),
               ],
 
-              // Attachments with image previews
+              
               if (request.attachments.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 _buildAttachmentsPreview(request.attachments),
               ],
 
-              // Created date
+              
               ...[
                 const SizedBox(height: 8),
                 Row(

@@ -34,7 +34,6 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
   void _createMarkers() {
     _markers.clear();
 
-    // Add current location marker
     _markers.add(
       Marker(
         markerId: const MarkerId('current_location'),

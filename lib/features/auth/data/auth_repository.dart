@@ -25,25 +25,24 @@ class AuthRepository {
     final userId = prefs.getString(_kUserId);
     final employeeId = prefs.getString(_kEmployeeId);
 
-    // Check if we have a valid token, user ID, and employee ID
     if (isLoggedIn && token != null && userId != null && employeeId != null) {
-      // Restore auth service state
+     
       _authService.setCurrentUser(userId);
       _authService.setCurrentEmployeeId(employeeId);
 
-      // Restore employee name and position from SharedPreferences
+      
       final firstName = prefs.getString(_kEmployeeFirstName);
       final lastName = prefs.getString(_kEmployeeLastName);
       final positionName = prefs.getString(_kPositionName);
       _authService.setCurrentEmployeeName(firstName, lastName, positionName);
 
-      // Ensure the device token is registered when restoring session
+      
       await _pushNotificationService.initialize();
 
       return true;
     }
 
-    // If no valid token, clear login state
+    
     if (!isLoggedIn || token == null) {
       await _clearLoginState();
     }
@@ -73,16 +72,14 @@ class AuthRepository {
           await prefs.setString(_kUserToken, token);
         }
 
-        // Update auth service with both user ID and employee ID
+        
         _authService.setCurrentUser(userId);
         _authService.setCurrentEmployeeId(employeeId);
 
         try {
           await _pushNotificationService.initialize();
         } catch (e) {
-          // Ignore push notification setup errors so login can proceed
-          // (common on iOS without APNs entitlement)
-          print('⚠️ Push notification initialization failed: $e');
+          
         }
       } else {
         throw Exception(response['message'] ?? 'Login failed');
@@ -110,7 +107,7 @@ class AuthRepository {
         final token =
             response['token'] ?? userData['token'] ?? userData['accessToken'];
 
-        // Get employee name and position
+        
         final firstName = userData['firstName'] ?? userData['first_name'];
         final lastName = userData['lastName'] ?? userData['last_name'];
         final positionName =
@@ -125,19 +122,15 @@ class AuthRepository {
         await prefs.setString(_kEmployeeId, employeeId);
         if (token != null) {
           await prefs.setString(_kUserToken, token);
-        } else {
-          print('❌ No token to store');
         }
 
-        // Store profile image URL
+        
         final profileImageUrl = userData['profileImage'];
         if (profileImageUrl != null) {
           await prefs.setString('user_profile_image', profileImageUrl);
-        } else {
-          print('❌ No profile image URL found');
         }
 
-        // Save employee name and position to SharedPreferences
+        
         if (firstName != null) {
           await prefs.setString(_kEmployeeFirstName, firstName);
         }
@@ -148,7 +141,7 @@ class AuthRepository {
           await prefs.setString(_kPositionName, positionName);
         }
 
-        // Update auth service with both user ID and employee ID
+        
         _authService.setCurrentUser(userId);
         _authService.setCurrentEmployeeId(employeeId);
         _authService.setCurrentEmployeeName(firstName, lastName, positionName);
@@ -156,7 +149,7 @@ class AuthRepository {
         try {
           await _pushNotificationService.initialize();
         } catch (e) {
-          print('⚠️ Push notification initialization failed: $e');
+          
         }
       } else {
         throw Exception(response['message'] ?? 'Mobile login failed');
@@ -169,17 +162,15 @@ class AuthRepository {
 
   Future<void> logout() async {
     try {
-      // Call API to logout
+      
       await _authService.signOut();
     } catch (e) {
     } finally {
-      // Don't unregister FCM token - keep it for the device
-      // The token will be re-registered with the new user when they log in
+
       
-      // Clear local login state (but preserve FCM token)
+      
       await _clearLoginState();
 
-      // Clear any cached data that might be user-specific
       await _clearUserSpecificCaches();
     }
   }
@@ -197,39 +188,26 @@ class AuthRepository {
   Future<void> _clearLoginState() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // Preserve FCM token before clearing (device token persists across logins)
     const fcmTokenKey = 'fcm_device_token';
     final fcmToken = prefs.getString(fcmTokenKey);
 
-    // Clear ALL SharedPreferences data to prevent data mixing between different users
     await prefs.clear();
 
-    // Restore FCM token after clearing
-    // The token will be re-registered with the new user when they log in
     if (fcmToken != null && fcmToken.isNotEmpty) {
       await prefs.setString(fcmTokenKey, fcmToken);
-      // Don't restore employeeId - it will be updated when new user logs in
     }
 
     _authService.setCurrentUser(null);
     _authService.setCurrentEmployeeId(null);
     _authService.setCurrentEmployeeName(null, null, null);
-  }
+  } 
 
   Future<void> _clearUserSpecificCaches() async {
-    // Clear any cached data that might be user-specific
-    // This includes leave data caches, attendance caches, etc.
-
+   
     try {
-      // Import the leave controller to clear its cache
-      // Note: This is a static method, so we can call it directly
-      // LeaveController.clearAllCache(); // Uncomment if needed
-
-      // Clear any other user-specific caches here
-      // For example: AttendanceController.clearAllCache();
+     
     } catch (e) {
-      // Don't let cache clearing errors prevent logout
-      print('Warning: Failed to clear some caches during logout: $e');
+     
     }
   }
 }
@@ -269,7 +247,7 @@ class AuthController extends StateNotifier<AsyncValue<bool>> {
       _controller.add(true);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      rethrow; // Re-throw the exception so the UI can catch it
+      rethrow; 
     }
   }
 

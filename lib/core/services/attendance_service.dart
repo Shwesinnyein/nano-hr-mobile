@@ -14,7 +14,6 @@ class AttendanceService {
         employeeId: employeeId,
       );
       if (response['success'] == true) {
-        // Handle nested data structure
         final outerData = response['data'] as Map<String, dynamic>;
         if (outerData['success'] == true) {
           final data = outerData['data'] as List<dynamic>;
@@ -35,7 +34,6 @@ class AttendanceService {
     }
   }
 
-  // Get attendance list with month/year filter
   Future<List<Map<String, dynamic>>> getAttendanceListWithFilter({
     required String employeeId,
     int? month,
@@ -49,7 +47,6 @@ class AttendanceService {
       );
       
       if (response['success'] == true) {
-        // Handle nested data structure
         final outerData = response['data'] as Map<String, dynamic>;
         if (outerData['success'] == true) {
           final data = outerData['data'] as List<dynamic>;
@@ -70,7 +67,6 @@ class AttendanceService {
     }
   }
 
-  // Check in/out attendance
   Future<Map<String, dynamic>> checkInOut(Map<String, dynamic> data) async {
     try {
       final response = await _apiService.checkInOut(
@@ -101,7 +97,6 @@ class AttendanceService {
     }
   }
 
-  // Get today's attendance
   Future<List<Map<String, dynamic>>> getTodayAttendance(
     String employeeId,
   ) async {
@@ -127,7 +122,6 @@ class AttendanceService {
     }
   }
 
-  // Get today's attendance status
   Future<Map<String, dynamic>> getTodayAttendanceStatus({
     required String employeeId,
   }) async {
@@ -142,7 +136,6 @@ class AttendanceService {
     }
   }
 
-  // Get shift data with filter
   Future<Map<String, dynamic>> getShiftDataWithFilter({
     required String employeeId,
     required String date,
@@ -159,7 +152,6 @@ class AttendanceService {
     }
   }
 
-  // Get attendance history
   Future<List<Map<String, dynamic>>> getAttendanceHistory(
     String employeeId,
   ) async {
@@ -183,7 +175,6 @@ class AttendanceService {
     }
   }
 
-  // Check in/out with full record data (for updating existing records)
   Future<Map<String, dynamic>> checkInOutWithRecordData(
     Map<String, dynamic> recordData,
   ) async {
@@ -197,7 +188,6 @@ class AttendanceService {
   }
 }
 
-// Provider for AttendanceService
 final attendanceServiceProvider = Provider<AttendanceService>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   return AttendanceService(apiService);

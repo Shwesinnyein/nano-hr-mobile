@@ -21,21 +21,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   List<NotificationModel> _pending = [];
   bool _loading = true;
   String? _error;
-  // Cache of live details keyed by leaveId
+  
   final Map<String, Map<String, dynamic>> _leaveDetails = {};
 
-  // Local cache for processed requests (approved/rejected by current user)
   final Map<String, Map<String, dynamic>> _processedRequests = {};
 
-  // Employee leave data
   List<Map<String, dynamic>> _employeeLeaves = [];
   bool _loadingEmployeeLeaves = false;
 
-  // Tab controller for the new tabs
   late TabController _tabController;
   int _currentTabIndex = 0;
 
-  // Search functionality
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -71,13 +67,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Refresh data when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadAllLeaveRequests(forceRefresh: true, showLoading: false);
     }
   }
 
-  // Filter leave requests based on search query
   List<NotificationModel> _filterLeaveRequests(
     List<NotificationModel> requests,
   ) {
@@ -96,38 +90,31 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     }).toList();
   }
 
-  // Determine user level based on position name
   String _getUserLevel(AuthService auth) {
     final position = auth.currentPositionName ?? '';
 
-    // Check if user is HR
     if (position.toLowerCase().contains('hr') ||
         position.toLowerCase().contains('human resource')) {
       return 'hr';
     }
 
-    // Check if user is an approver
     if (position.toLowerCase().contains('approver') ||
         position.toLowerCase().contains('management')) {
       return 'approver';
     }
 
-    // Check if user is Team Lead (positionName contains "Team Lead")
     if (position.toLowerCase().contains('team lead')) {
       return 'team-lead';
     }
 
-    // Check if user is Programmer/Developer (they can act as team leads)
     if (position.toLowerCase().contains('programmer') ||
         position.toLowerCase().contains('developer')) {
       return 'team-lead';
     }
 
-    // Default to manager (most common case)
     return 'manager';
   }
 
-  // Load employee leaves based on user role
   Future<void> _loadEmployeeLeaves({bool showLoading = true}) async {
     final auth = ref.read(authServiceProvider);
     final currentEmployeeId = auth.currentEmployeeId;
@@ -145,16 +132,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
       List<Map<String, dynamic>> allEmployeeLeaves = [];
 
-      // For Employee Leaves tab, use the leave history API which provides
-      // all leave requests that this user has processed (approved or rejected)
       try {
-        // Use the leave history API which already filters by user and includes
-        // proper employee details and approval history
         allEmployeeLeaves = await leaveService.getLeaveHistory(
           currentEmployeeId,
         );
 
-        // Log sample data to verify structure
         if (allEmployeeLeaves.isNotEmpty) {
           final sample = allEmployeeLeaves.first;
         } else {}
@@ -163,7 +145,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           final processedLeaves = await leaveService
               .getLeaveRequestsForApproval(userLevel, currentEmployeeId);
 
-          // Filter to only show leaves that this user has actually processed
           allEmployeeLeaves = processedLeaves.where((leave) {
             final approvalHistory =
                 leave['approvalHistory'] as List<dynamic>? ?? [];
@@ -179,13 +160,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         }
       }
 
-      // Filter out current user's own leave requests
       allEmployeeLeaves = allEmployeeLeaves.where((leave) {
         final employeeId = leave['employeeId']?.toString();
         return employeeId == null || employeeId != currentEmployeeId;
       }).toList();
 
-      // The API already provides employee details, no need to enhance
       setState(() {
         _employeeLeaves = allEmployeeLeaves;
         _loadingEmployeeLeaves = false;
@@ -194,11 +173,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       setState(() {
         _loadingEmployeeLeaves = false;
       });
-      print('Error loading employee leaves: $e');
+      // Error loading employee leaves handled silently
     }
   }
 
-  // Filter employee leaves based on search query
   List<Map<String, dynamic>> _filterEmployeeLeaves(
     List<Map<String, dynamic>> leaves,
   ) {
@@ -279,12 +257,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       final userLevel = _getUserLevel(auth);
       final leaveService = LeaveService();
       
-      // Clear cache if force refresh is requested
       if (forceRefresh) {
         LeaveService.clearApprovalCache();
       }
 
-      // Load all leave requests for the user
       List<Map<String, dynamic>> leaveRequests;
       try {
         leaveRequests = await leaveService.getAllLeaveRequestsForApproval(
@@ -295,7 +271,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         leaveRequests = [];
       }
 
-      // Filter out current user's own requests
       final List<Map<String, dynamic>> teamRequests = [];
       for (final leaveRequest in leaveRequests) {
         if (leaveRequest['employeeId'] != currentEmployeeId) {
@@ -303,10 +278,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         }
       }
 
-      // Convert to notification models
       final List<NotificationModel> pendingList = [];
 
-      // Add all API requests (these are pending or need action)
       for (final request in teamRequests) {
         final notification = NotificationModel.fromJson({
           'id': request['id'] ?? '',
@@ -372,7 +345,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           preferredSize: const Size.fromHeight(100),
           child: Column(
             children: [
-              // Search bar
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
@@ -411,7 +383,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   ),
                 ),
               ),
-              // Tabs
               TabBar(
                 controller: _tabController,
                 indicatorColor: AppTheme.kNanoGold,
@@ -594,8 +565,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
     final employeeId = leave['employeeId']?.toString() ?? '';
     final leaveType = leave['leaveTypeName']?.toString() ?? 'Unknown Type';
-
-    // Try to get dates from multiple possible fields
     final startDate =
         leave['startDate']?.toString() ??
         leave['fromDate']?.toString() ??
@@ -621,10 +590,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     Color statusColor;
     String statusText;
 
-    // Handle various approval statuses
     if (status.toLowerCase().contains('approved')) {
       statusColor = AppTheme.successColor;
-      // Use the actual status name from API if available, otherwise show "Approved"
       statusText = statusName.isNotEmpty ? statusName : 'Approved';
     } else if (status.toLowerCase().contains('rejected')) {
       statusColor = AppTheme.errorColor;
@@ -656,8 +623,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              // Avatar
+            children: [   
               Container(
                 width: 40,
                 height: 40,
@@ -672,7 +638,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Employee name
                     Text(
                       employeeName,
                       style: const TextStyle(
@@ -682,7 +647,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Employee ID and Position
                     Text(
                       '${employeeId.isNotEmpty ? employeeId : 'ID: Unknown'} • ${positionName.isNotEmpty ? positionName : 'Position: Unknown'}',
                       style: TextStyle(
@@ -692,7 +656,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // Branch
                     if (branchName.isNotEmpty)
                       Text(
                         branchName,
@@ -705,7 +668,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   ],
                 ),
               ),
-              // Status badge
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -724,7 +686,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             ],
           ),
           const SizedBox(height: 16),
-          // Leave details
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -809,7 +770,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
   }
 
   Widget _buildPendingApprovalCard(NotificationModel notification) {
-    // Try multiple sources for employee name
     String employeeName = '';
     if (notification.data['employeeName'] != null &&
         notification.data['employeeName'].toString().isNotEmpty) {
@@ -852,7 +812,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                 'pending')
             .toString();
     final statusLower = rawStatus.toLowerCase();
-    // Determine if action buttons should be shown based on user role and status
     final userLevel = _getUserLevel(ref.read(authServiceProvider));
     final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
     final isApprovedByManager =
@@ -865,20 +824,19 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         statusLower == 'approved_by_team_lead' ||
         (statusLower.contains('approved') && statusLower.contains('team_lead'));
 
-    // Determine what statuses each user level can act on
     final isApprovedByHR =
         statusLower == 'approved_hr' || statusLower == 'approved_by_hr';
 
     final showActions = userLevel == 'hr'
         ? (isPendingOrSent ||
               isApprovedByManager ||
-              isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
+              isApprovedByTeamLead)
         : userLevel == 'approver'
         ? (isPendingOrSent ||
-              isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
+              isApprovedByHR) 
         : userLevel == 'team-lead'
-        ? isPendingOrSent // Team Leads can act on pending/sent requests
-        : isPendingOrSent; // Managers can only act on pending/sent
+        ? isPendingOrSent 
+        : isPendingOrSent; 
 
     return GestureDetector(
       onTap: () => _showLeaveDetails(notification),
@@ -905,7 +863,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           children: [
             Row(
               children: [
-                // Avatar
                 Container(
                   width: 40,
                   height: 40,
@@ -924,7 +881,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Employee name (first line)
                       Text(
                         employeeName.isNotEmpty
                             ? employeeName
@@ -936,7 +892,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Employee ID (second line)
                       Text(
                         employeeId.isNotEmpty ? employeeId : 'ID: Unknown',
                         style: TextStyle(
@@ -946,7 +901,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Position name (third line)
                       Text(
                         positionName.isNotEmpty
                             ? positionName
@@ -960,7 +914,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                     ],
                   ),
                 ),
-                // Status badge (moved to right side of top row)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -1038,9 +991,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                 ),
               ],
             ),
-            // Action buttons (moved under the employee details)
             if (showActions) ...[
-              // Debug print to console
               Container(
                 height: 0,
                 width: 0,
@@ -1050,8 +1001,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   },
                 ),
               ),
-              // Debug: Buttons should be visible
-              // This is a debug print that won't show in UI
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1119,7 +1068,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    // Try cache first
     Map<String, dynamic>? details = _leaveDetails[leaveId];
     if (details == null) {
       final service = LeaveService();
@@ -1128,9 +1076,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       if (res['success'] == true) {
         final lr = res['leaveRequest'] ?? res['data'] ?? {};
 
-        lr.forEach((key, value) {
-          print('  - $key: $value');
-        });
+        // Leave request data processed silently
 
         details = {
           'leaveTypeName':
@@ -1184,10 +1130,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
     if (!mounted) return;
 
-    // If no details found, show notification details as fallback
+    
     if (details == null) {
       _showNotificationDetails(notification);
-      return;
+        return;
     }
 
     showModalBottomSheet(
@@ -1282,7 +1228,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   ],
                 ),
                 const SizedBox(height: 12),
-                // All details in a clean list format
+                
                 _detailRow('From', d['fromDate']),
                 _detailRow('To', d['toDate']),
                 _detailRow('Total Days', d['totalDays']?.toString()),
@@ -1480,7 +1426,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return;
     }
 
-    // Show loading dialog immediately
+    
     if (!mounted) return;
     String loadingText = 'Saving...';
     StateSetter? setDialogState;
@@ -1517,7 +1463,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       ),
     );
     
-    // Helper function to update loading dialog text
     void updateLoadingText(String text) {
       if (mounted && setDialogState != null) {
         loadingText = text;
@@ -1542,7 +1487,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         final userLevel = _getUserLevel(auth);
         final statusLower = currentStatus?.toString().toLowerCase() ?? '';
 
-        // Check if user can act on this status (same logic as action button visibility)
         final isPendingOrSent = statusLower == 'pending' || statusLower == 'sent';
         final isApprovedByManager =
             statusLower == 'approved_manager' ||
@@ -1561,14 +1505,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         final canAct = userLevel == 'hr'
             ? (isPendingOrSent ||
                   isApprovedByManager ||
-                  isApprovedByTeamLead) // HR can act on pending/sent, approved_by_manager, AND approved_by_team_lead
+                  isApprovedByTeamLead) 
             : userLevel == 'approver'
             ? (isPendingOrSent ||
-                  isApprovedByHR) // Approvers can act on pending/sent AND approved_by_hr
-            : isPendingOrSent; // Managers can only act on pending/sent
+                  isApprovedByHR) 
+            : isPendingOrSent; 
 
         if (currentStatus != null && !canAct) {
-          // Close loading dialog
           if (mounted) Navigator.of(context).pop();
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1597,7 +1540,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       approvalStopwatch.stop();
 
       if (res['success'] == true) {
-        // Store the processed request in local cache
         final leaveId =
             notification.data['leaveRequestId'] ??
             notification.data['leaveId'] ??
@@ -1616,10 +1558,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
         totalStopwatch.stop();
 
-        // Close loading dialog immediately after saving
         if (mounted) Navigator.of(context).pop();
 
-        // Show success alert dialog
         if (mounted) {
           showDialog(
             context: context,
@@ -1655,13 +1595,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           );
         }
         
-        // Refresh data in the background (after showing success dialog)
         LeaveController.clearAllCache();
         ref.invalidate(leaveControllerProvider(approverId));
         _loadAllLeaveRequests(showLoading: false);
         _loadEmployeeLeaves(showLoading: false);
       } else {
-        // Fallback: try the alternate endpoint once
         final alt = await service.approveOrRejectLeave(
           leaveId: leaveId,
           action: approve ? 'approve' : 'reject',
@@ -1671,7 +1609,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         );
         
         if (alt['success'] == true) {
-          // Store the processed request in local cache
           if (leaveId.isNotEmpty) {
             final processedRequest = Map<String, dynamic>.from(notification.data);
             processedRequest['status'] = approve ? 'approved' : 'rejected';
@@ -1682,10 +1619,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             _processedRequests[leaveId] = processedRequest;
           }
 
-          // Close loading dialog immediately after saving
           if (mounted) Navigator.of(context).pop();
 
-          // Show success alert dialog
           if (mounted) {
             showDialog(
               context: context,
@@ -1721,16 +1656,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           );
         }
         
-        // Refresh data in the background (after showing success dialog)
         LeaveController.clearAllCache();
         ref.invalidate(leaveControllerProvider(approverId));
         _loadAllLeaveRequests(showLoading: false);
         _loadEmployeeLeaves(showLoading: false);
         } else {
-          // Close loading dialog
-          if (mounted) Navigator.of(context).pop();
+              if (mounted) Navigator.of(context).pop();
           
-          // Show error alert dialog
           if (mounted) {
             showDialog(
               context: context,
@@ -1766,10 +1698,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         }
       }
     } catch (e) {
-      // Close loading dialog on error
       if (mounted) Navigator.of(context).pop();
       
-      // Show error alert dialog
       if (mounted) {
         showDialog(
           context: context,

@@ -3,15 +3,12 @@ import 'package:geocoding/geocoding.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class LocationService {
-  /// Check and request location permissions
   Future<bool> checkPermissions() async {
-    // Check if location services are enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       return false;
     }
 
-    // Check permission status
     LocationPermission permission = await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied) {
@@ -28,7 +25,6 @@ class LocationService {
     return true;
   }
 
-  /// Get current location (latitude and longitude)
   Future<Position> getCurrentLocation() async {
     bool hasPermission = await checkPermissions();
 
@@ -40,9 +36,9 @@ class LocationService {
 
     try {
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.bestForNavigation, // Highest possible accuracy
-        timeLimit: const Duration(seconds: 60), // Even longer timeout for best accuracy
-        forceAndroidLocationManager: false, // Use FusedLocationProvider
+        desiredAccuracy: LocationAccuracy.bestForNavigation, 
+        timeLimit: const Duration(seconds: 60), 
+        forceAndroidLocationManager: false, 
       );
       return position;
     } catch (e) {
@@ -50,37 +46,31 @@ class LocationService {
     }
   }
 
-  /// Get address from coordinates (reverse geocoding)
   Future<String> getAddressFromCoordinates(
     double latitude,
     double longitude,
   ) async {
     try {
-      // Try multiple geocoding attempts for better accuracy
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
         longitude,
-        localeIdentifier: 'th_TH', // Use Thai locale for better accuracy in Thailand
+        localeIdentifier: 'th_TH', 
       );
 
       if (placemarks.isEmpty) {
         return 'Unknown Location';
       }
 
-      // Try to find the most accurate placemark
       Placemark? bestPlace;
       for (Placemark place in placemarks) {
-        // Prefer placemarks with street information
         if (place.street != null && place.street!.isNotEmpty) {
           bestPlace = place;
           break;
         }
       }
       
-      // If no street found, use the first one
       bestPlace ??= placemarks[0];
 
-      // Build a readable address with more detail
       List<String> addressParts = [];
 
       if (bestPlace.street != null && bestPlace.street!.isNotEmpty) {
@@ -105,12 +95,10 @@ class LocationService {
 
       return address;
     } catch (e) {
-      // If reverse geocoding fails, return coordinates as fallback
       return '${latitude.toStringAsFixed(4)}, ${longitude.toStringAsFixed(4)}';
     }
   }
 
-  /// Get location with address (convenience method)
   Future<Map<String, dynamic>> getCurrentLocationWithAddress() async {
     Position position = await getCurrentLocation();
     String address = await getAddressFromCoordinates(
@@ -127,7 +115,6 @@ class LocationService {
     };
   }
 
-  /// Open app settings (for when permissions are denied)
   Future<void> openLocationSettings() async {
     await openAppSettings();
   }

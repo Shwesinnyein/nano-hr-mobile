@@ -7,7 +7,6 @@ class EmployeeService {
 
   EmployeeService(this._apiService);
 
-  // Get employee profile
   Future<Map<String, dynamic>> getEmployeeProfile(String employeeId) async {
     try {
       final response = await _apiService.getEmployeeProfile(
@@ -28,13 +27,11 @@ class EmployeeService {
     }
   }
 
-  // Update employee profile
   Future<Map<String, dynamic>> updateEmployeeProfile(
     String employeeId,
     Map<String, dynamic> updates,
   ) async {
     try {
-      // Since updateEmployeeProfile API doesn't exist, return error
       return {
         'success': false,
         'message': 'Update profile API endpoint not available',
@@ -44,7 +41,6 @@ class EmployeeService {
     }
   }
 
-  // Get all employees
   Future<List<Map<String, dynamic>>> getEmployees({
     int page = 1,
     int limit = 50,
@@ -89,7 +85,6 @@ class EmployeeService {
     }
   }
 
-  // Get employee by ID
   Future<Map<String, dynamic>> getEmployeeById(String id) async {
     try {
       final response = await _apiService.getEmployeeProfile(employeeId: id);
@@ -109,7 +104,6 @@ class EmployeeService {
   }
 }
 
-// Provider for EmployeeService
 final employeeServiceProvider = Provider<EmployeeService>((ref) {
   final apiService = ref.read(apiServiceProvider);
   return EmployeeService(apiService);

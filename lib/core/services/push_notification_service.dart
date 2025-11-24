@@ -71,7 +71,6 @@ class PushNotificationService {
       }
 
       if (kIsWeb) {
-        // Web push is not currently supported in this app
         _initialized = true;
         return;
       }
@@ -81,20 +80,15 @@ class PushNotificationService {
         return;
       }
 
-      // ✅ Force re-register token on app reopen to ensure backend knows it's still active
       await _syncTokenWithBackend(forceReRegister: true);
       _listenForTokenRefresh();
       
-      // Initialize local notifications BEFORE setting up listeners
-      // This ensures notifications can be shown immediately when messages arrive
       try {
         await _initializeLocalNotifications();
-        debugPrint('✅ Local notifications initialized successfully');
       } catch (e) {
-        debugPrint('⚠️ Local notifications initialization failed, will retry when needed: $e');
+        // Local notifications initialization failed, will retry when needed
       }
       
-      // Set up foreground message listener AFTER local notifications are initialized
       _listenForForegroundMessages();
 
       _initialized = true;
@@ -125,16 +119,12 @@ class PushNotificationService {
       return;
     }
 
-    // ✅ When forcing re-register, get fresh token from Firebase (don't use cache)
-    // This ensures we always send a valid token, even if cached one was invalidated
     String? token;
     if (forceReRegister) {
-      // Clear cache to force fresh token fetch
       _cachedToken = null;
       _tokenFetchFuture = null;
       _lastTokenErrorAt = null;
       
-      // Get fresh token directly from Firebase
       try {
         token = await _messaging.getToken();
         if (token != null && token.isNotEmpty) {
@@ -142,11 +132,9 @@ class PushNotificationService {
           await prefs.setString(_kStoredTokenKey, token);
         }
       } catch (e) {
-        // If fresh token fetch fails, fall back to cached token
         token = await _getMessagingTokenThrottled();
       }
     } else {
-      // Normal flow: use cached token if available
       token = await _getMessagingTokenThrottled();
     }
 
@@ -157,8 +145,6 @@ class PushNotificationService {
     final storedToken = prefs.getString(_kStoredTokenKey);
     final storedEmployeeId = prefs.getString(_kStoredEmployeeKey);
 
-    // ✅ Always re-register on app reopen to ensure backend knows token is still active
-    // Skip only if token/employee unchanged AND not forcing re-registration
     if (!forceReRegister && storedToken == token && storedEmployeeId == employeeId) {
       return;
     }
@@ -177,7 +163,6 @@ class PushNotificationService {
         await prefs.setString(_kStoredEmployeeKey, employeeId);
       }
     } catch (e) {
-      // Swallow errors; token will retry on next sync.
     }
   }
 
@@ -210,17 +195,14 @@ class PushNotificationService {
           await prefs.setString(_kStoredEmployeeKey, employeeId);
         }
       } catch (e) {
-        // Ignore; will attempt again later.
       }
     });
   }
 Future<String?> _getMessagingTokenThrottled() async {
-  // ✅ 1. Use in-memory cache first
   if (_cachedToken != null && _cachedToken!.isNotEmpty) {
     return _cachedToken;
   }
 
-  // ✅ 2. Load from SharedPreferences before hitting Firebase servers
   final prefs = await SharedPreferences.getInstance();
   final savedToken = prefs.getString(_kStoredTokenKey);
   if (savedToken != null && savedToken.isNotEmpty) {
@@ -228,19 +210,16 @@ Future<String?> _getMessagingTokenThrottled() async {
     return _cachedToken;
   }
 
-  // ✅ 3. Avoid overlapping token requests
   if (_tokenFetchFuture != null) {
     return _tokenFetchFuture!;
   }
 
-  // ✅ 4. Throttle repeated errors (5-minute cooldown)
   const cooldownDuration = Duration(minutes: 5);
   if (_lastTokenErrorAt != null &&
       DateTime.now().difference(_lastTokenErrorAt!) < cooldownDuration) {
     return null;
   }
 
-  // ✅ 5. Now request from Firebase only once
   _tokenFetchFuture = _messaging.getToken().then((token) async {
     _cachedToken = token;
     if (token != null && token.isNotEmpty) {
@@ -348,62 +327,39 @@ Future<String?> _getMessagingTokenThrottled() async {
   }
 void _listenForForegroundMessages() {
   if (!kPushNotificationsEnabled) {
-    debugPrint('⚠️ Push notifications are disabled');
     return;
   }
 
-  // Cancel existing subscriptions if any
   _foregroundMessageSubscription?.cancel();
   _messageOpenedSubscription?.cancel();
 
-  debugPrint('🔔 Setting up foreground message listener...');
   
   _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    // ✅ Comprehensive debug logs
-    debugPrint('═══════════════════════════════════════');
-    debugPrint('📩 FOREGROUND MESSAGE RECEIVED');
-    debugPrint('📩 Message ID: ${message.messageId}');
-    debugPrint('📩 Has notification block: ${message.notification != null}');
-    debugPrint('📩 Data payload: ${message.data}');
-    debugPrint('📩 Local notifications initialized: $_localNotificationsInitialized');
+   
     
-    // Check permission status
     final settings = await _messaging.getNotificationSettings();
-    debugPrint('📩 Notification permission: ${settings.authorizationStatus}');
-    debugPrint('═══════════════════════════════════════');
+   
 
-    // ✅ On iOS, notifications are automatically shown by the system when 
-    // setForegroundNotificationPresentationOptions has alert: true
-    // So we only need to manually show on Android
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     
     RemoteNotification? notification = message.notification;
     
-    // ✅ Handle notification block (preferred)
     if (notification != null) {
-      debugPrint('📩 Using notification block:');
-      debugPrint('   Title: ${notification.title}');
-      debugPrint('   Body: ${notification.body}');
       
-      // Extract OTP from notification body if it's a password reset notification
       _extractAndStoreOTP(notification.body ?? '', message.data);
       
-      // Only show manually on Android (iOS shows automatically)
+     
       if (!isIOS) {
         try {
           await _showForegroundNotification(notification, message.data);
-          debugPrint('✅ Foreground notification displayed successfully');
+        
         } catch (e, stackTrace) {
-          debugPrint('❌ Failed to show foreground notification: $e');
-          debugPrint('❌ Stack trace: $stackTrace');
+         
         }
-      } else {
-        debugPrint('ℹ️ iOS will show notification automatically, skipping manual display');
       }
     } 
-    // ✅ FALLBACK: Handle data-only payload
     else if (message.data.isNotEmpty) {
-      // Try multiple possible keys for title and body
+     
       final title = message.data['title']?.toString() ?? 
                    message.data['notification']?['title']?.toString() ?? 
                    message.data['aps']?['alert']?['title']?.toString() ??
@@ -414,14 +370,10 @@ void _listenForForegroundMessages() {
                   message.data['aps']?['alert']?['body']?.toString() ??
                   'New notification';
       
-      debugPrint('📩 Building notification from data payload:');
-      debugPrint('   Title: $title');
-      debugPrint('   Body: $body');
-      
-      // Extract OTP from notification body if it's a password reset notification
+     
       _extractAndStoreOTP(body, message.data);
       
-      // Only show notification if we have meaningful content
+     
       if (title != 'NANO Work' || body != 'New notification') {
         final dataNotification = RemoteNotification(
           title: title,
@@ -430,40 +382,29 @@ void _listenForForegroundMessages() {
           apple: null,
         );
         
-        // Only show manually on Android (iOS shows automatically)
+        
         if (!isIOS) {
           try {
             await _showForegroundNotification(dataNotification, message.data);
-            debugPrint('✅ Foreground notification displayed from data');
+            
           } catch (e, stackTrace) {
-            debugPrint('❌ Failed to show foreground notification: $e');
-            debugPrint('❌ Stack trace: $stackTrace');
+           
           }
-        } else {
-          debugPrint('ℹ️ iOS will show notification automatically, skipping manual display');
         }
-      } else {
-        debugPrint('⚠️ Data payload exists but no title/body found to display');
       }
-    } else {
-      debugPrint('⚠️ Foreground message received but no notification or data to display');
-      debugPrint('⚠️ Message structure: ${message.toString()}');
     }
 
-    // Always refresh unread count when a message is received
     try {
       _ref.read(notificationProvider.notifier).refreshUnreadCount();
     } catch (e) {
-      debugPrint('⚠️ Failed to refresh unread count: $e');
+      
     }
   }, onError: (error) {
-    debugPrint('❌ Error in foreground message listener: $error');
+   
   });
 
   _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    debugPrint('📬 Notification opened from background/terminated state');
     
-    // Extract OTP if it's a password reset notification
     final notification = message.notification;
     if (notification != null) {
       _extractAndStoreOTP(notification.body ?? '', message.data);
@@ -477,43 +418,42 @@ void _listenForForegroundMessages() {
     
     _ref.read(notificationProvider.notifier).refreshUnreadCount();
   }, onError: (error) {
-    debugPrint('❌ Error in message opened listener: $error');
+   
   });
 
-  debugPrint('✅ Foreground message listeners set up successfully');
 }
 
-  // Extract OTP from notification body and store it
+  
   void _extractAndStoreOTP(String body, Map<String, dynamic> data) {
     try {
-      // Check if this is a password reset notification
+     
       final isPasswordReset = body.toLowerCase().contains('otp') ||
           body.toLowerCase().contains('password') ||
           data['type']?.toString().toLowerCase() == 'password_reset' ||
           data['type']?.toString().toLowerCase() == 'forgot_password';
 
       if (isPasswordReset) {
-        // Extract 6-digit OTP using regex
+       
         final otpRegex = RegExp(r'\b\d{6}\b');
         final match = otpRegex.firstMatch(body);
         
         if (match != null) {
           final otp = match.group(0);
           if (otp != null && otp.length == 6) {
-            debugPrint('🔑 OTP extracted from notification: $otp');
+           
             _ref.read(otpProvider.notifier).setOTP(otp);
           }
         } else {
-          // Also check data payload for OTP
+        
           final otpFromData = data['otp']?.toString();
           if (otpFromData != null && otpFromData.length == 6) {
-            debugPrint('🔑 OTP found in data payload: $otpFromData');
+            
             _ref.read(otpProvider.notifier).setOTP(otpFromData);
           }
         }
       }
     } catch (e) {
-      debugPrint('⚠️ Error extracting OTP: $e');
+      
     }
   }
 
@@ -543,7 +483,7 @@ void _listenForForegroundMessages() {
         token: token,
       );
     } catch (e) {
-      // Ignore cleanup failures.
+     
     } finally {
       await prefs.remove(_kStoredTokenKey);
       await prefs.remove(_kStoredEmployeeKey);
@@ -559,32 +499,30 @@ void _listenForForegroundMessages() {
     await _syncTokenWithBackend();
   }
 
-  // ✅ Update iOS app icon badge count
+ 
   Future<void> updateBadgeCount(int count) async {
     if (!kPushNotificationsEnabled) {
       return;
     }
 
     if (kIsWeb) {
-      return; // Web doesn't support badges
+      return; 
     }
 
     try {
-      // Check if badge is supported on this platform
+     
       final isSupported = await AppBadger.isBadgeSupported();
       if (isSupported) {
         if (count > 0) {
           await AppBadger.updateBadgeCount(count);
-          debugPrint('📊 Badge count updated to: $count');
+         
         } else {
           await AppBadger.removeBadge();
-          debugPrint('📊 Badge removed (count is 0)');
+        
         }
       } else {
-        debugPrint('ℹ️ Badge not supported on this platform');
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to update badge count: $e');
     }
   }
 
@@ -627,7 +565,7 @@ void _listenForForegroundMessages() {
 
     try {
       const androidInit = AndroidInitializationSettings(_androidNotificationIcon);
-      // ✅ Request iOS permissions for local notifications (needed for foreground notifications)
+     
       final iosInit = DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -647,7 +585,7 @@ void _listenForForegroundMessages() {
       );
 
       if (initialized != true) {
-        debugPrint('❌ Local notifications plugin initialization returned false');
+       
         return;
       }
 
@@ -657,9 +595,9 @@ void _listenForForegroundMessages() {
       await androidPlugin?.createNotificationChannel(_foregroundChannel);
 
       _localNotificationsInitialized = true;
-      debugPrint('✅ Local notifications plugin initialized successfully');
+      
     } catch (e) {
-      debugPrint('❌ Failed to initialize local notifications plugin: $e');
+      
       _localNotificationsInitialized = false;
       rethrow;
     }
@@ -673,14 +611,13 @@ void _listenForForegroundMessages() {
       try {
         await _initializeLocalNotifications();
       } catch (e) {
-        debugPrint('❌ Cannot show foreground notification: initialization failed: $e');
+       
         return;
       }
     }
 
-    // Double-check initialization was successful
     if (!_localNotificationsInitialized) {
-      debugPrint('❌ Cannot show foreground notification: plugin not initialized');
+      
       return;
     }
 
@@ -709,7 +646,7 @@ void _listenForForegroundMessages() {
         payload: data.isNotEmpty ? jsonEncode(data) : null,
       );
     } catch (e) {
-      debugPrint('❌ Failed to show foreground notification: $e');
+     
     }
   }
 }

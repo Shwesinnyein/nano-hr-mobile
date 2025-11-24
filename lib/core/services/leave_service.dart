@@ -23,18 +23,7 @@ class LeaveService {
     _dio.options.receiveTimeout = const Duration(seconds: 15);
     _dio.options.sendTimeout = const Duration(seconds: 10);
 
-    // Add interceptors
-    _dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (obj) {
-          if (kDebugMode) {
-            print('🌐 Leave API: $obj');
-          }
-        },
-      ),
-    );
+    // LogInterceptor removed - no logging in production
   }
 
   Future<Map<String, dynamic>> getLeaveDetails(String leaveId) async {
@@ -58,10 +47,8 @@ class LeaveService {
     }
   }
 
-  // Get leave settings for employee with caching
   Future<Map<String, dynamic>> getLeaveSettings(String employeeId) async {
     try {
-      // Check cache first (valid for 5 minutes)
       final now = DateTime.now();
       if (_cacheTimestamp != null &&
           now.difference(_cacheTimestamp!).inMinutes < 5 &&
@@ -70,7 +57,6 @@ class LeaveService {
       }
 
       final stopwatch = Stopwatch()..start();
-      // Getting leave settings for employee
 
       final response = await _dio.get(
         ApiEndpoints.leaveSettings,
@@ -80,7 +66,6 @@ class LeaveService {
       stopwatch.stop();
 
       if (response.statusCode == 200) {
-        // Cache the response
         _leaveSettingsCache[employeeId] = response.data;
         _cacheTimestamp = now;
 
@@ -102,12 +87,10 @@ class LeaveService {
     }
   }
 
-  // Create leave request
   Future<Map<String, dynamic>> createLeaveRequest(
     Map<String, dynamic> data,
   ) async {
     try {
-      // Creating leave request
 
       final response = await _dio.post(
         ApiEndpoints.createLeaveRequest,
@@ -139,13 +122,11 @@ class LeaveService {
     }
   }
 
-  // Get leave requests for approval based on user level (manager/hr/approver)
   Future<List<Map<String, dynamic>>> getLeaveRequestsForApproval(
     String level,
     String userId,
   ) async {
     try {
-      // Check cache first (valid for 2 minutes for approval requests)
       final cacheKey = '${level}_$userId';
       final now = DateTime.now();
       if (_approvalCacheTimestamp != null &&
@@ -157,7 +138,6 @@ class LeaveService {
       }
 
       final stopwatch = Stopwatch()..start();
-      // Getting leave requests for approval
 
       final response = await _dio.get(
         ApiEndpoints.getLeaveRequestsForApproval(level, userId),
@@ -169,7 +149,6 @@ class LeaveService {
         final data = response.data;
 
         if (data['success'] == true && data['data'] is List) {
-          // Cache the successful response
           _leaveApprovalCache[cacheKey] = data;
           _approvalCacheTimestamp = now;
 
@@ -182,9 +161,7 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error response: ${e.response!.data}');
-        }
+        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -192,10 +169,8 @@ class LeaveService {
     }
   }
 
-  // Get leave requests for employee
   Future<List<Map<String, dynamic>>> getLeaveRequests(String employeeId) async {
     try {
-      // Getting leave requests for employee
 
       final response = await _dio.get(
         '${ApiEndpoints.leaveRequests}/$employeeId',
@@ -210,11 +185,6 @@ class LeaveService {
           return [];
         }
       } else {
-        if (kDebugMode) {
-          print(
-            '❌ Leave API: Failed to get requests - Status: ${response.statusCode}',
-          );
-        }
         return [];
       }
     } on DioException catch (e) {
@@ -228,7 +198,6 @@ class LeaveService {
     }
   }
 
-  // Get leave balance from API
   Future<Map<String, dynamic>> getLeaveBalance(String employeeId) async {
     try {
       final stopwatch = Stopwatch()..start();
@@ -258,7 +227,6 @@ class LeaveService {
     }
   }
 
-  // Upload leave request with attachments
   Future<Map<String, dynamic>> createLeaveRequestWithAttachments(
 Map<String, dynamic> data,
     List<File> attachments,
@@ -272,22 +240,16 @@ Map<String, dynamic> data,
         }
       });
 
-      // Add attachment files - backend handles timestamp
       for (int i = 0; i < attachments.length; i++) {
         final file = attachments[i];
         if (await file.exists()) {
-          // Send simple filename - backend adds timestamp and sets originalName
           final filename = 'photo_$i.jpg';
           formData.files.add(
             MapEntry(
-              'attachments', // Field name as per your backend
+              'attachments', 
               await MultipartFile.fromFile(file.path, filename: filename),
             ),
           );
-        } else {
-          if (kDebugMode) {
-            print('❌ Leave API: File does not exist: ${file.path}');
-          }
         }
       }
 
@@ -315,12 +277,11 @@ Map<String, dynamic> data,
     }
   }
 
-  // Approve or reject leave via status endpoint
   Future<Map<String, dynamic>> updateLeaveStatus({
     required String leaveId,
-    required String status, // 'approved' | 'rejected'
+    required String status, 
     required String approverId,
-    required String userRole, // 'hr' | 'manager' | 'approver'
+    required String userRole, 
     String? note,
   }) async {
     try {
@@ -329,7 +290,7 @@ Map<String, dynamic> data,
       final payload = {
         'leaveId': leaveId,
         'userId': approverId,
-        'userRole': userRole, // Use the actual user role
+        'userRole': userRole, 
         'action': status == 'approved' ? 'approve' : 'reject',
         if (note != null && note.isNotEmpty) 'note': note,
       };
@@ -342,7 +303,6 @@ Map<String, dynamic> data,
       stopwatch.stop();
 
       if (response.statusCode == 200) {
-        // Clear cache after successful approval/rejection
         clearApprovalCache();
         return response.data;
       } else {
@@ -361,12 +321,11 @@ Map<String, dynamic> data,
     }
   }
 
-  // Alternate approval endpoint
   Future<Map<String, dynamic>> approveOrRejectLeave({
     required String leaveId,
-    required String action, // 'approve' | 'reject'
+    required String action, 
     required String approverId,
-    required String userRole, // 'hr' | 'manager' | 'approver'
+    required String userRole, 
     String? note,
   }) async {
     try {
@@ -375,7 +334,7 @@ Map<String, dynamic> data,
       final payload = {
         'leaveId': leaveId,
         'userId': approverId,
-        'userRole': userRole, // Use the actual user role
+        'userRole': userRole, 
         'action': action,
         if (note != null && note.isNotEmpty) 'note': note,
       };
@@ -388,7 +347,6 @@ Map<String, dynamic> data,
       stopwatch.stop();
 
       if (response.statusCode == 200) {
-        // Clear cache after successful approval/rejection
         clearApprovalCache();
         return response.data;
       } else {
@@ -407,7 +365,6 @@ Map<String, dynamic> data,
     }
   }
 
-  // Get all leave requests (for HR users to see manager-approved requests)
   Future<List<Map<String, dynamic>>> getAllLeaveRequests() async {
     try {
       final response = await _dio.get(ApiEndpoints.leaveRequests);
@@ -426,13 +383,9 @@ Map<String, dynamic> data,
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('❌ Leave API: DioException - ${e.response!.data}');
-        }
+        // Error response handled silently
       } else {
-        if (kDebugMode) {
-          print('❌ Leave API: Network error - ${e.message}');
-        }
+        // Network error handled silently
       }
       return [];
     } catch (e) {
@@ -440,7 +393,6 @@ Map<String, dynamic> data,
     }
   }
 
-  // Get all leave requests for approval (including approved and rejected)
   Future<List<Map<String, dynamic>>> getAllLeaveRequestsForApproval(
     String level,
     String userId,
@@ -448,8 +400,6 @@ Map<String, dynamic> data,
     try {
       final stopwatch = Stopwatch()..start();
 
-      // For now, just get pending requests since the API doesn't have separate endpoints
-      // The approval screen will manage the state of approved/rejected requests locally
       final pendingRequests = await getLeaveRequestsForApproval(level, userId);
 
       stopwatch.stop();
@@ -457,25 +407,18 @@ Map<String, dynamic> data,
       return pendingRequests;
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error response: ${e.response!.data}');
-        }
+        // Error response handled silently
       }
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Leave API: Unexpected error: $e');
-      }
       return [];
     }
   }
 
-  // Get all employee leaves (for HR and Approvers)
   Future<List<Map<String, dynamic>>> getAllEmployeeLeaves() async {
     try {
       final stopwatch = Stopwatch()..start();
 
-      // Use the employee leave endpoint to get all leaves
       final response = await _dio.get('${ApiEndpoints.baseUrl}/leave/all');
 
       stopwatch.stop();
@@ -490,20 +433,14 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error response: ${e.response!.data}');
-        }
+        // Error response handled silently
       }
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Leave API: Unexpected error: $e');
-      }
       return [];
     }
   }
 
-  // Get employee leaves by branch (for Managers)
   Future<List<Map<String, dynamic>>> getEmployeeLeavesByBranch(
     String branchName,
   ) async {
@@ -526,20 +463,14 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error response: ${e.response!.data}');
-        }
+        // Error response handled silently
       }
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Leave API: Unexpected error: $e');
-      }
       return [];
     }
   }
 
-  // Get employee leaves by team (for Team Leads)
   Future<List<Map<String, dynamic>>> getEmployeeLeavesByTeam() async {
     try {
       final stopwatch = Stopwatch()..start();
@@ -558,29 +489,20 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error response: ${e.response!.data}');
-        }
+        // Error response handled silently
       }
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Leave API: Unexpected error: $e');
-      }
       return [];
     }
   }
 
-  // Get leave history for a specific user (for Employee Leaves tab)
   Future<List<Map<String, dynamic>>> getLeaveHistory(String userId) async {
     try {
       final stopwatch = Stopwatch()..start();
 
       final url =
           '${ApiEndpoints.baseUrl}${ApiEndpoints.getLeaveHistory(userId)}';
-      if (kDebugMode) {
-        print('🌐 Leave API: Calling leave history endpoint: $url');
-      }
 
       final response = await _dio.get(url);
 
@@ -591,33 +513,17 @@ Map<String, dynamic> data,
         if (data is Map && data['success'] == true && data['data'] is List) {
           final leaves = List<Map<String, dynamic>>.from(data['data']);
 
-          if (leaves.isNotEmpty) {
-            if (kDebugMode) {
-              print(
-                '🌐 Leave API: Sample record: ${leaves.first.keys.toList()}',
-              );
-            }
-          }
           return leaves;
-        } else {
-          if (kDebugMode) {
-            print('🌐 Leave API: Invalid response format: $data');
-          }
         }
       }
 
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        if (kDebugMode) {
-          print('🌐 Leave API: Error status: ${e.response!.statusCode}');
-        }
+        // Error status handled silently
       }
       return [];
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Leave API: Unexpected error in leave history: $e');
-      }
       return [];
     }
   }

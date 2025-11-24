@@ -27,7 +27,7 @@ Future<void> _ensureBackgroundNotificationsInitialized() async {
   if (_backgroundNotificationsInitialized) return;
 
   const androidInit = AndroidInitializationSettings('@drawable/nano_notification');
-  // ✅ Request iOS permissions for local notifications (needed for foreground notifications)
+  
   const iosInit = DarwinInitializationSettings(
     requestAlertPermission: true,
     requestBadgePermission: true,
@@ -97,7 +97,6 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Lock app to portrait orientation only
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -115,16 +114,12 @@ void main() async {
           sound: true,
         );
 
-    // ✅ Note: Foreground message handling is done by PushNotificationService
-    // No need to set up listener here to avoid duplicate notifications
   } catch (e) {
-    // In release mode, we need to handle errors gracefully
-    debugPrint('❌ Firebase initialization error: $e');
+    // Firebase initialization error handled silently
   }
 
-  // Add error handling for the entire app
   FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('Flutter Error: ${details.exception}');
+    // Flutter error handled silently
   };
 
   runApp(const ProviderScope(child: App()));

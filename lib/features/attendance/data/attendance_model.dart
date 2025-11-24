@@ -50,10 +50,8 @@ class Attendance {
         if (dateValue is String) {
           parsedDate = DateTime.parse(dateValue);
         } else if (dateValue is int) {
-          // Handle Unix timestamp (seconds)
           parsedDate = DateTime.fromMillisecondsSinceEpoch(dateValue * 1000);
         } else if (dateValue is double) {
-          // Handle Unix timestamp (seconds with decimals)
           parsedDate = DateTime.fromMillisecondsSinceEpoch(
             (dateValue * 1000).round(),
           );
@@ -61,7 +59,6 @@ class Attendance {
           return DateTime.now();
         }
 
-        // Convert to local time if it's in UTC
         if (parsedDate.isUtc) {
           parsedDate = parsedDate.toLocal();
         }
@@ -72,7 +69,6 @@ class Attendance {
       }
     }
 
-    // Parse time-only strings (HH:mm:ss format) by combining with date
     DateTime parseTimeWithDate(String timeString, String dateString) {
       try {
         final date = DateTime.parse(dateString);
@@ -97,11 +93,9 @@ class Attendance {
       }
     }
 
-    // Parse all the real API fields
     final id = json['id']?.toString() ?? '';
     final uid = json['uid']?.toString() ?? '';
     final employeeId = json['employeeId']?.toString() ?? '';
-    // Use checkInLocation first, fall back to location for backward compatibility
     final location = json['checkInLocation']?.toString() ?? json['location']?.toString() ?? 'Office';
     final company = json['company']?.toString() ?? 'NANO-STORES';
     final branch = json['branch']?.toString() ?? 'Office';
@@ -113,18 +107,15 @@ class Attendance {
         json['time']?.toString() ??
         DateTime.now().toIso8601String().split('T')[1].split('.')[0];
 
-    // Parse timestamps
     final timestamp = parseDate(json['timestamp']);
     final createdAt = parseDate(json['createdAt']);
     final updatedAt = parseDate(json['updatedAt']);
 
-    // Parse check-in and check-out times
     DateTime? checkInAt;
     DateTime? checkOutAt;
 
     if (json['checkInAt'] != null) {
       final checkInTime = json['checkInAt'].toString();
-      // Check if it's a time-only string (HH:mm:ss format)
       if (checkInTime.contains(':') &&
           !checkInTime.contains('T') &&
           !checkInTime.contains('-')) {
@@ -136,7 +127,6 @@ class Attendance {
 
     if (json['checkOutAt'] != null) {
       final checkOutTime = json['checkOutAt'].toString();
-      // Check if it's a time-only string (HH:mm:ss format)
       if (checkOutTime.contains(':') &&
           !checkOutTime.contains('T') &&
           !checkOutTime.contains('-')) {
@@ -146,14 +136,11 @@ class Attendance {
       }
     }
 
-    // Ensure we have a valid checkInAt
     final finalCheckInAt = checkInAt ?? timestamp;
 
-    // Parse boolean fields
     final isAutoCheckout =
         json['isAutoCheckout'] == true || json['isAutoCheckout'] == 'true';
 
-    // Create attendance record
     return Attendance(
       id: id,
       uid: uid,
@@ -199,18 +186,15 @@ class Attendance {
     };
   }
 
-  // Helper method to format check-in time
   String get formattedCheckInTime {
     return DateFormat('HH:mm:ss').format(checkInAt);
   }
 
-  // Helper method to format check-out time
   String? get formattedCheckOutTime {
     if (checkOutAt == null) return null;
     return DateFormat('HH:mm:ss').format(checkOutAt!);
   }
 
-  // Helper method to get duration if both check-in and check-out exist
   String? get formattedDuration {
     if (checkOutAt == null) return null;
     final duration = checkOutAt!.difference(checkInAt);
@@ -219,17 +203,14 @@ class Attendance {
     return '${hours}h ${minutes}m';
   }
 
-  // Helper method to check if this is a check-in record
   bool get isCheckIn {
     return checkOutAt == null;
   }
 
-  // Helper method to check if this is a check-out record
   bool get isCheckOut {
     return checkOutAt != null;
   }
 
-  // Helper method to get the status text
   String get statusText {
     if (isCheckIn) {
       return 'Checked In';

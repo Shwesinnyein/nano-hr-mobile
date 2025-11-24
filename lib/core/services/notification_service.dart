@@ -11,15 +11,12 @@ class NotificationService {
     _dio.options.sendTimeout = const Duration(seconds: 30);
   }
 
-  // Cache for notifications
   static Map<String, List<dynamic>> _notificationCache = {};
   static DateTime? _cacheTimestamp;
   static const int _cacheExpiryMinutes = 5;
 
-  // Getter for cache access
   static Map<String, List<dynamic>> get notificationCache => _notificationCache;
 
-  // Check if cache is valid
   bool _isCacheValid() {
     if (_cacheTimestamp == null) return false;
     final now = DateTime.now();
@@ -27,13 +24,11 @@ class NotificationService {
     return difference < _cacheExpiryMinutes;
   }
 
-  // Clear cache
   void clearCache() {
     _notificationCache.clear();
     _cacheTimestamp = null;
   }
 
-  // Get all notifications for a user
   Future<Map<String, dynamic>> getNotifications({
     required String employeeId,
     int? limit,
@@ -41,7 +36,6 @@ class NotificationService {
     bool? unreadOnly,
   }) async {
     try {
-      // Check cache first
       if (_isCacheValid() && _notificationCache.containsKey(employeeId)) {
         return {
           'success': true,
@@ -74,7 +68,6 @@ class NotificationService {
           );
 
       if (response.statusCode == 200) {
-        // Ensure response.data is a Map, not a String
         if (response.data is String) {
           try {
             final Map<String, dynamic> parsedData = jsonDecode(response.data);
@@ -89,7 +82,6 @@ class NotificationService {
         } else if (response.data is Map) {
           final result = Map<String, dynamic>.from(response.data);
 
-          // Cache the result
           if (result['data'] is List) {
             _notificationCache[employeeId] = result['data'];
             _cacheTimestamp = DateTime.now();
@@ -126,7 +118,6 @@ class NotificationService {
           };
         }
 
-        // Ensure error response is also properly typed
         if (e.response!.data is String) {
           try {
             return Map<String, dynamic>.from(jsonDecode(e.response!.data));
@@ -158,7 +149,6 @@ class NotificationService {
     }
   }
 
-  // Mark notification as read
   Future<Map<String, dynamic>> markAsRead({
     required String employeeId,
     required String notificationId,
@@ -196,7 +186,6 @@ class NotificationService {
     }
   }
 
-  // Mark all notifications as read
   Future<Map<String, dynamic>> markAllAsRead({
     required String employeeId,
   }) async {
@@ -214,7 +203,6 @@ class NotificationService {
       int successCount = 0;
       int failCount = 0;
 
-      // Mark each notification as read
       for (final notification in notifications) {
         final notificationId = notification['id'] as String;
         final result = await markAsRead(
@@ -284,7 +272,7 @@ class NotificationService {
         try {
           return Map<String, dynamic>.from(jsonDecode(e.response!.data));
         } catch (_) {
-          // fall through to generic error response
+         
         }
       }
       return {

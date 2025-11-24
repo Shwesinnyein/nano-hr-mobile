@@ -108,7 +108,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildProfileAvatar() {
-    // Check if employee has a profile image URL
+    
     if (employee.profileImage != null && employee.profileImage!.isNotEmpty) {
       return Container(
         width: 100,
@@ -127,7 +127,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
             height: 100,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              // Fallback to initials if image fails to load
+              
               return _buildInitialsAvatar();
             },
             loadingBuilder: (context, child, loadingProgress) {
@@ -139,7 +139,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
       );
     }
 
-    // Fallback to initials if no profile image
+   
     return _buildInitialsAvatar();
   }
 
@@ -196,7 +196,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
   String _getInitials() {
     String initials = '';
 
-    // Try to get initials from firstName and lastName
+    
     if (employee.firstName != null && employee.firstName!.isNotEmpty) {
       initials += employee.firstName![0].toUpperCase();
     }
@@ -204,12 +204,12 @@ class EmployeeDetailScreen extends ConsumerWidget {
       initials += employee.lastName![0].toUpperCase();
     }
 
-    // Fallback to name field
+    
     if (initials.isEmpty && employee.name.isNotEmpty) {
       initials = employee.name[0].toUpperCase();
     }
 
-    // Final fallback
+    
     if (initials.isEmpty) {
       initials = '?';
     }
@@ -284,7 +284,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
         employee.primary_number ?? '',
         isPhone: true,
       ),
-      // _buildInfoItem(context, 'Line ID', employee.lineId ?? ''),
+      
       if (employee.additionalInfo?['location'] != null)
         _buildInfoItem(
           context,
@@ -428,8 +428,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
   }
 
   void _launchEmail(BuildContext context, String email) {
-    // In a real app, you would launch the email client
-    // For now, just show a snackbar
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Opening email: $email'),
@@ -439,8 +438,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
   }
 
   void _launchPhone(BuildContext context, String phone) {
-    // In a real app, you would launch the phone dialer
-    // For now, just show a snackbar
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Calling: $phone'),
@@ -484,7 +482,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
               title: const Text('Share Contact'),
               onTap: () {
                 Navigator.pop(context);
-                // Implement share functionality
+                
               },
             ),
           ],

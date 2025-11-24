@@ -21,50 +21,40 @@ class ApiService {
       ),
     );
 
-    // Add authentication interceptor
+   
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Add authentication token if available
+        
           try {
             final prefs = await SharedPreferences.getInstance();
             final token = prefs.getString('user_token');
 
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
-            } else {
-              if (kDebugMode) {
-                print('⚠️ No JWT token found for request: ${options.path}');
-              }
             }
           } catch (e) {
-            if (kDebugMode) {
-              print('❌ Error getting token: $e');
-            }
-            // Ignore token errors, continue without auth
+            // Error getting token handled silently
           }
           handler.next(options);
         },
       ),
     );
 
-    // Add token expiration handling interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onError: (error, handler) async {
-          // Handle 401 Unauthorized (token expired)
+         
           if (error.response?.statusCode == 401) {
             try {
-              // Clear stored login data
+             
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('logged_in', false);
               await prefs.remove('user_token');
               await prefs.remove('user_id');
               await prefs.remove('employee_id');
             } catch (e) {
-              if (kDebugMode) {
-                print('❌ Error clearing expired token: $e');
-              }
+              // Error clearing expired token handled silently
             }
           }
           handler.next(error);
@@ -72,7 +62,6 @@ class ApiService {
       ),
     );
 
-    // Add performance and error logging interceptor
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -81,34 +70,23 @@ class ApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
+          // API timing tracking removed
           final startTime = response.requestOptions.extra['startTime'] as int?;
           if (startTime != null) {
             final duration = DateTime.now().millisecondsSinceEpoch - startTime;
-            if (duration > 2000) {
-              if (kDebugMode) {
-                print(
-                  '⚠️ SLOW API: ${response.requestOptions.path} took ${duration}ms',
-                );
-              }
-            } else {
-              if (kDebugMode) {
-                print(
-                  '✅ API: ${response.requestOptions.path} took ${duration}ms',
-                );
-              }
-            }
+            // Duration calculated but not logged
           }
           handler.next(response);
         },
         onError: (error, handler) {
-          // Performance logging for errors (simplified)
+         
           handler.next(error);
         },
       ),
     );
   }
 
-  // Register device token for push notifications
+ 
   Future<Map<String, dynamic>> registerDevice({
     required String employeeId,
     required String token,
@@ -134,7 +112,7 @@ class ApiService {
     }
   }
 
-  // Unregister device token (on logout)
+ 
   Future<Map<String, dynamic>> unregisterDevice({
     required String token,
   }) async {
@@ -149,7 +127,7 @@ class ApiService {
     }
   }
 
-  // Get unread count for notifications
+  
   Future<int> getUnreadCount(String employeeId) async {
     try {
       final response = await _dio.get('${ApiEndpoints.unreadCount}/$employeeId');
@@ -162,7 +140,7 @@ class ApiService {
     }
   }
 
-  // Check if email already exists
+  
   Future<Map<String, dynamic>> checkEmailExists({required String email}) async {
     try {
       final response = await _dio.post(
@@ -175,7 +153,7 @@ class ApiService {
           'success': true,
           'exists':
               response.data['emailExists'] ??
-              false, // Changed from 'exists' to 'emailExists'
+              false, 
           'message': response.data['message'] ?? 'Email check completed',
         };
 
@@ -210,7 +188,7 @@ class ApiService {
     }
   }
 
-  // Register user
+ 
   Future<Map<String, dynamic>> registerUser({
     required String email,
     required String password,
@@ -253,7 +231,6 @@ class ApiService {
     }
   }
 
-  // Login user
   Future<Map<String, dynamic>> loginUser({
     required String email,
     required String password,
@@ -265,7 +242,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly
+       
         return response.data;
       } else {
         return {
@@ -275,7 +252,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Return the API error response directly
+        
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
@@ -285,7 +262,7 @@ class ApiService {
     }
   }
 
-  // Login user with mobile API (new endpoint)
+  
   Future<Map<String, dynamic>> loginUserMobile({
     required String email,
     required String password,
@@ -297,7 +274,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly
+       
         return response.data;
       } else {
         return {
@@ -307,7 +284,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Return the API error response directly
+      
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
@@ -317,7 +294,7 @@ class ApiService {
     }
   }
 
-  // Change password
+  
   Future<Map<String, dynamic>> changePassword({
     required String employeeId,
     required String currentPassword,
@@ -336,7 +313,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // ✅ Ensure response.data is always a Map
+       
         final responseData = response.data;
         if (responseData is Map<String, dynamic>) {
           return responseData;
@@ -354,7 +331,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // ✅ Ensure response.data is always a Map, not a String
+       
         final responseData = e.response!.data;
         if (responseData is Map<String, dynamic>) {
           return responseData;
@@ -377,7 +354,6 @@ class ApiService {
     }
   }
 
-  // Forgot password
   Future<Map<String, dynamic>> forgotPassword({
     required String email,
   }) async {
@@ -429,7 +405,7 @@ class ApiService {
     }
   }
 
-  // Verify Reset OTP
+
   Future<Map<String, dynamic>> verifyResetOTP({
     required String email,
     required String otp,
@@ -483,7 +459,6 @@ class ApiService {
     }
   }
 
-  // Reset password
   Future<Map<String, dynamic>> resetPassword({
     required String email,
     required String otp,
@@ -541,19 +516,18 @@ class ApiService {
     }
   }
 
-  // Get employee profile
+
   Future<Map<String, dynamic>> getEmployeeProfile({
     required String employeeId,
   }) async {
     try {
-      // Use the original endpoint with employeeId for now
-      // TODO: Backend should implement /employee/profile endpoint for current user
+      
       final response = await _dio.get(
         '${ApiEndpoints.employeeProfile}/$employeeId',
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly
+       
         return response.data;
       } else {
         return {
@@ -563,7 +537,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Return the API error response directly
+       
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
@@ -573,10 +547,9 @@ class ApiService {
     }
   }
 
-  // Get employee shift by date
   Future<Map<String, dynamic>> getEmployeeShiftByDate({
     required String employeeId,
-    required String date, // Format: YYYY-MM-DD
+    required String date, 
   }) async {
     try {
       final response = await _dio.get(
@@ -616,7 +589,6 @@ class ApiService {
     }
   }
 
-  // Get employee list
   Future<Map<String, dynamic>> getEmployeeList({
     int page = 1,
     int limit = 50,
@@ -630,7 +602,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly since it already has the expected structure
+        
         return response.data;
       } else {
         return {
@@ -649,7 +621,6 @@ class ApiService {
     }
   }
 
-  // Get today's attendance status
   Future<Map<String, dynamic>> getTodayAttendanceStatus({
     required String employeeId,
   }) async {
@@ -659,7 +630,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly
+       
         return response.data;
       } else {
         return {
@@ -670,7 +641,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Return the API error response directly
+
         return e.response!.data;
       } else {
         return {'success': false, 'message': 'Network error: ${e.message}'};
@@ -680,7 +651,6 @@ class ApiService {
     }
   }
 
-  // Get shift data with filter
   Future<Map<String, dynamic>> getShiftDataWithFilter({
     required String employeeId,
     required String date,
@@ -692,7 +662,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        // Return the API response directly since it already has the correct structure
+       
         return response.data;
       } else {
         return {
@@ -715,7 +685,6 @@ class ApiService {
     }
   }
 
-  // Get attendance history
   Future<Map<String, dynamic>> getAttendanceHistory({
     required String employeeId,
   }) async {
@@ -748,7 +717,6 @@ class ApiService {
     }
   }
 
-  // Get attendance list
   Future<Map<String, dynamic>> getAttendanceList({
     required String employeeId,
   }) async {
@@ -776,7 +744,6 @@ class ApiService {
     }
   }
 
-  // Get attendance list with month/year filter
   Future<Map<String, dynamic>> getAttendanceListWithFilter({
     required String employeeId,
     int? month,
@@ -813,7 +780,7 @@ class ApiService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Handle specific HTTP status codes
+       
         if (e.response!.statusCode == 404) {
           return {
             'success': false,
@@ -844,7 +811,6 @@ class ApiService {
     }
   }
 
-  // Search attendance by employee name with month/year filter
   Future<Map<String, dynamic>> searchAttendanceByName({
     required String name,
     int? year,
@@ -902,7 +868,6 @@ class ApiService {
     }
   }
 
-  // Check in/out
   Future<Map<String, dynamic>> checkInOut({
     required String employeeId,
     required String employeeName,
@@ -914,7 +879,7 @@ class ApiService {
     required String location,
     required String branch,
     required String branchName,
-    required String type, // 'checkin' or 'checkout'
+    required String type, 
     double? latitude,
     double? longitude,
     String? address,
@@ -935,7 +900,7 @@ class ApiService {
         'type': type,
       };
 
-      // Add GPS coordinates if provided
+
       if (latitude != null) {
         data['latitude'] = latitude;
       }
@@ -973,7 +938,6 @@ class ApiService {
     }
   }
 
-  // Check in/out with full record data (for updating existing records)
   Future<Map<String, dynamic>> checkInOutWithRecordData(
     Map<String, dynamic> recordData,
   ) async {
@@ -1006,7 +970,6 @@ class ApiService {
   }
 }
 
-// Provider for ApiService
 final apiServiceProvider = Provider<ApiService>((ref) {
   return ApiService();
 });

@@ -12,7 +12,7 @@ class LeaveRepository {
       final response = await _leaveService.getLeaveBalance(employeeId);
 
       if (response['success'] == true) {
-        // The API response has the data directly in the response, not under 'data' key
+        
         return LeaveBalance.fromJson(response);
       } else {
         throw Exception(response['message'] ?? 'Failed to get leave balance');
@@ -76,7 +76,7 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
   final LeaveRepository _repository;
   final String _employeeId;
 
-  // Cache for leave data
+  
   static final Map<String, LeaveVm> _leaveDataCache = {};
   static final Map<String, DateTime> _cacheTimestamps = {};
 
@@ -89,7 +89,7 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
     try {
       state = const AsyncValue.loading();
 
-      // Check cache first (valid for 2 minutes)
+      
       final now = DateTime.now();
       if (_cacheTimestamps.containsKey(_employeeId) &&
           now.difference(_cacheTimestamps[_employeeId]!).inMinutes < 2 &&
@@ -111,7 +111,7 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
       final requests = results[1] as List<LeaveRequest>;
       final leaveVm = LeaveVm(balance, requests);
 
-      // Cache the result
+      
       _leaveDataCache[_employeeId] = leaveVm;
       _cacheTimestamps[_employeeId] = now;
 
@@ -124,38 +124,35 @@ class LeaveController extends StateNotifier<AsyncValue<LeaveVm>> {
   Future<void> submitRequest(Map<String, dynamic> requestData) async {
     try {
       await _repository.submitRequest(requestData);
-      // Clear cache after submission to ensure fresh data
+      
       _leaveDataCache.remove(_employeeId);
       _cacheTimestamps.remove(_employeeId);
-      await load(); // Reload data after submission
+      await load(); 
     } catch (e) {
       rethrow;
     }
   }
 
-  // Method to clear cache (call when data might be stale)
+  
   static void clearCache(String employeeId) {
     _leaveDataCache.remove(employeeId);
     _cacheTimestamps.remove(employeeId);
   }
 
-  // Method to clear all cache (call when any leave data changes)
+  
   static void clearAllCache() {
     _leaveDataCache.clear();
     _cacheTimestamps.clear();
   }
 
-  // Method to force refresh data (bypass cache)
+            
   Future<void> forceRefresh() async {
-    // Clear cache for this employee
     _leaveDataCache.remove(_employeeId);
     _cacheTimestamps.remove(_employeeId);
-    // Reload data
     await load();
   }
 }
 
-// Provider for LeaveController
 final leaveControllerProvider =
     StateNotifierProvider.family<LeaveController, AsyncValue<LeaveVm>, String>((
       ref,
@@ -165,14 +162,12 @@ final leaveControllerProvider =
       return LeaveController(repository, employeeId);
     });
 
-// Provider for leave requests list
 final employeeLeaveListProvider =
     FutureProvider.family<List<LeaveRequest>, String>((ref, employeeId) async {
       final repository = ref.watch(leaveRepositoryProvider);
       return await repository.getLeaveRequests(employeeId);
     });
 
-// Provider for leave settings
 final leaveSettingsProvider =
     FutureProvider.family<LeaveSettingsResponse, String>((
       ref,

@@ -28,7 +28,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   void initState() {
     super.initState();
     _getCurrentUserId();
-    // Initialize notification count
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationProvider.notifier).initialize();
     });
@@ -38,11 +37,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     final authService = ref.read(authServiceProvider);
     _currentUserId = authService.currentEmployeeId;
     if (_currentUserId != null) {
-      // Clear cache to get fresh data from server
       _notificationService.clearCache();
       _loadNotifications();
-      // Skip separate badge count refresh to reduce API calls
-      // The badge count will be updated when notifications are loaded
     } else {
       setState(() {
         _isLoading = false;
@@ -64,7 +60,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     try {
       final response = await _notificationService.getNotifications(
         employeeId: _currentUserId!,
-        limit: 50, // Load more notifications
+        limit: 50, 
       );
 
       if (response['success'] == true) {
@@ -81,7 +77,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             _isLoading = false;
           });
 
-          // Update badge count based on loaded notifications
           final unreadCount = filteredNotifications
               .where((n) => !n.isRead)
               .length;
@@ -89,7 +84,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
               .read(notificationProvider.notifier)
               .updateUnreadCount(unreadCount);
           
-          // ✅ Update iOS app icon badge
           final pushService = ref.read(pushNotificationServiceProvider);
           await pushService.updateBadgeCount(unreadCount);
         } catch (parseError) {
@@ -125,7 +119,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             _error = 'Using cached data - API connection issue';
           });
 
-          // Update badge count based on cached notifications
           final unreadCount = filteredNotifications
               .where((n) => !n.isRead)
               .length;
@@ -148,50 +141,33 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
   }
 
-  // Filter notifications based on user role and context
   List<NotificationModel> _filterNotifications(
     List<NotificationModel> notifications,
     String currentEmployeeId,
   ) {
-    // 1) Base filtering rules
     final filtered = notifications.where((notification) {
-      // Debug: Log notification details for troubleshooting
-      debugPrint('📬 Notification: type=${notification.type}, userId=${notification.userId}, senderId=${notification.senderId}, currentUserId=$currentEmployeeId');
       
-      // Hide self-originated initial leave_request notifications from requester
-      // (They don't need to see their own request notification)
-      // But allow requesters to see approval/rejection status updates (approved_*, approved, rejected)
       if (notification.type == 'leave_request') {
-        // Only hide if sender is the current user (their own initial request)
         if (notification.senderId == currentEmployeeId) {
-          debugPrint('   ❌ Filtered out: Own leave_request notification');
-          return false; // Hide initial request notification from requester
+          return false; 
         }
       }
       
-      // Ensure notification is for the current user (userId should match)
-      // This is important for requester notifications
       if (notification.userId != currentEmployeeId) {
-        debugPrint('   ❌ Filtered out: Notification userId (${notification.userId}) does not match current user ($currentEmployeeId)');
-        return false; // Hide notifications not meant for this user
+        return false; 
       }
       
-      // All other notifications (including approved_team_lead, approved_manager, 
-      // approved_hr, approved, rejected) will be shown to the requester
-      // The backend should send these with the requester as userId (recipient)
-      debugPrint('   ✅ Showing notification: ${notification.type}');
+      
       return true;
     }).toList();
 
-    // 2) De-duplicate potential duplicates from backend (same leave request emitted twice)
     final Map<String, NotificationModel> uniqueByKey = {};
     for (final n in filtered) {
       final leaveId = n.data['leaveRequestId'] ?? n.data['leaveId'] ?? '';
       final coarseTimeBucket =
-          n.createdAt.millisecondsSinceEpoch ~/ 60000; // 1-minute bucket
+          n.createdAt.millisecondsSinceEpoch ~/ 60000; 
       final key =
           '${n.type}:$leaveId:${n.title}:${n.message}:$coarseTimeBucket';
-      // Keep the first occurrence (usually the earlier one), or replace with the latest if needed
       if (!uniqueByKey.containsKey(key)) {
         uniqueByKey[key] = n;
       }
@@ -206,7 +182,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       return;
     }
 
-    // Clear cache to force fresh data from server
     _notificationService.clearCache();
     await _loadNotifications();
 
@@ -224,7 +199,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
       if (response['success'] == true) {
         setState(() {
-          // Update the notification in the list
           final index = _notifications.indexWhere(
             (n) => n.id == notification.id,
           );
@@ -238,17 +212,15 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
               messageTh: notification.messageTh,
               type: notification.type,
               data: notification.data,
-              isRead: true, // Mark as read
+              isRead: true, 
               createdAt: notification.createdAt,
               updatedAt: DateTime.now(),
             );
           }
         });
 
-        // Update the badge count
         ref.read(notificationProvider.notifier).markAsRead();
         
-        // ✅ Update iOS app icon badge
         final unreadCount = _notifications.where((n) => !n.isRead).length;
         final pushService = ref.read(pushNotificationServiceProvider);
         await pushService.updateBadgeCount(unreadCount);
@@ -264,7 +236,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     if (_currentUserId == null) return;
 
     try {
-      // Optimistically update UI first for instant feedback
       setState(() {
         for (var i = 0; i < _notifications.length; i++) {
           final n = _notifications[i];
@@ -278,21 +249,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             messageTh: n.messageTh,
             type: n.type,
             data: n.data,
-            isRead: true, // Mark as read
+            isRead: true, 
             createdAt: n.createdAt,
             updatedAt: n.updatedAt,
           );
         }
       });
 
-      // Update badge count to 0 immediately
       ref.read(notificationProvider.notifier).markAllAsRead();
       
-      // ✅ Update iOS app icon badge to 0
       final pushService = ref.read(pushNotificationServiceProvider);
       await pushService.updateBadgeCount(0);
 
-      // Call API in background
       final response = await _notificationService.markAllAsRead(
         employeeId: _currentUserId!,
       );
@@ -302,21 +270,18 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           ref.t('ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว', 'All notifications marked as read'),
         );
       } else {
-        // Revert if API failed
         await _loadNotifications();
         _showErrorSnackBar(
           ref.t('ไม่สามารถทำเครื่องหมายว่าอ่านได้', response['message'] ?? 'Failed to mark all as read'),
         );
       }
     } catch (e) {
-      // Revert if error
       await _loadNotifications();
       _showErrorSnackBar(ref.t('เกิดข้อผิดพลาด', 'Error marking all as read: $e'));
     }
   }
 
-  void _handleNotificationTap(NotificationModel notification) async {
-    // Mark as read first
+  void _handleNotificationTap(NotificationModel notification) async {   
     await _markAsRead(notification);
 
     final authService = ref.read(authServiceProvider);
@@ -326,37 +291,28 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                         notification.senderId == currentEmployeeId;
     
     switch (notification.type) {
-      // Needs approval - go to approval screen unless it's own request
       case 'pending':
       case 'approved_team_lead':
       case 'approved_manager':
       case 'approved_hr':
-        // If it's own request, go to leave history
         if (isOwnRequest) {
-          print('   → Own request, navigating to Leave History');
           if (mounted) {
             context.push('/leave/list');
           }
           return;
         }
         
-        // Otherwise, go to approval screen (for managers, HR, approvers)
-        print('   → Navigating to Approval Screen');
         if (mounted) {
           context.push('/leave/approval');
         }
         
-      // Final status - always go to leave history
       case 'approved':
       case 'rejected':
-        print('   → Final status, navigating to Leave History');
         if (mounted) {
           context.push('/leave/list');
         }
         
       default:
-        // For other notification types, just mark as read
-        print('⚠️ Unknown notification type: ${notification.type}');
         break;
     }
   }
@@ -563,9 +519,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Widget _buildNotificationCard(NotificationModel notification) {
-    // Debug: Print notification type to console
-    print('Notification type: ${notification.type}');
-    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -686,7 +639,6 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Color _getNotificationColor(String type) {
-    // Use string matching for more flexibility
     if (type.contains('approved') || type.contains('approve')) {
       return AppTheme.successColor;
     }
@@ -716,20 +668,17 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   IconData _getNotificationIcon(String type) {
-    // For leave-related notifications
     if (type.contains('leave') || type == 'leave_request' || type == 'pending') {
-      // Check if it's approved or rejected first
       if (type.contains('approved') || type.contains('approve')) {
-        return Icons.check_circle; // Green checkmark for approved
+        return Icons.check_circle; 
       }
       if (type.contains('rejected') || type.contains('reject')) {
-        return Icons.cancel; // Red cross for rejected
+        return Icons.cancel; 
       }
-      // For pending/request leave notifications, use calendar icon
       return Icons.calendar_today;
     }
     
-    // For other approved notifications (non-leave)
+   
     if (type.contains('approved') || type.contains('approve')) {
       return Icons.check_circle;
     }

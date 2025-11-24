@@ -35,16 +35,16 @@ class LeaveRequestScreen extends ConsumerStatefulWidget {
 class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
-  DateTime? _selectedDate; // For hourly leave
-  String _durationType = 'daily'; // daily or hourly
-  String _workingShift = '7am-9pm'; // 7am-9pm or 8am-1pm
+  DateTime? _selectedDate; 
+  String _durationType = 'daily'; 
+  String _workingShift = '7am-9pm'; 
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
   List<AttachmentModel> _attachments = [];
-  Map<String, dynamic>? _shiftData; // Stores shift data from API
+  Map<String, dynamic>? _shiftData; 
   bool _isLoadingShift = false;
-  String? _remainingDaysHours; // Remaining in days/hours text
+  String? _remainingDaysHours; 
   bool _remainingLoaded = false;
 
   Future<void> _loadShiftByDate(String date) async {
@@ -58,7 +58,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       final employeeId = authService.currentEmployeeId;
 
       if (employeeId == null) {
-        print('❌ No employee ID found');
         setState(() {
           _isLoadingShift = false;
         });
@@ -71,35 +70,29 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         date: date,
       );
 
-      print('📋 Shift Response: $response');
-
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
-        print('✅ Shift Data: $data');
-        print('⏰ Shift Time: ${data['shift']?['shiftTime']}');
 
         setState(() {
           _shiftData = data;
-          // Also set _workingShift for form submission
+
           if (data['shift'] != null) {
             final shift = data['shift'];
             final shiftTime = shift['shiftTime']?.toString() ?? 
                              '${shift['startTime'] ?? ''}-${shift['endTime'] ?? ''}';
             if (shiftTime.isNotEmpty && shiftTime != '-') {
               _workingShift = shiftTime;
-              print('✅ Set _workingShift to: $_workingShift');
             }
           }
           _isLoadingShift = false;
         });
       } else {
-        print('❌ Failed to load shift data');
         setState(() {
           _isLoadingShift = false;
         });
       }
     } catch (e) {
-      print('❌ Error loading shift: $e');
+     
       setState(() {
         _isLoadingShift = false;
       });
@@ -160,7 +153,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                   _buildReasonField(),
                   const SizedBox(height: 24),
                   _buildImageUploadSection(),
-                  const SizedBox(height: 100), // Extra space for submit button
+                  const SizedBox(height: 100), 
                 ],
               ),
             ),
@@ -314,7 +307,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   Widget _buildWorkingShiftSelector() {
-    // If loading shift data, show loading indicator
+   
     if (_isLoadingShift) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +326,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
     }
 
-    // If shift data is available from API, display it
     if (_shiftData != null && _shiftData!['shift'] != null) {
       final shift = _shiftData!['shift'];
       final shiftName = shift['shiftName'] ?? shift['shiftNameEN'] ?? 'Working Shift';
@@ -396,7 +388,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
     }
 
-    // If no date selected yet, show message
     if (_selectedDate == null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,7 +432,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
     }
 
-    // Fallback: No shift data found for selected date
+   
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -486,7 +477,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   String _formatWorkingShift(String shift) {
-    // Convert shift format like "7am-9pm" to "7:00 AM - 9:00 PM"
+   
     final parts = shift.toLowerCase().split('-');
     if (parts.length == 2) {
       final start = _formatShiftTime(parts[0].trim());
@@ -497,7 +488,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   String _formatShiftTime(String time) {
-    // Convert "7am" to "7:00 AM" or "9pm" to "9:00 PM"
+   
     final regex = RegExp(r'(\d+)(am|pm)', caseSensitive: false);
     final match = regex.firstMatch(time);
     if (match != null) {
@@ -795,7 +786,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             controller: _reason,
             maxLines: 4,
             onChanged: (value) =>
-                setState(() {}), // Trigger rebuild when text changes
+                setState(() {}), 
             decoration: InputDecoration(
               hintText: LeaveTranslations.reasonHint(ref),
               border: InputBorder.none,
@@ -831,7 +822,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Image upload buttons
         Row(
           children: [
             Expanded(
@@ -852,7 +842,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           ],
         ),
 
-        // Attachments list
         if (_attachments.isNotEmpty) ...[
           const SizedBox(height: 16),
           ..._attachments.map((attachment) => _buildAttachmentItem(attachment)),
@@ -918,7 +907,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       ),
       child: Row(
         children: [
-          // Image preview or file icon
           Container(
             width: 50,
             height: 50,
@@ -1068,7 +1056,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     if (date != null) {
       setState(() => _selectedDate = date);
       
-      // Fetch shift data for the selected date
+     
       final dateString = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       await _loadShiftByDate(dateString);
     }
@@ -1104,7 +1092,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
         await _addAttachment(file);
       } else {
-        print('📸 No file selected');
+        // No file selected
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1117,7 +1105,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   Future<void> _addAttachment(File file) async {
     try {
-      // Check file size (max 10MB)
       final double fileSizeMB = FileUtils.getFileSizeInMB(file);
       if (fileSizeMB > 10) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1126,7 +1113,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Create attachment model for local storage
       final AttachmentModel attachment = AttachmentModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         fileName: file.path.split('/').last,
@@ -1168,7 +1154,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   void _submitRequest(LeaveController ctrl) async {
-    // Validate based on duration type
+    
     if (_durationType == 'daily') {
       if (_fromDate == null || _toDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1184,7 +1170,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Validate that shift data was loaded
       if (_shiftData == null || _workingShift.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1195,7 +1180,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
-      // Validate time range
       if (_startTime!.hour > _endTime!.hour ||
           (_startTime!.hour == _endTime!.hour &&
               _startTime!.minute >= _endTime!.minute)) {
@@ -1216,14 +1200,12 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
 
     try {
-      // Show loading indicator
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Get current employee ID, name, and position
       final authService = ref.read(authServiceProvider);
       final currentEmployeeId = authService.currentEmployeeId;
       final currentEmployeeName = authService.currentEmployeeName;
@@ -1232,17 +1214,15 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       final currentPositionName = authService.currentPositionName;
 
       if (currentEmployeeId == null) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(LeaveTranslations.employeeNotFound(ref))),
         );
         return;
       }
 
-      // Generate unique ID for leave request (for future use)
-      // final leaveId = 'LR-${DateTime.now().millisecondsSinceEpoch}';
-
-      // Determine approval workflow based on position
+     
+     
       final approvalWorkflow = _getApprovalWorkflow(currentPositionName ?? '');
 
       final requestData = {
@@ -1252,27 +1232,25 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'firstName': currentEmployeeFirstName ?? '',
         'lastName': currentEmployeeLastName ?? '',
         'positionName': currentPositionName ?? '',
-        'leaveType': widget.leaveType, // Use the actual leave type ID from API
+        'leaveType': widget.leaveType, 
         'leaveTypeName': widget.leaveTypeName.isNotEmpty
             ? widget.leaveTypeName
             : _getLeaveTypeName(
                 widget.leaveType,
-              ), // Use provided name or fallback
+              ), 
         'leaveTypeNameEng': widget.leaveTypeNameEng.isNotEmpty
             ? widget.leaveTypeNameEng
             : _getLeaveTypeName(widget.leaveType),
-        'requestType': _durationType, // Use 'daily' or 'hourly'
+        'requestType': _durationType, 
         'reason': _reason.text.trim(),
         'isHalfDay': false,
-        'halfDayType': 'morning', // Default value
-        'attachments': [], // Will be populated with uploaded file URLs
-        // Add approval workflow fields
+        'halfDayType': 'morning', 
+        'attachments': [], 
         'approvalLevel': approvalWorkflow['level'],
         'currentApprover': approvalWorkflow['currentApprover'],
         'approvalWorkflow': approvalWorkflow['workflow'],
       };
 
-      // Add daily leave specific fields
       if (_durationType == 'daily') {
         requestData['fromDate'] =
             '${_fromDate!.year}-${_fromDate!.month.toString().padLeft(2, '0')}-${_fromDate!.day.toString().padLeft(2, '0')}';
@@ -1280,7 +1258,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             '${_toDate!.year}-${_toDate!.month.toString().padLeft(2, '0')}-${_toDate!.day.toString().padLeft(2, '0')}';
       }
 
-      // Add hourly leave specific fields
       if (_durationType == 'hourly') {
         final selectedDate = _selectedDate!;
         final dateString = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
@@ -1289,20 +1266,17 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         requestData['toDate'] = dateString;
         requestData['date'] = dateString;
         
-        // Add working shift information (multiple formats to ensure backend receives it)
         requestData['workingShift'] = _workingShift;
-        requestData['working_shift'] = _workingShift; // snake_case variant
+        requestData['working_shift'] = _workingShift; 
         
-        // Add start and end times - backend will calculate deduction
         final startTimeStr = '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}';
         final endTimeStr = '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}';
         
         requestData['startTime'] = startTimeStr;
-        requestData['start_time'] = startTimeStr; // snake_case variant
+        requestData['start_time'] = startTimeStr; 
         requestData['endTime'] = endTimeStr;
-        requestData['end_time'] = endTimeStr; // snake_case variant
+        requestData['end_time'] = endTimeStr; 
         
-        // If we have detailed shift data, include it
         if (_shiftData != null && _shiftData!['shift'] != null) {
           requestData['shiftId'] = _shiftData!['shift']['shiftId'];
           requestData['shift_id'] = _shiftData!['shift']['shiftId'];
@@ -1310,19 +1284,10 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           requestData['shift_name'] = _shiftData!['shift']['shiftName'];
         }
         
-        // Debug logging
-        print('🔍 HOURLY LEAVE REQUEST DATA:');
-        print('  Date: $dateString');
-        print('  Working Shift: $_workingShift');
-        print('  Start Time: $startTimeStr');
-        print('  End Time: $endTimeStr');
-        print('  Shift ID: ${requestData['shiftId']}');
-        print('  Shift Name: ${requestData['shiftName']}');
+        
       }
 
-      print('📤 FULL REQUEST DATA: $requestData');
-
-      // Convert attachments to File list
+     
       final List<File> attachmentFiles = _attachments
           .map((attachment) => File(attachment.localPath))
           .toList();
@@ -1337,18 +1302,16 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         if (response['leaveRequest']?['attachment'] != null) {
           final attachment = response['leaveRequest']['attachment'];
           if (attachment['files'] != null) {
-            for (var file in attachment['files']) {
-              print('  - ${file['publicUrl']}');
-            }
+            // Attachment files processed silently
           }
         }
       } else {
-        // Check for WARNING_DAYS_VALIDATION error
+        
         if (response['code'] == 'WARNING_DAYS_VALIDATION') {
-          // Close loading dialog first
+          
           Navigator.pop(context);
           
-          // Show warning dialog
+          
           if (context.mounted) {
             final isThai = ref.read(languageProvider);
             final warningMessage = isThai && response['messageTh'] != null
@@ -1393,20 +1356,19 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               ),
             );
           }
-          return; // Don't throw exception, just return
+          return; 
         }
         
-        // For other errors, throw exception as before
         throw Exception(
           response['message'] ?? LeaveTranslations.failedToSubmitRequest(ref),
         );
       }
 
-      // Close loading dialog
+      
       Navigator.pop(context);
 
       if (context.mounted) {
-        Navigator.pop(context); // Close the form
+        Navigator.pop(context); 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -1417,16 +1379,15 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         );
       }
     } catch (e) {
-      // Close loading dialog
+      
       Navigator.pop(context);
 
-      // Format error message without technical prefixes like "Exception:"
+     
       String message = e.toString();
       if (message.startsWith('Exception:')) {
         message = message.replaceFirst('Exception:', '').trim();
       }
 
-      // Build friendly alert if message indicates remaining is not enough
       final isThai = ref.read(languageProvider);
       final match = RegExp(r'exceeds remaining\s+([0-9.]+)\s+days', caseSensitive: false)
           .firstMatch(message);
@@ -1434,7 +1395,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           (match != null ? '${match.group(1)} days' : null);
       
       if (remainingText != null) {
-        // Show warning dialog for remaining days issue
+        
         if (context.mounted) {
           final warningMessage = isThai
               ? 'วันลาที่เหลือไม่เพียงพอสำหรับคำขอนี้ ($remainingText)'
@@ -1479,7 +1440,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           );
         }
       } else {
-        // For other errors, show SnackBar
+        
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1492,11 +1453,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
   }
 
-  // Determine approval workflow based on employee position
   Map<String, String> _getApprovalWorkflow(String positionName) {
     final position = positionName.toLowerCase();
 
-    // Special case: HR requests go directly to approver
     if (position.contains('hr') || position.contains('human resource')) {
       return {
         'level': 'approver',
@@ -1505,7 +1464,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
-    // Special case: Manager requests go directly to HR
     if (position.contains('manager') ||
         position.contains('supervisor') ||
         position.contains('lead')) {
@@ -1516,7 +1474,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
-    // Special case: Approver requests are self-approved
     if (position.contains('approver') || position.contains('management')) {
       return {
         'level': 'approved',
@@ -1525,7 +1482,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
-    // Special case: Programmer requests go to Team Lead first
     if (position.contains('programmer')) {
       return {
         'level': 'team_lead',
@@ -1534,7 +1490,6 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       };
     }
 
-    // Positions that should go through normal flow (Manager -> HR -> Approver)
     final normalFlowPositions = [
       'programmer',
       'developer',
@@ -1543,20 +1498,17 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       'sales',
     ];
 
-    // Check if position should use normal flow
     bool useNormalFlow = normalFlowPositions.any(
       (pos) => position.contains(pos),
     );
 
     if (useNormalFlow) {
-      // Normal workflow (employee -> manager -> hr -> approver)
       return {
         'level': 'employee',
         'currentApprover': 'manager',
         'workflow': 'employee -> manager -> hr -> approver',
       };
     } else {
-      // Direct to HR workflow (skip manager for all other positions)
       return {
         'level': 'hr',
         'currentApprover': 'hr',
@@ -1571,11 +1523,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   }
 
   String _getLeaveTypeName(String type) {
-    // Map leave types to their display names
+    
     switch (type.toLowerCase()) {
       case 'vacation':
       case 'annual':
-        return 'Sick Leave'; // Using sick leave as general leave
+        return 'Sick Leave'; 
       case 'sick':
         return 'Sick Leave';
       case 'personal':

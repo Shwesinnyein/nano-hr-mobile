@@ -24,9 +24,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
   bool _obscureConfirmPassword = true;
   bool _showRegistration = false;
   bool _isLoading = false;
-  bool _useMobileAPI = true; // Always use mobile API
+  bool _useMobileAPI = true; 
 
-  // Translation helper method using global state
+  
   String _t(WidgetRef ref, String thaiText, String englishText) {
     final isThai = ref.watch(languageProvider);
     return isThai ? thaiText : englishText;
@@ -42,14 +42,14 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
 
   void _handleLogin() {
     if (_showRegistration) {
-      // Registration flow
+      
       if (_password.text != _confirmPassword.text) {
         _showErrorSnackBar('Passwords do not match');
         return;
       }
       _performRegistration(_email.text, _password.text, _confirmPassword.text);
     } else {
-      // Login flow
+      
       _performLogin(_email.text, _password.text);
     }
   }
@@ -66,7 +66,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     try {
       final authService = ref.read(authServiceProvider);
 
-      // Registration flow: check Firebase Auth first, then employee table
+      
       final result = await authService.registerUser(
         email,
         password,
@@ -74,24 +74,20 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       );
 
       if (result['success'] == true) {
-        // Update auth state directly
+        
         ref
             .read(authServiceProvider)
             .setCurrentUser('user-${DateTime.now().millisecondsSinceEpoch}');
 
-        // Success - show message first, then navigate
+        
         if (mounted) {
           _showSuccessSnackBar('Registration successful! Welcome to NANO HR!');
           _showRegistration = false;
-          // await Future.delayed(const Duration(milliseconds: 1500));
+          
           if (mounted) {
             context.go('/employee-login');
           }
-          // Add delay to ensure user sees the success message before navigation
-          // await Future.delayed(const Duration(milliseconds: 1500));
-          // if (mounted) {
-          //   context.go('/attendance');
-          // }
+          
         }
       } else {
         _showErrorSnackBar(result['message'] ?? 'Registration failed');
@@ -100,15 +96,15 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (mounted) {
         final errorMessage = e.toString();
         
-        // Check if email already exists in Firebase Auth
+        
         if (errorMessage.contains('EMAIL_ALREADY_IN_FIREBASE_AUTH')) {
           _showEmailAlreadyRegisteredAlert();
         }
-        // Check if email doesn't exist in employee table
+        
         else if (errorMessage.contains('EMAIL_NOT_FOUND_IN_EMPLOYEE_TABLE')) {
           _showEmailNotFoundInEmployeeTableAlert();
         } else {
-          // Show other errors as snackbar
+          
           _showErrorSnackBar(errorMessage);
         }
       }
@@ -129,18 +125,14 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     try {
       final authController = ref.read(auth_repo.authStateProvider.notifier);
 
-      // Login using mobile API via auth repository (which handles token storage)
+      
       await authController.loginMobile(email, password);
 
       final authService = ref.read(authServiceProvider);
 
       if (mounted) {
-        // The auth service already sets the user ID and employee ID correctly
-        // No need to override it with a dummy ID
 
-        // Success - show message first, then navigate
         _showSuccessSnackBar('Login successful!');
-        // Add delay to ensure user sees the success message before navigation
         await Future.delayed(const Duration(milliseconds: 1500));
         if (mounted) {
           context.go('/attendance');
@@ -150,24 +142,19 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       if (mounted) {
         final errorMessage = e.toString();
         
-        // Check if password is incorrect
         if (errorMessage.contains('PASSWORD_INCORRECT')) {
           _showPasswordIncorrectAlert();
         }
-        // Check if email exists in employee table but not Firebase Auth
         else if (errorMessage.contains('EMAIL_EXISTS_IN_EMPLOYEE_TABLE')) {
           _showEmailExistsInEmployeeTableAlert();
         } 
-        // Check if email doesn't exist in either system
         else if (errorMessage.contains('EMAIL_NOT_FOUND_IN_SYSTEM')) {
           _showEmailNotFoundAlert();
         }
-        // Check if it's a generic "user not found" error (needs registration)
         else if (errorMessage.contains('You need to register first') || 
             errorMessage.contains('user-not-found')) {
           _showRegistrationRequiredAlert();
         } else {
-          // Show other errors as snackbar
           _showErrorSnackBar(errorMessage);
         }
       }
@@ -223,7 +210,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Optionally switch to registration mode
                 setState(() {
                   _showRegistration = true;
                 });
@@ -276,7 +262,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                // Switch to registration mode
                 setState(() {
                   _showRegistration = true;
                 });
@@ -404,8 +389,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
-                // Switch to login mode
+                Navigator.of(context).pop();  
                 setState(() {
                   _showRegistration = false;
                 });
@@ -517,9 +501,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFFc7a27b), // Your specified color
-                const Color(0xFFb8956b), // Slightly darker shade
-                const Color(0xFFa0855a), // Even darker for depth
+                const Color(0xFFc7a27b), 
+                const Color(0xFFb8956b), 
+                const Color(0xFFa0855a), 
               ],
               stops: const [0.0, 0.5, 1.0],
             ),
@@ -527,7 +511,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                // Language Switch in top right
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0, right: 24.0),
                   child: Row(
@@ -535,7 +518,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                     children: [_buildLanguageSwitch()],
                   ),
                 ),
-                // Main content
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -544,12 +526,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                       children: [
                         const SizedBox(height: 10),
 
-                        // Modern Logo Section
                         _buildModernLogo(),
 
                         const SizedBox(height: 20),
 
-                        // Modern Card Container
                         Container(
                           width: double.infinity,
                           constraints: BoxConstraints(maxWidth: 400),
@@ -573,12 +553,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                             padding: const EdgeInsets.all(32.0),
                             child: Column(
                               children: [
-                                // Modern Mode Indicator
                                 _buildModernModeIndicator(),
 
                                 const SizedBox(height: 20),
 
-                                // Modern Form Fields
                                 _buildModernTextField(
                                   controller: _email,
                                   label: _t(
@@ -612,7 +590,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                                   ),
                                 ),
 
-                                // Confirm Password field (only show in registration mode)
                                 if (_showRegistration) ...[
                                   const SizedBox(height: 16),
                                   _buildModernTextField(
@@ -672,12 +649,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
 
                                 const SizedBox(height: 24),
 
-                                // Modern 3D Button
                                 _buildModern3DButton(),
 
                                 const SizedBox(height: 24),
 
-                                // Modern Toggle Button
                                 _buildModernToggleButton(),
                               ],
                             ),
@@ -697,11 +672,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  // Modern Logo Section
   Widget _buildModernLogo() {
     return Column(
       children: [
-        // 3D Logo Container
         Container(
           height: 120,
           width: 120,
@@ -734,14 +707,13 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        // Modern App Name
         Text(
           _t(ref, 'NANO Work', 'NANO Work'),
           style: TextStyle(
-            fontSize: 28, // Reduced from 32
-            fontWeight: FontWeight.w700, // Reduced from w800
+            fontSize: 28, 
+            fontWeight: FontWeight.w700, 
             color: Colors.white,
-            letterSpacing: 1.5, // Reduced from 2
+            letterSpacing: 1.5, 
             shadows: [
               Shadow(
                 color: Colors.black.withOpacity(0.3),
@@ -765,7 +737,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  // Modern Mode Indicator
   Widget _buildModernModeIndicator() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -809,7 +780,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  // Modern Text Field
   Widget _buildModernTextField({
     required TextEditingController controller,
     required String label,
@@ -819,10 +789,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     TextInputType? keyboardType,
   }) {
     return Container(
-      height: 50, // Reduced height
+      height: 50, 
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12), // Smaller radius
+        borderRadius: BorderRadius.circular(12), 
         border: Border.all(color: Colors.grey[200]!, width: 1),
         boxShadow: [
           BoxShadow(
@@ -839,27 +809,27 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         style: const TextStyle(
           color: Colors.black87,
           fontWeight: FontWeight.w500,
-          fontSize: 15, // Slightly smaller font
+          fontSize: 15, 
         ),
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(
-            fontSize: 13, // Smaller label
+            fontSize: 13, 
             fontWeight: FontWeight.w500,
             color: Colors.grey[600],
           ),
           prefixIcon: Container(
-            margin: const EdgeInsets.all(8), // Reduced margin
-            padding: const EdgeInsets.all(6), // Reduced padding
+            margin: const EdgeInsets.all(8), 
+            padding: const EdgeInsets.all(6), 
             decoration: BoxDecoration(
               color: const Color(0xFFc7a27b).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6), // Smaller radius
+              borderRadius: BorderRadius.circular(6), 
             ),
             child: Icon(
               icon,
               color: const Color(0xFFc7a27b),
               size: 18,
-            ), // Smaller icon
+            ), 
           ),
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(
@@ -877,19 +847,18 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
           filled: true,
           fillColor: Colors.grey[50],
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16, // Reduced horizontal padding
-            vertical: 12, // Reduced vertical padding
+            horizontal: 16, 
+            vertical: 12, 
           ),
         ),
       ),
     );
   }
 
-  // Modern 3D Button
   Widget _buildModern3DButton() {
     return Container(
       width: double.infinity,
-      height: 52, // Increased from 48 for better text visibility
+      height: 52, 
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -939,23 +908,23 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
                         ? Icons.person_add_rounded
                         : Icons.login_rounded,
                     color: Colors.white,
-                    size: 18, // Reduced from 20
+                    size: 18, 
                   ),
-                  const SizedBox(width: 6), // Reduced from 8
+                  const SizedBox(width: 6), 
                   Text(
                     _showRegistration
                         ? _t(ref, 'สร้างบัญชี', 'Create Account')
                         : _t(ref, 'เข้าสู่ระบบ', 'Sign In'),
                     style: const TextStyle(
-                      fontSize: 15, // Increased from 14
-                      fontWeight: FontWeight.w700, // Increased from w600
+                      fontSize: 15, 
+                      fontWeight: FontWeight.w700, 
                       color: Colors.white,
-                      letterSpacing: 0.5, // Increased from 0.3
+                      letterSpacing: 0.5, 
                       shadows: const [
                         Shadow(
                           color: Color(
                             0x4D000000,
-                          ), // Colors.black.withOpacity(0.3)
+                          ), 
                           offset: Offset(0, 1),
                           blurRadius: 2,
                         ),
@@ -968,7 +937,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  // Modern Toggle Button
   Widget _buildModernToggleButton() {
     return Container(
       width: double.infinity,
@@ -1017,7 +985,6 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     );
   }
 
-  // Handle Registration
   Future<void> _handleRegistration() async {
     if (_email.text.isEmpty || _password.text.isEmpty) {
       _showErrorSnackBar('Please fill in all fields');
@@ -1029,11 +996,9 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
       return;
     }
 
-    // Call the actual registration method with email validation
     _performRegistration(_email.text, _password.text, _confirmPassword.text);
   }
 
-  // Language Switch Widget
   Widget _buildLanguageSwitch() {
     final isThai = ref.watch(languageProvider);
 

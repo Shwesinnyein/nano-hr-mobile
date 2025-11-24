@@ -15,18 +15,18 @@ import '../../../core/services/auth_service.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  // Check if user is HR or approver
+  
   bool _isHROrApprover(AuthService auth) {
     final position = auth.currentPositionName ?? '';
     final positionLower = position.toLowerCase();
     
-    // Check if user is HR
+    
     if (positionLower.contains('hr') ||
         positionLower.contains('human resource')) {
       return true;
     }
     
-    // Check if user is an approver
+    
     if (positionLower.contains('approver') ||
         positionLower.contains('management')) {
       return true;
@@ -111,7 +111,7 @@ class SettingsScreen extends ConsumerWidget {
                 Icons.history,
                 () => _navigateToAttendanceHistory(context),
               ),
-              // Only show "Attendance History by Employee" for HR and approvers
+              
               if (isHROrApprover)
                 _buildSettingsItem(
                   ref.t(
@@ -323,7 +323,6 @@ class SettingsScreen extends ConsumerWidget {
   ) {
     return GestureDetector(
       onTap: () {
-        // Update global language state
         ref.read(languageProvider.notifier).setLanguage(code == 'TH');
         _showLanguageChanged(context, code);
       },
@@ -768,7 +767,6 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _openPrivacyPolicy(BuildContext context) {
-    // Navigate to in-app privacy policy screen
     context.push('/privacy-policy');
   }
 }

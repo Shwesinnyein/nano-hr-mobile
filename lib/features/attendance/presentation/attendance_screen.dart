@@ -32,18 +32,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Map<String, dynamic>? _shiftData;
   bool _isLoadingStatus = false;
 
-  // Location tracking
   final LocationService _locationService = LocationService();
   Map<String, dynamic>? _currentLocation;
   bool _isLoadingLocation = false;
 
-  // Modal loading state
   bool _isModalLoading = false;
-  // String? _locationError; // Removed unused variable
 
-  // Google Maps controller (removed to prevent crashes)
-
-  // Performance optimization: Cache button state to prevent r_refreshAttendanceStatusecalculation
   Map<String, dynamic>? _cachedButtonState;
   DateTime? _lastButtonStateUpdate;
   static const Duration _buttonStateCacheTimeout = Duration(seconds: 30);
@@ -53,12 +47,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String fmtDate(DateTime dt) {
     final isThai = ref.watch(languageProvider);
     if (isThai) {
-      // Thai format: วันที่ dd เดือน ปี (e.g., 04 พ.ย. 2568)
       final day = dt.day.toString().padLeft(2, '0');
       final monthsThai = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 
                          'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
       final month = monthsThai[dt.month - 1];
-      final year = (dt.year + 543).toString(); // Buddhist year
+      final year = (dt.year + 543).toString(); 
       return '$day $month $year';
     }
     return DateFormat('MMM dd, yyyy').format(dt.toLocal());
@@ -67,10 +60,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String fmtFull(DateTime dt) =>
       DateFormat('MMM dd, yyyy HH:mm').format(dt.toLocal());
 
-  // Helper method to get button text and state based on attendance status
-  // Performance optimized with caching to prevent unnecessary recalculations
   Map<String, dynamic> _getButtonState(List<Attendance> entries) {
-    // Check if we can use cached button state
     if (_cachedButtonState != null &&
         _lastButtonStateUpdate != null &&
         DateTime.now().difference(_lastButtonStateUpdate!) <
@@ -78,7 +68,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       return _cachedButtonState!;
     }
 
-    // Use API attendance data directly instead of filtering local entries
     final attendanceData = _shiftData?['attendanceData'] as List?;
     final latestRecord = attendanceData?.isNotEmpty == true
         ? attendanceData!.first
@@ -105,7 +94,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
       isEnabled = true;
     } else {
-      // Already checked out for today
       buttonText = ref.t('ออกงานแล้ว', 'Already Checked Out');
       buttonIcon = Icons.check_circle;
       buttonColors = [Colors.grey, Colors.grey.shade600];
@@ -119,7 +107,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       'enabled': isEnabled,
     };
 
-    // Cache the result
     _cachedButtonState = buttonState;
     _lastButtonStateUpdate = DateTime.now();
 
@@ -158,12 +145,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         return;
       }
 
-      // Get today's date in YYYY-MM-DD format
       final today = DateTime.now();
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-      // Only call getShiftDataWithFilter - it provides all needed data
       final shiftDataResponse = await apiService.getShiftDataWithFilter(
         employeeId: employeeId,
         date: dateString,
@@ -172,15 +157,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (mounted) {
         setState(() {
           if (shiftDataResponse['success'] == true) {
-            // The API response structure is direct, not wrapped in 'data'
             _shiftData = shiftDataResponse;
 
-            // Extract employee profile from shift data
             if (_shiftData?['employee'] != null) {
               _employeeProfile = _shiftData!['employee'];
             }
 
-            // Extract attendance status from shift data
             if (_shiftData?['attendanceData'] != null) {
               _attendanceStatus = {
                 'success': true,
@@ -191,7 +173,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               };
             }
 
-            // Clear cached button state when data changes
             _cachedButtonState = null;
             _lastButtonStateUpdate = null;
           }
@@ -203,7 +184,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         setState(() {
           _isLoadingStatus = false;
         });
-        // Show error message to user
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load attendance data: ${e.toString()}'),
@@ -251,17 +231,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           final withinRadius = distanceKm != null &&
               distanceKm <= BranchLocationService.maxBranchRadius;
 
-          debugPrint(
-            '📍 AttendanceScreen: Current location lat=$latitude, '
-            'lng=$longitude, address=$address',
-          );
-          debugPrint(
-            '🏢 AttendanceScreen: Nearest branch=$branchName, '
-            'distance=${distanceKm?.toStringAsFixed(3) ?? 'n/a'} km, '
-            'withinRadius=$withinRadius (threshold=${BranchLocationService.maxBranchRadius} km)',
-          );
-        } else {
-          debugPrint('⚠️ AttendanceScreen: Location data missing lat/lng');
+         
         }
       }
 
@@ -274,14 +244,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          // _locationError = e.toString(); // Removed unused variable
           _isLoadingLocation = false;
         });
       }
     }
   }
 
-  // Method to refresh attendance status after check-in/out
   Future<void> _refreshAttendanceStatus() async {
     try {
       final authService = ref.read(authServiceProvider);
@@ -290,7 +258,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
       if (employeeId == null) return;
 
-      // Get today's date in YYYY-MM-DD format
       final today = DateTime.now();
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
@@ -302,21 +269,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
       if (response['success'] == true) {
         setState(() {
-          // The API response structure is direct, not wrapped in 'data'
           _shiftData = response;
 
-          // Update employee profile from shift data
           if (_shiftData?['employee'] != null) {
             _employeeProfile = _shiftData!['employee'];
           }
 
-          // Update attendance status from shift data
           if (_shiftData?['attendanceData'] != null) {
             final attendanceData = _shiftData!['attendanceData'];
             final hasAttendanceData = attendanceData.isNotEmpty;
             final latestRecord = hasAttendanceData ? attendanceData[0] : null;
 
-            // Determine status based on attendance data
             String status = 'not_checked_in';
             if (hasAttendanceData && latestRecord != null) {
               if (latestRecord['checkInAt'] != null &&
@@ -336,13 +299,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             };
           }
 
-          // Clear cached button state when data changes
           _cachedButtonState = null;
           _lastButtonStateUpdate = null;
         });
       }
     } catch (e) {
-      // Handle error silently for refresh
     }
   }
 
@@ -421,21 +382,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (state.hasError) {}
 
     return Scaffold(
-      backgroundColor: AppTheme.kNanoGold, // Primary color background
+      backgroundColor: AppTheme.kNanoGold, 
       body: Column(
         children: [
-          // Status bar area
           Container(
             height: MediaQuery.of(context).padding.top,
-            color: AppTheme.kNanoGold, // Primary color for status bar
+            color: AppTheme.kNanoGold, 
           ),
-          // Main content
           Expanded(
             child: Container(
               color: AppTheme.kBackground,
               child: Column(
                 children: [
-                  // Header with today's date and status
                   AnimatedFadeIn(
                     delay: const Duration(milliseconds: 100),
                     child: _buildHeader(context, ref, state),
@@ -487,10 +445,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: Column(
         children: [
-          // Top row with profile photo and name
           Row(
             children: [
-              // Profile Photo - Left corner
               GestureDetector(
                 onTap: () {
                   context.go('/profile');
@@ -508,8 +464,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   child: ClipOval(child: _buildProfileImage()),
                 ),
               ),
-              const SizedBox(width: 16),
-              // User Name
+              const SizedBox(width: 16),  
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +488,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ],
                 ),
               ),
-              // Refresh button
               IconButton(
                 onPressed: () async {
                   ref.invalidate(attendanceControllerProvider);
@@ -549,7 +503,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Today's date
           Text(
             ref.t('วันนี้', 'Today'),
             style: TextStyle(
@@ -568,7 +521,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Working Hours
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -600,7 +552,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // Office Location
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -638,7 +589,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
           const SizedBox(height: 12),
           const SizedBox(height: 20),
-          // Check in/out status card
           _buildStatusCard(state),
         ],
       ),
@@ -681,7 +631,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: state.when(
         data: (entries) {
-          // Optimized: Use cached attendance data instead of complex calculations
           final attendanceData = _shiftData?['attendanceData'] as List?;
           final latestRecord = attendanceData?.isNotEmpty == true
               ? attendanceData!.first
@@ -695,7 +644,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
           return Column(
             children: [
-              // Status icon
               Container(
                 width: 80,
                 height: 80,
@@ -714,7 +662,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Status text
               Text(
                 checkInTime != null && checkOutTime != null
                     ? ref.t('ออกงานแล้ว', 'Checked Out')
@@ -728,7 +675,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              // Time display from API response
               if (checkInTime != null) ...[
                 Text(
                   '${ref.t('เข้างาน', 'Check In')}: $checkInTime',
@@ -800,24 +746,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: state.when(
         data: (entries) {
-          // Get button state from helper method
           final buttonState = _getButtonState(entries);
-          // Geofence: enable only when within branch radius
           bool withinBranch = false;
           if (_currentLocation != null) {
             final lat = _currentLocation!['latitude'] as double?;
             final lng = _currentLocation!['longitude'] as double?;
             if (lat != null && lng != null) {
               withinBranch = BranchLocationService.isWithinBranchRadius(lat, lng);
-              if (kDebugMode) {
-                final nearestInfo =
-                    BranchLocationService.getNearestBranchInfo(lat, lng);
-                debugPrint(
-                  '✅ AttendanceScreen: withinBranch=$withinBranch, '
-                  'nearest=${nearestInfo?['branchName']}, '
-                  'distance=${(nearestInfo?['distance'] as double?)?.toStringAsFixed(3)} km',
-                );
-              }
+              // Branch location check performed silently
             }
           }
           final isEnabled = (buttonState['enabled'] as bool) && withinBranch;
@@ -847,7 +783,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             child: ElevatedButton(
               onPressed: isEnabled
                   ? () => _handleCheckInOut(context, ref, controller)
-                  : null, // Disable button if already checked out
+                  : null, 
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
@@ -915,7 +851,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     dynamic controller,
   ) async {
     try {
-      // First, determine if this is a check-in or check-out
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
 
@@ -923,7 +858,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         throw Exception('No employee ID found');
       }
 
-      // Use existing employee profile data from shift data or fallback to API
       Map<String, dynamic> employeeProfile;
       if (_employeeProfile != null) {
         employeeProfile = _employeeProfile!;
@@ -944,10 +878,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         'branchName': employeeProfile['branchName'] ?? '',
       };
 
-      // Check current status using API attendance data directly
       bool isCheckOut = false;
 
-      // Use the same logic as button state - check actual attendance data
       final attendanceData = _shiftData?['attendanceData'] as List?;
       if (attendanceData?.isNotEmpty == true) {
         final latestRecord = attendanceData!.first;
@@ -955,27 +887,23 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final hasCheckedOut = latestRecord['checkOutAt'] != null;
 
         if (hasCheckedIn && !hasCheckedOut) {
-          isCheckOut = true; // Can check out
+          isCheckOut = true; 
         } else if (hasCheckedIn && hasCheckedOut) {
           throw Exception('You have already checked out today');
         }
-        // If !hasCheckedIn, isCheckOut remains false (can check in)
       }
 
-      // Show simple modal for quick confirmation
       Map<String, dynamic>? result;
 
       if (context.mounted) {
         result = await _showCheckInOutModal(context, isCheckOut);
       }
 
-      // If user confirmed, proceed with check-in/out
       if (result != null && result['confirmed'] == true) {
         final latitude = result['latitude'] as double?;
         final longitude = result['longitude'] as double?;
         final address = result['address'] as String?;
 
-        // Show loading overlay immediately
         if (context.mounted) {
           showDialog(
             context: context,
@@ -1032,15 +960,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             );
           }
 
-          // Close loading dialog first
           if (context.mounted) {
             Navigator.of(context).pop();
           }
 
-          // Update local state (this will cause background loading, but dialog is closed)
           await _refreshAttendanceStatus();
 
-          // Show success message
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -1055,7 +980,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             );
           }
         } catch (e) {
-          // Close loading dialog on error
           if (context.mounted) {
             Navigator.of(context).pop();
           }
@@ -1063,7 +987,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         }
       }
     } catch (e) {
-      // Show error message
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1081,21 +1004,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  // Simple modal for check-in/out confirmation
   Future<Map<String, dynamic>?> _showCheckInOutModal(
     BuildContext context,
     bool isCheckOut,
   ) async {
-    // Reset loading state
     _isModalLoading = false;
 
     final currentTime = DateTime.now();
     final timeString = DateFormat('HH:mm').format(currentTime);
 
-    // Use pre-loaded location (much faster)
     final location = _currentLocation;
     
-    // Get location display text
     String getLocationText() {
       if (location != null) {
         final lat = location['latitude'] as double?;
@@ -1126,7 +1045,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icon
                     Icon(
                       isCheckOut ? Icons.logout : Icons.login,
                       size: 48,
@@ -1134,7 +1052,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Title
                     Text(
                       isCheckOut ? ref.t('ออกงาน', 'Check Out') : ref.t('เข้างาน', 'Check In'),
                       style: const TextStyle(
@@ -1145,7 +1062,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Time display
                     Text(
                       '${ref.t('เวลา', 'Time')}: $timeString',
                       style: const TextStyle(
@@ -1155,7 +1071,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(height: 12),
                     
-                    // Location display
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -1190,11 +1105,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Cancel button
                         Expanded(
                           child: TextButton(
                             onPressed: _isModalLoading
@@ -1221,13 +1134,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         ),
                         const SizedBox(width: 12),
 
-                        // Confirm button
                         Expanded(
                           child: ElevatedButton(
                             onPressed: _isModalLoading
                                 ? null
                                 : () {
-                                    // Close dialog immediately with data
                                     Navigator.of(context).pop({
                                       'confirmed': true,
                                       'latitude': location?['latitude'],
@@ -1292,20 +1203,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
         return '${ref.t('เวลาทำงาน', 'Working Hours')}: $startTime - $endTime';
       } else {
-        if (kDebugMode) {
-          print('⚠️ Shift data list is empty');
-        }
-      }
-    } else {
-      if (kDebugMode) {
-        print('⚠️ Shift data is null or missing shiftData key');
       }
     }
 
-    return '${ref.t('เวลาทำงาน', 'Working Hours')}: ${ref.t('ไม่มีข้อมูล', 'Not Available')}'; // No fallback - use only API data
+      return '${ref.t('เวลาทำงาน', 'Working Hours')}: ${ref.t('ไม่มีข้อมูล', 'Not Available')}'; 
   }
 
-  // Removed unused method _getTodayAttendanceFromShiftData
 
   Map<String, dynamic>? _getEmployeeFromShiftData() {
     if (_shiftData != null && _shiftData!['employee'] != null) {
@@ -1323,11 +1226,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         return '$firstName $lastName';
       }
     }
-    return null; // No manual fallback - only use API data
+    return null; 
   }
 
   Widget _buildProfileImage() {
-    // Try to get profile image from employee profile or shift data
     final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
     final profileImageUrl = employeeProfile?['profileImage'];
 
@@ -1352,14 +1254,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  // Removed unused method _buildProfileImageWithStoredData
 
   Widget _buildProfileImageFallback() {
     final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
     final firstName = employeeProfile?['firstName'];
     final lastName = employeeProfile?['lastName'];
 
-    // Only create initials if we have real data
     String initials = '?';
     if (firstName != null && lastName != null) {
       initials = '${firstName[0]}${lastName[0]}'.toUpperCase();
@@ -1386,12 +1286,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getLocationDisplayText() {
-    // If we have GPS location, find the nearest branch
     if (_currentLocation != null) {
       final latitude = _currentLocation!['latitude'] as double;
       final longitude = _currentLocation!['longitude'] as double;
 
-      // Find nearest branch
       final nearestBranchInfo = BranchLocationService.getNearestBranchInfo(
         latitude,
         longitude,
@@ -1400,21 +1298,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (nearestBranchInfo != null) {
         final branchName = nearestBranchInfo['branchName'] as String;
 
-        // Show only branch name (without distance)
         return branchName;
       }
 
-      // If outside branch radius, show the actual address from reverse geocoding
       final address = _currentLocation!['address'] as String?;
       if (address != null && address.isNotEmpty) {
-        return address; // Show full address when not near any branch
+        return address; 
       }
 
-      // Last resort fallback - show "Detecting location..."
       return 'Detecting location...';
     }
 
-    // Fallback to profile location if no GPS data
     final shiftEmployee = _getEmployeeFromShiftData();
     return '${_employeeProfile?['companyName'] ?? shiftEmployee?['companyName'] ?? 'NANO-STORES'} - ${_employeeProfile?['locationName'] ?? shiftEmployee?['locationName'] ?? 'Office'}';
   }
@@ -1428,7 +1322,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // Location Button
           Expanded(
             child: Container(
               height: 50,
@@ -1481,7 +1374,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          // View Attendance History Button
           Expanded(
             child: Container(
               height: 50,
@@ -1538,9 +1430,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  // GPS/Location info method with map modal
   void _showLocationInfo(BuildContext context) async {
-    // Always get fresh location when GPS button is clicked
     await _loadCurrentLocation();
     
     if (!mounted) return;
@@ -1561,7 +1451,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
           child: Column(
             children: [
-              // Handle
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 width: 40,
@@ -1571,7 +1460,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 child: Row(
@@ -1594,7 +1482,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ],
                 ),
               ),
-              // Map Content
               Expanded(child: _buildMapContent()),
             ],
           ),
@@ -1635,7 +1522,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     return Column(
       children: [
-        // Beautiful Map View (Stable Version)
         Expanded(
           flex: 3,
           child: Container(
@@ -1648,7 +1534,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
           ),
         ),
-        // Location details
         Expanded(
           flex: 2,
           child: Container(
@@ -1680,9 +1565,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  // Detailed Location Modal method
   void _showDetailedLocationModal(BuildContext context) async {
-    // Always get fresh location when Details button is clicked
     await _loadCurrentLocation();
     
     if (!mounted) return;
@@ -1701,7 +1584,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final longitude = _currentLocation!['longitude'] as double;
     final address = _currentLocation!['address'] as String? ?? 'Address not available';
 
-    // Calculate distance to nearest office (simplified)
     final nearestBranch = BranchLocationService.findNearestBranch(latitude, longitude);
     final distance = nearestBranch != null 
         ? BranchLocationService.calculateDistance(
@@ -1710,7 +1592,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           )
         : 0.0;
     
-    final isWithinRange = distance <= 100; // Within 100 meters
+    final isWithinRange = distance <= 100; 
 
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -1720,7 +1602,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           address: address,
           onConfirm: () {
             Navigator.of(context).pop();
-            // You can add additional logic here if needed
+
           },
         ),
       ),
@@ -1816,7 +1698,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         ),
                         child: Row(
                           children: [
-                            // Status icon
                             Container(
                               width: 40,
                               height: 40,
@@ -1837,7 +1718,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               ),
                             ),
                             const SizedBox(width: 16),
-                            // Details
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1869,7 +1749,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                 ],
                               ),
                             ),
-                            // Location
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
@@ -1936,7 +1815,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             ),
             child: Column(
               children: [
-                // Handle
                 Container(
                   margin: const EdgeInsets.only(top: 12),
                   width: 40,
@@ -1946,7 +1824,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                // Header
                 Container(
                   padding: const EdgeInsets.all(20),
                   child: Row(
@@ -1973,7 +1850,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ],
                   ),
                 ),
-                // Content
                 Expanded(child: _buildHistoryContent(snapshot)),
               ],
             ),
@@ -2046,7 +1922,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Date and Status
                 Row(
                   children: [
                     const Icon(
@@ -2063,7 +1938,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                     ),
                     const Spacer(),
-                    // Status badge
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -2086,7 +1960,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // Check In time
                 ...[
                   Row(
                     children: [
@@ -2105,7 +1978,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   const SizedBox(height: 8),
                 ],
 
-                // Check Out time
                 if (entry.checkOutAt != null) ...[
                   Row(
                     children: [
@@ -2120,7 +1992,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   const SizedBox(height: 8),
                 ],
 
-                // Location
                 Row(
                   children: [
                     const Icon(Icons.location_on, color: Colors.grey, size: 20),
@@ -2185,7 +2056,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 }
 
-// Date formatting helper functions
 String fmtDate(DateTime? date) {
   if (date == null) return 'N/A';
   return DateFormat('MMM dd, yyyy').format(date);
@@ -2203,11 +2073,9 @@ String fmtFull(DateTime? date) {
 
 String _formatDateHeader(String dateString) {
   try {
-    // Parse the date string (assuming format YYYY-MM-DD)
     final date = DateTime.parse(dateString);
     return DateFormat('dd/MM/yyyy').format(date);
   } catch (e) {
-    // If parsing fails, return the original string
     return dateString;
   }
 }

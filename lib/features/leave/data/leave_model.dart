@@ -54,7 +54,7 @@ class LeaveSetting {
     };
   }
 
-  // Helper getters
+
   int get maxDaysInt => int.tryParse(maxDays) ?? 0;
   bool get isAvailableForAll => gender == 'All';
   String get displayName =>
@@ -162,7 +162,7 @@ class LeaveBalance {
     };
   }
 
-  // Helper methods for UI compatibility
+  
   LeaveTypeBalance? getLeaveTypeByName(String name) {
     return balances.firstWhere(
       (balance) =>
@@ -171,7 +171,7 @@ class LeaveBalance {
     );
   }
 
-  // Legacy properties for backward compatibility
+  
   double get annualLeave =>
       getLeaveTypeByName('Annual')?.remaining ?? 0.0;
   double get sickLeave =>
@@ -253,8 +253,7 @@ class LeaveTypeBalance {
     );
   }
 
-  // Helper method to get localized name
-  // isThai: true = Thai, false = English
+  
   String getLocalizedName(bool isThai) {
     if (!isThai && leaveTypeNameEng != null && leaveTypeNameEng!.isNotEmpty) {
       return leaveTypeNameEng!;
@@ -358,14 +357,14 @@ class LeaveRequest {
       id: json['id'] ?? '',
       employeeId: json['employeeId'] ?? '',
       employeeName:
-          json['employeeName'] ?? 'Employee', // Default value for missing field
+          json['employeeName'] ?? 'Employee', 
       leaveType:
           json['leaveTypeName'] ??
           json['leaveType'] ??
-          '', // Use leaveTypeName from API
+          '', 
       startDate:
-          json['startDate'] ?? json['fromDate'], // Handle both field names
-      endDate: json['endDate'] ?? json['toDate'], // Handle both field names
+          json['startDate'] ?? json['fromDate'], 
+      endDate: json['endDate'] ?? json['toDate'], 
       date: json['date'],
       workingShift: json['workingShift'],
       startTime: json['startTime'],
@@ -387,14 +386,14 @@ class LeaveRequest {
     Map<String, dynamic> json,
   ) {
     try {
-      // Handle different attachment formats from backend
+      
       final attachment = json['attachment'];
 
       if (attachment == null) {
         return [];
       }
 
-      // If attachment is a Map (new format with files array)
+      
       if (attachment is Map<String, dynamic>) {
         final files = attachment['files'] as List<dynamic>?;
         if (files != null) {
@@ -407,18 +406,18 @@ class LeaveRequest {
           }).toList();
         }
 
-        // If attachment is a Map but no files array, treat as single file
+        
         return [Map<String, dynamic>.from(attachment)];
       }
 
-      // If attachment is a String (old format)
+      
       if (attachment is String) {
         return [
           {'url': attachment, 'type': 'file'},
         ];
       }
 
-      // If attachment is a List
+      
       if (attachment is List) {
         return attachment.map((item) {
           if (item is Map<String, dynamic>) {
@@ -455,13 +454,12 @@ class LeaveRequest {
     };
   }
 
-  // Helper getters for UI
+  
   String get type => leaveType;
   DateTime? get start =>
       startDate != null ? DateTime.tryParse(startDate!) : null;
   DateTime? get end => endDate != null ? DateTime.tryParse(endDate!) : null;
 
-  // Additional properties for UI compatibility
   String? get requestType =>
       startTime != null && endTime != null ? 'hourly' : 'daily';
   String? get leaveTypeName => leaveType;

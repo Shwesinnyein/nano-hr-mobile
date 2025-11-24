@@ -24,7 +24,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
   @override
   void initState() {
     super.initState();
-    // Initialize notifications when the main layout is first built
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeNotifications();
     });
@@ -35,19 +35,14 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
     final authService = ref.read(authServiceProvider);
     if (authService.isAuthenticated) {
-      print('🔔 MainLayout: User is authenticated, initializing notifications');
       ref.read(notificationProvider.notifier).initialize();
       _hasInitializedNotifications = true;
-    } else {
-      print(
-        '🔔 MainLayout: User not authenticated, skipping notification initialization',
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Check if user becomes authenticated and initialize notifications
+   
     final authService = ref.watch(authServiceProvider);
     if (authService.isAuthenticated && !_hasInitializedNotifications) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

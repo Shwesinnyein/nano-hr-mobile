@@ -17,7 +17,6 @@ class LeaveScreen extends ConsumerStatefulWidget {
 }
 
 class _LeaveScreenState extends ConsumerState<LeaveScreen> {
-  // Check if the current user can approve leave requests (HR, Manager, Approver)
   bool _canApproveLeave() {
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
@@ -27,44 +26,27 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
 
     final positionLower = position.toLowerCase();
 
-    // Debug logging to see what position is detected
-    if (kDebugMode) {
-      print('🔍 Leave Approval Check:');
-      print('   Position: "$position"');
-      print('   Position Lower: "$positionLower"');
-      print('   Employee ID: "$currentEmployeeId"');
-    }
-
     if (positionLower.contains('hr') ||
         positionLower.contains('human resource')) {
-      if (kDebugMode) print('   ✅ HR detected - can approve');
       return true;
     }
 
-    // Managers can approve
     if (positionLower.contains('manager') ||
         positionLower.contains('supervisor') ||
         positionLower.contains('lead')) {
-      if (kDebugMode)
-        print('   ✅ Manager/Supervisor/Lead detected - can approve');
       return true;
     }
 
-    // Approvers can approve
     if (positionLower.contains('approver') ||
         positionLower.contains('management')) {
-      if (kDebugMode) print('   ✅ Approver/Management detected - can approve');
       return true;
     }
 
-    // Programmers can approve (they are team leads)
     if (positionLower.contains('programmer') ||
         positionLower.contains('developer')) {
-      if (kDebugMode) print('   ✅ Programmer/Developer detected - can approve');
       return true;
     }
 
-    if (kDebugMode) print('   ❌ No matching position found - cannot approve');
     return false;
   }
 
@@ -97,7 +79,6 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           final userId = currentEmployeeId;
-          // Clear cache and refresh data
           LeaveController.clearCache(userId);
           ref.refresh(leaveControllerProvider(userId));
         },
@@ -159,12 +140,10 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
           _buildViewLeaveListButton(context),
           const SizedBox(height: 24),
           if (_canApproveLeave()) ...[
-            _buildManagerSection(context), // Show for HR/Managers/Approvers
+            _buildManagerSection(context), 
             const SizedBox(height: 24),
           ],
           _buildLeaveTypesList(context, leaveVm.balance),
-          // const SizedBox(height: 24),
-          // _buildRecentRequests(leaveVm.requests),
         ],
       ),
     );
@@ -356,101 +335,77 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     );
   }
 
-  // Helper method to get color for leave type
   Color _getLeaveTypeColor(String leaveTypeName) {
     final name = leaveTypeName.toLowerCase();
 
-    // Annual Leave - Blue (vacation/holiday)
     if (name.contains('พักร้อน') || name.contains('annual')) {
       return const Color(0xFF2196F3); // Blue
     } 
-    // Sick Leave - Red (health issue)
     else if (name.contains('ป่วย') || name.contains('sick')) {
       return const Color(0xFFF44336); // Red
     } 
-    // Unpaid Leave - Gray (no pay)
     else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid') || name.contains('without pay')) {
       return const Color(0xFF9E9E9E); // Gray
     } 
-    // Marriage Leave - Pink (love/celebration)
     else if (name.contains('สมรส') || name.contains('marriage')) {
       return const Color(0xFFE91E63); // Pink
     } 
-    // Maternity Leave - Purple (motherhood)
     else if (name.contains('ลาคลอด') || name.contains('maternity')) {
       return const Color(0xFF9C27B0); // Purple
     } 
-    // Paternity Leave - Blue-gray (fatherhood)
     else if (name.contains('ภรรยาคลอด') || name.contains('paternity')) {
       return const Color(0xFF607D8B); // Blue-gray
     } 
-    // Compassionate/Funeral Leave - Dark gray (somber)
     else if (name.contains('ฌาปนกิจ') || name.contains('funeral') || name.contains('compassionate')) {
       return const Color(0xFF424242); // Dark gray
     } 
-    // Military Service - Olive green (military)
     else if (name.contains('ทหาร') || name.contains('military')) {
       return const Color(0xFF689F38); // Olive green
     } 
-    // Sterilization - Teal (medical procedure)
     else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
       return const Color(0xFF009688); // Teal
     } 
-    // Business Leave - Orange (work-related)
     else if (name.contains('ธุรกิจ') || name.contains('business')) {
       return const Color(0xFFFF9800); // Orange
     } 
-    // Default - Gold
     else {
       return AppTheme.kNanoGold;
     }
   }
 
-  // Helper method to get icon for leave type
   IconData _getLeaveTypeIcon(String leaveTypeName) {
     final name = leaveTypeName.toLowerCase();
 
-    // Annual Leave - Beach/vacation
     if (name.contains('พักร้อน') || name.contains('annual')) {
       return Icons.beach_access;
     } 
-    // Sick Leave - Health
     else if (name.contains('ป่วย') || name.contains('sick')) {
       return Icons.local_hospital;
     } 
-    // Unpaid Leave - Money off
     else if (name.contains('ไม่ได้รับค่าจ้าง') || name.contains('unpaid') || name.contains('without pay')) {
       return Icons.money_off;
     } 
-    // Marriage Leave - Heart/rings
     else if (name.contains('สมรส') || name.contains('marriage')) {
       return Icons.favorite;
     } 
-    // Maternity Leave - Pregnant woman
     else if (name.contains('ลาคลอด') || name.contains('maternity')) {
       return Icons.pregnant_woman;
-    } 
-    // Paternity Leave - Family
+    }     
     else if (name.contains('ภรรยาคลอด') || name.contains('paternity')) {
       return Icons.family_restroom;
     } 
-    // Compassionate/Funeral Leave - Flower/memorial
     else if (name.contains('ฌาปนกิจ') || name.contains('funeral') || name.contains('compassionate') || name.contains('ร่วมงานศพ')) {
       return Icons.local_florist;
     } 
-    // Military Service - Military medal/star
     else if (name.contains('ทหาร') || name.contains('military')) {
       return Icons.military_tech;
     } 
-    // Sterilization - Medical
     else if (name.contains('ทำหมัน') || name.contains('sterilization')) {
       return Icons.medical_services;
     } 
-    // Business Leave - Briefcase
     else if (name.contains('ธุรกิจ') || name.contains('business')) {
       return Icons.business_center;
     } 
-    // Default - Calendar
     else {
       return Icons.event_note;
     }
@@ -537,7 +492,6 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Progress bar
                       Container(
                         height: 4,
                         decoration: BoxDecoration(
@@ -652,26 +606,21 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
   //   );
   // }
 
-  // Normalize status for employee view - show simple statuses only
   String _normalizeStatusForEmployee(String status) {
     final statusLower = status.toLowerCase();
 
-    // If already final status, return as is
     if (statusLower == 'approved' || statusLower == 'rejected') {
       return statusLower;
     }
 
-    // If rejected, return rejected
     if (statusLower.contains('rejected')) {
       return 'rejected';
     }
 
-    // If approved (any level), return approved
     if (statusLower.contains('approved')) {
       return 'approved';
     }
 
-    // Everything else is pending
     return 'pending';
   }
 
@@ -687,7 +636,7 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       case 'rejected':
         statusColor = AppTheme.errorColor;
         statusIcon = Icons.cancel;
-      default: // pending
+      default: 
         statusColor = AppTheme.warningColor;
         statusIcon = Icons.pending;
     }
