@@ -1,7 +1,7 @@
 /// App-wide constants for better maintainability
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'https://nano-hr-api.vercel.app';
+  static const String baseUrl = 'https://nano-api-production.vercel.app';
   static const int apiTimeoutSeconds = 30;
 
   // UI Constants
@@ -46,6 +46,6 @@ class AppConstants {
   static const int thailandTimezoneOffset = 7; // UTC+7
 
   // External Links
-  static const String privacyPolicyUrl = 'https://nano-hr-api.vercel.app/privacy-policy';
-  static const String termsOfServiceUrl = 'https://nano-hr-api.vercel.app/terms-of-service';
+  static const String privacyPolicyUrl = 'https://nano-api-production.vercel.app/privacy-policy';
+  static const String termsOfServiceUrl = 'https://nano-api-production.vercel.app/terms-of-service';
 }

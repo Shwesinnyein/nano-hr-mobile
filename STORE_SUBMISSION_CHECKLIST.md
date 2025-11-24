@@ -2,7 +2,7 @@
 
 ## ✅ Code Changes (COMPLETED)
 - [x] Added Privacy Policy link in Settings
-- [x] Privacy Settings now opens: `https://nano-hr-api.vercel.app/privacy-policy`
+- [x] Privacy Settings now opens: `https://nano-api-production.vercel.app/privacy-policy`
 
 ## 🔴 CRITICAL - Before Submitting
 
@@ -10,7 +10,7 @@
 **Status**: ⚠️ **NEEDS ACTION**
 
 Make sure this URL is **publicly accessible**:
-- `https://nano-hr-api.vercel.app/privacy-policy`
+- `https://nano-api-production.vercel.app/privacy-policy`
 - **NO login required** to view
 - Must be in both Thai and English
 - Should cover: data collection, storage, usage, user rights
@@ -44,8 +44,8 @@ version: 1.0.0+1  # Major.Minor.Patch+Build
 2. **Category**: Business
 3. **Content Rating**: 4+ (Business apps are usually 4+)
 4. **Keywords**: HR, payroll, attendance, leave management, employee
-5. **Privacy Policy URL**: https://nano-hr-api.vercel.app/privacy-policy
-6. **Support URL**: https://nano-hr-api.vercel.app/contact
+5. **Privacy Policy URL**: https://nano-api-production.vercel.app/privacy-policy
+6. **Support URL**: https://nano-api-production.vercel.app/contact
 7. **Marketing URL** (optional): Your website
 
 ### App Privacy Details (REQUIRED in App Store Connect):
@@ -82,7 +82,7 @@ flutter build ios --release
 1. **App Name**: NANO Work
 2. **Category**: Business
 3. **Content Rating**: Everyone (Business apps)
-4. **Privacy Policy URL**: https://nano-hr-api.vercel.app/privacy-policy
+4. **Privacy Policy URL**: https://nano-api-production.vercel.app/privacy-policy
 5. **Contact Email**: Your support email
 
 ### Data Safety Section (REQUIRED):

@@ -390,7 +390,7 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
                 },
               ),
               
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               
               // // Logo name - slides in from right
                AnimatedBuilder(
