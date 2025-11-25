@@ -94,7 +94,7 @@ class LeaveSettingsResponse {
               )
               .toList() ??
           [],
-      employeeEligible: json['employeeEligible'] ?? false,
+      employeeEligible: json['employeeEligibleForAnnualLeave'] ?? json['employeeEligible'] ?? false,
       monthsWithCompany: json['monthsWithCompany'] ?? 0,
       requiredMonths: json['requiredMonths'] ?? 0,
       employeeGender: json['employeeGender'] ?? '',
@@ -121,6 +121,8 @@ class LeaveBalance {
   final int year;
   final bool eligible;
   final int monthsWithCompany;
+  final int? requiredMonths;
+  final int? hoursPerDay;
   final List<LeaveTypeBalance> balances;
   final LeaveSummary summary;
 
@@ -130,6 +132,8 @@ class LeaveBalance {
     required this.year,
     required this.eligible,
     required this.monthsWithCompany,
+    this.requiredMonths,
+    this.hoursPerDay,
     required this.balances,
     required this.summary,
   });
@@ -139,8 +143,10 @@ class LeaveBalance {
       employeeId: json['employeeId'] ?? '',
       employeeName: json['employeeName'] ?? '',
       year: json['year'] ?? DateTime.now().year,
-      eligible: json['eligible'] ?? true,
+      eligible: json['eligibleForAnnualLeave'] ?? json['eligible'] ?? true,
       monthsWithCompany: json['monthsWithCompany'] ?? 0,
+      requiredMonths: json['requiredMonths'] as int?,
+      hoursPerDay: json['hoursPerDay'] as int?,
       balances:
           (json['balances'] as List<dynamic>?)
               ?.map((balance) => LeaveTypeBalance.fromJson(balance))
@@ -155,8 +161,11 @@ class LeaveBalance {
       'employeeId': employeeId,
       'employeeName': employeeName,
       'year': year,
+      'eligibleForAnnualLeave': eligible,
       'eligible': eligible,
       'monthsWithCompany': monthsWithCompany,
+      'requiredMonths': requiredMonths,
+      'hoursPerDay': hoursPerDay,
       'balances': balances.map((balance) => balance.toJson()).toList(),
       'summary': summary.toJson(),
     };
@@ -283,12 +292,14 @@ class LeaveSummary {
   final int totalDaysAllocated;
   final double totalDaysUsed;
   final double totalDaysRemaining;
+  final int? totalRemainingHours;
 
   LeaveSummary({
     required this.totalLeaveTypes,
     required this.totalDaysAllocated,
     required this.totalDaysUsed,
     required this.totalDaysRemaining,
+    this.totalRemainingHours,
   });
 
   factory LeaveSummary.fromJson(Map<String, dynamic> json) {
@@ -302,6 +313,7 @@ class LeaveSummary {
       totalDaysRemaining: (json['totalDaysRemaining'] is int)
           ? (json['totalDaysRemaining'] as int).toDouble()
           : (json['totalDaysRemaining'] as double? ?? 0.0),
+      totalRemainingHours: json['totalRemainingHours'] as int?,
     );
   }
 
@@ -311,6 +323,7 @@ class LeaveSummary {
       'totalDaysAllocated': totalDaysAllocated,
       'totalDaysUsed': totalDaysUsed,
       'totalDaysRemaining': totalDaysRemaining,
+      'totalRemainingHours': totalRemainingHours,
     };
   }
 }

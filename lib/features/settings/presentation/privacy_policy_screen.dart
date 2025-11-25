@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../app/theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/translation_helper.dart';
@@ -45,9 +46,98 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
               _error = error.description;
             });
           },
+          onNavigationRequest: (NavigationRequest request) {
+            final uri = Uri.parse(request.url);
+            
+            // Handle mailto: links
+            if (uri.scheme == 'mailto') {
+              _launchEmail(uri.toString());
+              return NavigationDecision.prevent;
+            }
+            
+            // Handle tel: links
+            if (uri.scheme == 'tel') {
+              _launchPhone(uri.toString());
+              return NavigationDecision.prevent;
+            }
+            
+            // Allow navigation to the privacy policy URL
+            if (request.url == AppConstants.privacyPolicyUrl || 
+                request.url.startsWith(AppConstants.privacyPolicyUrl)) {
+              return NavigationDecision.navigate;
+            }
+            
+            // Prevent navigation to external URLs (open in external browser instead)
+            if (uri.scheme == 'http' || uri.scheme == 'https') {
+              _launchUrl(request.url);
+              return NavigationDecision.prevent;
+            }
+            
+            return NavigationDecision.navigate;
+          },
         ),
       )
       ..loadRequest(Uri.parse(AppConstants.privacyPolicyUrl));
+  }
+
+  Future<void> _launchEmail(String emailUrl) async {
+    try {
+      final uri = Uri.parse(emailUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ref.t('ไม่สามารถเปิดอีเมล', 'Could not open email')),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Silently handle error
+    }
+  }
+
+  Future<void> _launchPhone(String phoneUrl) async {
+    try {
+      final uri = Uri.parse(phoneUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ref.t('ไม่สามารถเปิดโทรศัพท์', 'Could not open phone')),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Silently handle error
+    }
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(ref.t('ไม่สามารถเปิดลิงก์', 'Could not open link')),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Silently handle error
+    }
   }
 
   @override

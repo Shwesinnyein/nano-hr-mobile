@@ -15,51 +15,59 @@ class BranchLocation {
 }
 
 class BranchLocationService {
-  static const double maxBranchRadius = 0.070; 
+  static const double maxBranchRadius = 0.065; 
   static const double gpsTolerance = 0.0;
 
   static final List<BranchLocation> branches = [
     BranchLocation(
       branchId: '001',
       branchName: '001 Branch',
-      latitude: 7.839149855783124, 
-      longitude: 98.33540445266006,
+      latitude: 7.839157085732598, 
+      longitude: 98.3354308362058,
+      
+    
     ),
     BranchLocation(
       branchId: '002',
       branchName: '002 Branch',
-      latitude: 13.636089476141379, 
-      longitude: 100.61173308918717,
+      latitude: 13.636062954822622, 
+      longitude: 100.61173707643022,
+      
     ),
     BranchLocation(
       branchId: '003',
       branchName: '003 Branch',
-      latitude: 13.863743444884934, 
-      longitude: 100.64715847499053,
+      latitude: 13.863670196766336, 
+      longitude: 100.64716575300017,
+      
     ),
     BranchLocation(
       branchId: '004',
       branchName: '004 Branch',
-      latitude: 13.818936475465009, 
-      longitude: 100.6361832130564,
+      latitude: 13.818905203743702, 
+      longitude: 100.63620297545599,
+    
     ),
     BranchLocation(
       branchId: '005',
       branchName: '005 Branch',
-      latitude: 13.640392975169945, 
-      longitude: 100.63412340139261,
+      latitude: 13.640408005041118, 
+      longitude: 100.63414146193604,
+      
     ),
     BranchLocation(
       branchId: '006',
       branchName: '006 Branch',
-      latitude: 13.796661937791436, 
-      longitude: 100.56788517654206,
+      latitude: 13.796852456775374, 
+      longitude: 100.56789742883545,
+      
     ),
     BranchLocation(
       branchId: '007',
       branchName: '007 Branch',
-      latitude: 13.616466965608668, 
-      longitude: 100.70247544055835,
+      latitude: 13.616638177417721, 
+      longitude: 100.70246527116454,
+      
     ),
   ];
 

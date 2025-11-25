@@ -1,5 +1,5 @@
 PODS:
-  - app_badger (1.0.0):
+  - app_badger (0.0.1):
     - Flutter
   - Firebase/Auth (11.15.0):
     - Firebase/CoreOnly

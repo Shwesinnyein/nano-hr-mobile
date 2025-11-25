@@ -35,6 +35,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   final LocationService _locationService = LocationService();
   Map<String, dynamic>? _currentLocation;
   bool _isLoadingLocation = false;
+  bool _locationPermissionDenied = false;
 
   bool _isModalLoading = false;
 
@@ -198,9 +199,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Future<void> _loadCurrentLocation() async {
     setState(() {
       _isLoadingLocation = true;
+      _locationPermissionDenied = false;
     });
 
     try {
+      // Check permission first
+      final hasPermission = await _locationService.checkPermissions();
+      
+      if (!hasPermission) {
+        if (mounted) {
+          setState(() {
+            _isLoadingLocation = false;
+            _locationPermissionDenied = true;
+            _currentLocation = null;
+          });
+          // Show warning popup
+          _showLocationPermissionWarning(context);
+        }
+        return;
+      }
+
       final locationData =
           await _locationService.getCurrentLocationWithAddress();
 
@@ -239,15 +257,141 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         setState(() {
           _currentLocation = locationData;
           _isLoadingLocation = false;
+          _locationPermissionDenied = false;
         });
       }
     } catch (e) {
+      // Check if it's a permission error
+      final errorMessage = e.toString().toLowerCase();
+      final isPermissionError = errorMessage.contains('permission') || 
+                                errorMessage.contains('denied') ||
+                                errorMessage.contains('location');
+      
       if (mounted) {
         setState(() {
           _isLoadingLocation = false;
+          if (isPermissionError) {
+            _locationPermissionDenied = true;
+            _currentLocation = null;
+            _showLocationPermissionWarning(context);
+          }
         });
       }
     }
+  }
+
+  void _showLocationPermissionWarning(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.location_off,
+                color: AppTheme.errorColor,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  ref.t('ต้องการสิทธิ์เข้าถึงตำแหน่ง', 'Location Permission Required'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                ref.t(
+                  'แอป NANO Work ต้องการสิทธิ์เข้าถึงตำแหน่งที่ตั้งเพื่อบันทึกตำแหน่งในการเช็คอิน/เช็คเอาท์',
+                  'NANO Work app needs location permission to record your location for check-in/check-out.',
+                ),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.kNanoGold.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.kNanoGold.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: AppTheme.kNanoGold,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        ref.t(
+                          'คุณจะไม่สามารถเช็คอิน/เช็คเอาท์ได้หากไม่ให้สิทธิ์',
+                          'You cannot check in/out without location permission.',
+                        ),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.kNanoGold,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                ref.t('ยกเลิก', 'Cancel'),
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _locationService.openLocationSettings();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.kNanoGold,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                ref.t('ไปที่การตั้งค่า', 'Open Settings'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _refreshAttendanceStatus() async {
@@ -1286,6 +1430,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getLocationDisplayText() {
+    // If location permission is denied, show appropriate message
+    if (_locationPermissionDenied) {
+      return ref.t('ไม่สามารถเข้าถึงตำแหน่ง', 'Location not available');
+    }
+    
+    // If still loading location
+    if (_isLoadingLocation) {
+      return ref.t('กำลังระบุตำแหน่ง...', 'Detecting location...');
+    }
+    
+    // If we have current location
     if (_currentLocation != null) {
       final latitude = _currentLocation!['latitude'] as double;
       final longitude = _currentLocation!['longitude'] as double;
@@ -1297,7 +1452,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
       if (nearestBranchInfo != null) {
         final branchName = nearestBranchInfo['branchName'] as String;
-
         return branchName;
       }
 
@@ -1306,11 +1460,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         return address; 
       }
 
-      return 'Detecting location...';
+      return ref.t('กำลังระบุตำแหน่ง...', 'Detecting location...');
     }
 
-    final shiftEmployee = _getEmployeeFromShiftData();
-    return '${_employeeProfile?['companyName'] ?? shiftEmployee?['companyName'] ?? 'NANO-STORES'} - ${_employeeProfile?['locationName'] ?? shiftEmployee?['locationName'] ?? 'Office'}';
+    // Default: location not available
+    return ref.t('ไม่สามารถเข้าถึงตำแหน่ง', 'Location not available');
   }
 
   Widget _buildViewDetailsButton(

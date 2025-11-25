@@ -1299,10 +1299,14 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
 
       if (response['success'] == true) {
-        if (response['leaveRequest']?['attachment'] != null) {
-          final attachment = response['leaveRequest']['attachment'];
-          if (attachment['files'] != null) {
-            // Attachment files processed silently
+        // API returns 'data' field with leave request object
+        final leaveRequestData = response['data'] ?? response['leaveRequest'];
+        if (leaveRequestData != null && leaveRequestData is Map<String, dynamic>) {
+          if (leaveRequestData['attachment'] != null) {
+            final attachment = leaveRequestData['attachment'];
+            if (attachment['files'] != null) {
+              // Attachment files processed silently
+            }
           }
         }
       } else {

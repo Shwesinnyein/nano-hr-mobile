@@ -12,12 +12,22 @@ class LeaveRepository {
       final response = await _leaveService.getLeaveBalance(employeeId);
 
       if (response['success'] == true) {
-        
         return LeaveBalance.fromJson(response);
       } else {
-        throw Exception(response['message'] ?? 'Failed to get leave balance');
+        // Extract clean error message
+        final errorMessage = response['message']?.toString() ?? 'Failed to get leave balance';
+        // Remove nested exception prefixes for cleaner error messages
+        final cleanMessage = errorMessage
+            .replaceAll(RegExp(r'Exception:\s*'), '')
+            .replaceAll(RegExp(r'Failed to get leave balance:\s*'), '')
+            .trim();
+        throw Exception(cleanMessage.isEmpty ? 'Failed to get leave balance' : cleanMessage);
       }
     } catch (e) {
+      // Don't double-wrap exceptions
+      if (e is Exception) {
+        rethrow;
+      }
       throw Exception('Failed to get leave balance: ${e.toString()}');
     }
   }
@@ -46,16 +56,27 @@ class LeaveRepository {
       final response = await _leaveService.createLeaveRequest(requestData);
 
       if (response['success'] == true) {
-        final leaveRequest = LeaveRequest.fromJson(response['leaveRequest']);
-
-        return leaveRequest;
+        // API returns 'data' field with leave request object
+        final leaveRequestData = response['data'] ?? response['leaveRequest'];
+        
+        if (leaveRequestData is Map<String, dynamic>) {
+          return LeaveRequest.fromJson(leaveRequestData);
+        } else {
+          throw Exception('Invalid leave request data format');
+        }
       } else {
-        final errorMessage =
-            response['message'] ?? 'Failed to submit leave request';
+        // Error response includes messageTh, eligibleForAnnualLeave, monthsWithCompany, requiredMonths
+        final isThai = false; // Could be passed as parameter if needed
+        final errorMessage = isThai && response['messageTh'] != null
+            ? response['messageTh'] as String
+            : response['message'] as String? ?? 'Failed to submit leave request';
 
         throw Exception(errorMessage);
       }
     } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
       throw Exception('Failed to submit leave request: ${e.toString()}');
     }
   }
