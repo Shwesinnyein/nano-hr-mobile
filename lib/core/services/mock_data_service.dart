@@ -3,7 +3,6 @@ class MockDataService {
   factory MockDataService() => _instance;
   MockDataService._internal();
 
-  // Mock employee data
   static const Map<String, dynamic> mockEmployee = {
     'id': 'EMP-15072025045',
     'authId': 'mock-auth-id',
@@ -28,7 +27,6 @@ class MockDataService {
     'updatedAt': '2025-09-04T02:36:54.898Z',
   };
 
-  // Mock employee list data
   static List<Map<String, dynamic>> mockEmployeeList = [
     {
       'id': 'EMP-15072025045',
@@ -165,10 +163,8 @@ class MockDataService {
     },
   ];
 
-  // Mock attendance data - start with empty list
   static List<Map<String, dynamic>> mockAttendanceData = [];
 
-  // Mock leave requests data
   static List<Map<String, dynamic>> mockLeaveRequests = [
     {
       'id': 'LR-001',
@@ -214,12 +210,10 @@ class MockDataService {
     },
   ];
 
-  // Authentication methods
   static Future<Map<String, dynamic>> loginWithCredentials(
     String email,
     String password,
   ) async {
-    // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
 
     if (email == 'oa@gmail.com' && password == 'Admin123') {
@@ -265,14 +259,12 @@ class MockDataService {
     final now = DateTime.now();
     final today = now.toIso8601String().split('T')[0];
 
-    // Check if there's already a record for today
     final existingRecordIndex = mockAttendanceData.indexWhere(
       (record) =>
           record['employeeId'] == data['employeeId'] && record['date'] == today,
     );
 
     if (data['type'] == 'checkin') {
-      // Create new check-in record
       final timeString =
           '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
       final attendanceRecord = {
@@ -291,7 +283,6 @@ class MockDataService {
         'updatedAt': now.toIso8601String(),
       };
 
-      // Add to mock data
       mockAttendanceData.add(attendanceRecord);
 
       return {
@@ -308,7 +299,6 @@ class MockDataService {
         existingRecord['checkOutAt'] = timeString;
         existingRecord['updatedAt'] = now.toIso8601String();
 
-        // Calculate duration
         final checkInTimeString = existingRecord['checkInAt'] as String?;
         if (checkInTimeString != null) {
           final checkInTimeParts = checkInTimeString.split(':');
@@ -349,7 +339,6 @@ class MockDataService {
         )
         .toList();
 
-    // Convert to the format expected by Attendance.fromJson
     return todayRecords
         .map(
           (record) => {
@@ -376,7 +365,6 @@ class MockDataService {
         .toList();
   }
 
-  // Leave management methods
   static Future<Map<String, dynamic>> createLeaveRequest(
     Map<String, dynamic> data,
   ) async {
@@ -416,7 +404,6 @@ class MockDataService {
         .toList();
   }
 
-  // File upload simulation
   static Future<Map<String, dynamic>> uploadFile(String filePath) async {
     await Future.delayed(const Duration(seconds: 2));
 
@@ -427,8 +414,7 @@ class MockDataService {
           'https://mock-storage.com/files/${DateTime.now().millisecondsSinceEpoch}.pdf',
     };
   }
-
-  // Clear all mock data (for testing)
+  
   static void clearAllData() {
     mockAttendanceData.clear();
     mockLeaveRequests.clear();

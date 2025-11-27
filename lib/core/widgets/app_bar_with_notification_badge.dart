@@ -37,13 +37,10 @@ class AppBarWithNotificationBadge extends ConsumerWidget
       elevation: elevation,
       actions: [
         if (actions != null) ...actions!,
-        // Add notification icon with badge
         NotificationBadge(
           child: IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              // Navigate to notifications screen
-              // You can use GoRouter or Navigator here
             },
           ),
         ),

@@ -70,11 +70,9 @@ class ApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
-          // API timing tracking removed
           final startTime = response.requestOptions.extra['startTime'] as int?;
           if (startTime != null) {
             final duration = DateTime.now().millisecondsSinceEpoch - startTime;
-            // Duration calculated but not logged
           }
           handler.next(response);
         },

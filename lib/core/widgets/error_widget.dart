@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../theme/app_theme_refactored.dart';
 
-/// Reusable error widget with consistent styling
 class AppErrorWidget extends StatelessWidget {
   final String message;
   final VoidCallback? onRetry;
@@ -69,7 +68,6 @@ class AppErrorWidget extends StatelessWidget {
   }
 }
 
-/// Empty state widget
 class EmptyStateWidget extends StatelessWidget {
   final String message;
   final IconData? icon;

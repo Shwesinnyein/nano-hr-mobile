@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_constants.dart';
 import '../theme/app_theme_refactored.dart';
 
-/// Reusable loading widget with consistent styling
 class LoadingWidget extends StatelessWidget {
   final String? message;
   final double? size;
@@ -36,7 +35,6 @@ class LoadingWidget extends StatelessWidget {
   }
 }
 
-/// Loading overlay for buttons
 class ButtonLoadingWidget extends StatelessWidget {
   final bool isLoading;
   final Widget child;

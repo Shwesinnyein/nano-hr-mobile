@@ -86,7 +86,7 @@ class PushNotificationService {
       try {
         await _initializeLocalNotifications();
       } catch (e) {
-        // Local notifications initialization failed, will retry when needed
+        
       }
       
       _listenForForegroundMessages();

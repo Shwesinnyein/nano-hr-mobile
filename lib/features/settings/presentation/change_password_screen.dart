@@ -72,12 +72,12 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         });
 
         if (result['success'] == true) {
-          // Clear form
+          
           _currentPasswordController.clear();
           _newPasswordController.clear();
           _confirmPasswordController.clear();
 
-          // Show success dialog
+          
           showDialog(
             context: context,
             builder: (context) => AlertDialog(
@@ -104,8 +104,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // Close dialog
-                    Navigator.of(context).pop(); // Go back to settings
+                    Navigator.of(context).pop(); 
+                    Navigator.of(context).pop(); 
                   },
                   child: Text(
                     ref.t('ตกลง', 'OK'),
@@ -179,7 +179,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 24),
-              // Current Password
+              
               TextFormField(
                 controller: _currentPasswordController,
                 obscureText: _obscureCurrentPassword,
@@ -231,7 +231,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // New Password
+              
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: _obscureNewPassword,
@@ -289,7 +289,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              // Confirm Password
+              
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
@@ -350,7 +350,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 },
               ),
               const SizedBox(height: 32),
-              // Change Password Button
+                
               SizedBox(
                 height: 50,
                 child: ElevatedButton(

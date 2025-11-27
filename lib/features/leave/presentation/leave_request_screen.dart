@@ -1092,7 +1092,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
         await _addAttachment(file);
       } else {
-        // No file selected
+      
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1299,13 +1299,13 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       );
 
       if (response['success'] == true) {
-        // API returns 'data' field with leave request object
+      
         final leaveRequestData = response['data'] ?? response['leaveRequest'];
         if (leaveRequestData != null && leaveRequestData is Map<String, dynamic>) {
           if (leaveRequestData['attachment'] != null) {
             final attachment = leaveRequestData['attachment'];
             if (attachment['files'] != null) {
-              // Attachment files processed silently
+              
             }
           }
         }

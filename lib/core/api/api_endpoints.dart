@@ -21,8 +21,7 @@ static const String baseUrl = 'https://nano-api-production.vercel.app';
   static const String searchAttendanceByName = '/attendance/search-by-name';
 
   // Employee endpoints
-  static const String employeeProfile =
-      '/employee/profile'; // Gets employee profile by ID
+  static const String employeeProfile ='/employee/profile'; 
   static const String updateProfile = '/employee/update-profile';
   static const String employeeList = '/employee/list';
   static const String employeeShiftByDate = '/employee/shift/get-by-date';
@@ -32,28 +31,25 @@ static const String baseUrl = 'https://nano-api-production.vercel.app';
   static const String leaveRequests = '/leave/employee';
   static const String leaveBalance = '/leave/balance';
   static const String leaveSettings = '/leave/settings';
-  // Approval endpoints for different levels
+ 
   static String getLeaveRequestsForApproval(String level, String userId) =>
       '/leave/approval/pending?level=$level&userId=$userId';
-  // Leave history endpoint for employee leaves tab
+ 
   static String getLeaveHistory(String userId) =>
       '/leave/history?userId=$userId';
-  // GET /leave/{leaveId}
+ 
   static String leaveDetails(String leaveId) => '/leave/$leaveId';
-  // Leave approval endpoints (server supports either path)
-  // PUT /leave/{leaveId}/status
+  
   static String leaveStatus(String leaveId) => '/leave/$leaveId/status';
-  // PUT /leave/approval/{leaveId}
+  
   static String leaveApproval(String leaveId) => '/leave/approval/$leaveId';
 
-  // File upload endpoints
   static const String uploadFile = '/upload/file';
 
-  // Notification endpoints
   static const String getUserNotifications =
-      '/notifications'; // GET /notifications/{employeeId}
+      '/notifications'; 
   static const String markNotificationRead =
-      '/notifications'; // PUT /notifications/{employeeId}/read/{notificationId}
+      '/notifications'; 
   static const String registerDevice = '/notifications/devices/register';
   static const String unregisterDevice = '/notifications/devices';
   static const String unreadCount = '/notifications/unread-count';

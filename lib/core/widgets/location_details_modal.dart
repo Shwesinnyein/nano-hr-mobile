@@ -26,19 +26,17 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.kNanoGold, // Your app's primary color
-      body: Column(
+      backgroundColor: AppTheme.kNanoGold, 
+      body: Column( 
         children: [
-          // Status bar area
           Container(
             height: MediaQuery.of(context).padding.top,
-            color: AppTheme.kNanoGold, // Your app's primary color
+            color: AppTheme.kNanoGold, 
           ),
-          // Header
           Container(
             height: 60,
             decoration: BoxDecoration(
-              color: AppTheme.kNanoGold, // Your app's primary color
+              color: AppTheme.kNanoGold, 
             ),
             child: Row(
               children: [
@@ -57,19 +55,16 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
                     ),
                   ),
                 ),
-                // Spacer to balance the back button
                 const SizedBox(width: 48),
               ],
             ),
           ),
           
-          // Content area with white background
           Expanded(
             child: Container(
               color: Colors.white,
               child: Column(
                 children: [
-                  // Map Section
                   Expanded(
                     flex: 3,
                     child: Container(
@@ -96,7 +91,6 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
                     ),
                   ),
                   
-                  // Address Section
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.all(16),
@@ -130,7 +124,6 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
                   
                   const SizedBox(height: 20),
                   
-                  // Confirm Button
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16),
                     width: double.infinity,
@@ -138,7 +131,7 @@ class _LocationDetailsModalState extends State<LocationDetailsModal> {
                     child: ElevatedButton(
                       onPressed: widget.onConfirm,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.kNanoGold, // Your app's primary color
+                        backgroundColor: AppTheme.kNanoGold, 
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

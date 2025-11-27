@@ -49,25 +49,21 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
           onNavigationRequest: (NavigationRequest request) {
             final uri = Uri.parse(request.url);
             
-            // Handle mailto: links
             if (uri.scheme == 'mailto') {
               _launchEmail(uri.toString());
               return NavigationDecision.prevent;
             }
             
-            // Handle tel: links
             if (uri.scheme == 'tel') {
               _launchPhone(uri.toString());
               return NavigationDecision.prevent;
             }
             
-            // Allow navigation to the privacy policy URL
             if (request.url == AppConstants.privacyPolicyUrl || 
                 request.url.startsWith(AppConstants.privacyPolicyUrl)) {
               return NavigationDecision.navigate;
             }
             
-            // Prevent navigation to external URLs (open in external browser instead)
             if (uri.scheme == 'http' || uri.scheme == 'https') {
               _launchUrl(request.url);
               return NavigationDecision.prevent;
@@ -96,7 +92,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
         }
       }
     } catch (e) {
-      // Silently handle error
+      
     }
   }
 
@@ -116,7 +112,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
         }
       }
     } catch (e) {
-      // Silently handle error
+      
     }
   }
 
@@ -136,7 +132,7 @@ class _PrivacyPolicyScreenState extends ConsumerState<PrivacyPolicyScreen> {
         }
       }
     } catch (e) {
-      // Silently handle error
+
     }
   }
 

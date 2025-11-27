@@ -838,7 +838,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Header
+                      
                     Row(
                       children: [
                         Container(
@@ -901,7 +901,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Leave Details
+
                     _buildDetailRow(
                       'Request Type',
                       request.requestType?.toUpperCase() ?? 'N/A',
@@ -974,7 +974,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     // ),
                     const SizedBox(height: 24),
 
-                    // Close Button
+                    
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -1175,31 +1175,31 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     );
   }
 
-  // Normalize status for employee view - show simple statuses only
+  
   String _normalizeStatusForEmployee(String status) {
     final statusLower = status.toLowerCase();
 
-    // If already final status, return as is
+    
     if (statusLower == 'approved' || statusLower == 'rejected') {
       return statusLower;
     }
 
-    // If rejected, return rejected
+    
     if (statusLower.contains('rejected')) {
       return 'rejected';
     }
 
-    // If approved (any level), return approved
+    
     if (statusLower.contains('approved')) {
       return 'approved';
     }
 
-    // Everything else is pending
+    
     return 'pending';
   }
 
   Color _getStatusColor(String status) {
-    // Use normalized status for consistent colors
+    
     final normalizedStatus = _normalizeStatusForEmployee(status);
 
     switch (normalizedStatus) {
@@ -1207,14 +1207,14 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
         return AppTheme.successColor;
       case 'rejected':
         return AppTheme.errorColor;
-      default: // pending
+      default: 
         return AppTheme.warningColor;
     }
   }
 
   Future<void> _openAttachment(String url) async {
     try {
-      // Check if it's an image URL
+      
       final fileName = url.split('/').last.toLowerCase();
       final isImage = [
         'jpg',
@@ -1226,10 +1226,10 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       ].any((ext) => fileName.endsWith(ext));
 
       if (isImage) {
-        // Show image viewer dialog
+        
         _showImageViewer(url);
       } else {
-        // Open external application for non-image files
+        
         final Uri uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1250,7 +1250,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           backgroundColor: Colors.black,
           child: Stack(
             children: [
-              // Full screen image
+
               Center(
                 child: InteractiveViewer(
                   minScale: 0.5,
@@ -1309,7 +1309,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   ),
                 ),
               ),
-              // Close button
+              
               Positioned(
                 top: 40,
                 right: 20,
@@ -1324,7 +1324,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                   ),
                 ),
               ),
-              // Download button
+              
               Positioned(
                 top: 40,
                 right: 80,

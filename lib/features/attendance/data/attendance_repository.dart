@@ -199,13 +199,11 @@ class AttendanceRepository {
   }
 }
 
-// Provider for AttendanceRepository
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   final attendanceService = ref.watch(attendanceServiceProvider);
   return AttendanceRepository(attendanceService);
 });
 
-// Provider for attendance controller
 final attendanceControllerProvider =
     StateNotifierProvider<AttendanceController, AsyncValue<List<Attendance>>>((
       ref,

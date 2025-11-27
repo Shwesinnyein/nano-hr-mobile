@@ -89,7 +89,7 @@ class Employee {
     this.updatedAt,
   });
 
-  // Helper method to parse DateTime from various formats
+  
   static DateTime? _parseDateTime(dynamic dateValue) {
     if (dateValue == null) return null;
 
@@ -102,7 +102,7 @@ class Employee {
     }
 
     if (dateValue is Map<String, dynamic>) {
-      // Handle Firebase timestamp format
+      
       if (dateValue.containsKey('_seconds')) {
         final seconds = dateValue['_seconds'] as int?;
         final nanoseconds = dateValue['_nanoseconds'] as int? ?? 0;

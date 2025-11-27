@@ -14,9 +14,9 @@ class LeaveRepository {
       if (response['success'] == true) {
         return LeaveBalance.fromJson(response);
       } else {
-        // Extract clean error message
+
         final errorMessage = response['message']?.toString() ?? 'Failed to get leave balance';
-        // Remove nested exception prefixes for cleaner error messages
+        
         final cleanMessage = errorMessage
             .replaceAll(RegExp(r'Exception:\s*'), '')
             .replaceAll(RegExp(r'Failed to get leave balance:\s*'), '')
@@ -24,7 +24,7 @@ class LeaveRepository {
         throw Exception(cleanMessage.isEmpty ? 'Failed to get leave balance' : cleanMessage);
       }
     } catch (e) {
-      // Don't double-wrap exceptions
+      
       if (e is Exception) {
         rethrow;
       }
@@ -56,7 +56,7 @@ class LeaveRepository {
       final response = await _leaveService.createLeaveRequest(requestData);
 
       if (response['success'] == true) {
-        // API returns 'data' field with leave request object
+        
         final leaveRequestData = response['data'] ?? response['leaveRequest'];
         
         if (leaveRequestData is Map<String, dynamic>) {
@@ -65,8 +65,8 @@ class LeaveRepository {
           throw Exception('Invalid leave request data format');
         }
       } else {
-        // Error response includes messageTh, eligibleForAnnualLeave, monthsWithCompany, requiredMonths
-        final isThai = false; // Could be passed as parameter if needed
+        
+        final isThai = false; 
         final errorMessage = isThai && response['messageTh'] != null
             ? response['messageTh'] as String
             : response['message'] as String? ?? 'Failed to submit leave request';

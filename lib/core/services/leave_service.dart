@@ -23,7 +23,6 @@ class LeaveService {
     _dio.options.receiveTimeout = const Duration(seconds: 15);
     _dio.options.sendTimeout = const Duration(seconds: 10);
 
-    // LogInterceptor removed - no logging in production
   }
 
   Future<Map<String, dynamic>> getLeaveDetails(String leaveId) async {
@@ -97,7 +96,6 @@ class LeaveService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Ensure response.data is a Map
         if (response.data is Map<String, dynamic>) {
           return response.data as Map<String, dynamic>;
         } else if (response.data is String) {
@@ -119,7 +117,6 @@ class LeaveService {
             'message': 'Leave request API endpoint not available (404)',
           };
         }
-        // Ensure error response is a Map
         if (e.response!.data is Map<String, dynamic>) {
           return e.response!.data as Map<String, dynamic>;
         } else if (e.response!.data is String) {
@@ -174,7 +171,6 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -189,7 +185,6 @@ class LeaveService {
       );
 
       if (response.statusCode == 200) {
-        // Ensure response.data is a Map
         if (response.data is Map<String, dynamic>) {
           final data = response.data as Map<String, dynamic>;
           
@@ -199,7 +194,6 @@ class LeaveService {
             return [];
           }
         } else if (response.data is List) {
-          // Handle case where API directly returns a list
           return List<Map<String, dynamic>>.from(response.data);
         } else {
           return [];
@@ -209,9 +203,7 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       } else {
-        // Network error handled silently
       }
       return [];
     } catch (e) {
@@ -230,11 +222,9 @@ class LeaveService {
       stopwatch.stop();
 
       if (response.statusCode == 200) {
-        // Ensure response.data is a Map, not a String
         if (response.data is Map<String, dynamic>) {
           return response.data as Map<String, dynamic>;
         } else if (response.data is String) {
-          // If API returns a string, try to parse it as JSON
           try {
             return {'success': false, 'message': response.data as String};
           } catch (e) {
@@ -251,10 +241,8 @@ class LeaveService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Ensure response.data is a Map
         if (e.response!.data is Map<String, dynamic>) {
           final errorData = e.response!.data as Map<String, dynamic>;
-          // Extract error message from various possible fields
           final errorMessage = errorData['message'] ?? 
                               errorData['error'] ?? 
                               errorData['errorMessage'] ??
@@ -262,7 +250,7 @@ class LeaveService {
           return {
             'success': false,
             'message': errorMessage.toString(),
-            ...errorData, // Include all error fields
+                ...errorData, 
           };
         } else if (e.response!.data is String) {
           return {'success': false, 'message': e.response!.data as String};
@@ -270,7 +258,6 @@ class LeaveService {
           return {'success': false, 'message': 'Invalid error response format'};
         }
       } else {
-        // Network error or connection issue
         return {
           'success': false,
           'message': e.message?.isNotEmpty == true 
@@ -279,9 +266,7 @@ class LeaveService {
         };
       }
     } catch (e) {
-      // Handle any other unexpected errors
       final errorMessage = e.toString();
-      // Check if it's a serverless function error
       if (errorMessage.contains('FUNCTION_INVOCATION_FAILED') || 
           errorMessage.contains('sin1::')) {
         return {
@@ -325,7 +310,6 @@ Map<String, dynamic> data,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Ensure response.data is a Map
         if (response.data is Map<String, dynamic>) {
           return response.data as Map<String, dynamic>;
         } else if (response.data is String) {
@@ -341,7 +325,6 @@ Map<String, dynamic> data,
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Ensure error response is a Map
         if (e.response!.data is Map<String, dynamic>) {
           return e.response!.data as Map<String, dynamic>;
         } else if (e.response!.data is String) {
@@ -463,9 +446,7 @@ Map<String, dynamic> data,
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       } else {
-        // Network error handled silently
       }
       return [];
     } catch (e) {
@@ -487,7 +468,6 @@ Map<String, dynamic> data,
       return pendingRequests;
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -513,7 +493,6 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -543,7 +522,6 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -569,7 +547,6 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error response handled silently
       }
       return [];
     } catch (e) {
@@ -600,7 +577,6 @@ Map<String, dynamic> data,
       return [];
     } on DioException catch (e) {
       if (e.response != null) {
-        // Error status handled silently
       }
       return [];
     } catch (e) {

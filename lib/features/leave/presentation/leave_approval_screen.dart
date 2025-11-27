@@ -173,7 +173,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       setState(() {
         _loadingEmployeeLeaves = false;
       });
-      // Error loading employee leaves handled silently
+
     }
   }
 
@@ -1076,7 +1076,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       if (res['success'] == true) {
         final lr = res['leaveRequest'] ?? res['data'] ?? {};
 
-        // Leave request data processed silently
+        
 
         details = {
           'leaveTypeName':

@@ -53,7 +53,6 @@ class AuthService {
     String password,
   ) async {
     try {
-      // Call login API directly - backend handles email validation
       final response = await _apiService.loginUser(
         email: email,
         password: password,
@@ -64,7 +63,6 @@ class AuthService {
         _currentUserId = employeeData['authId'] ?? employeeData['id'] ?? email;
         _currentEmployeeId = employeeData['id'] ?? employeeData['uid'];
 
-        // Store employee name and position information
         _currentEmployeeFirstName =
             employeeData['firstName'] ?? employeeData['first_name'];
         _currentEmployeeLastName =
@@ -82,7 +80,6 @@ class AuthService {
           'data': employeeData,
         };
       } else {
-        // Return API error response directly
         return response;
       }
     } catch (e) {
@@ -329,9 +326,7 @@ class AuthService {
 
   Future<void> restoreAuthState() async {
     try {
-      // Auth state restoration
     } catch (e) {
-      // Failed to restore auth state handled silently
     }
   }
 

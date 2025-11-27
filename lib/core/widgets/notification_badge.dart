@@ -56,7 +56,7 @@ class NotificationBadge extends ConsumerWidget {
   }
 }
 
-// Example usage:
+  // Example usage:
 // NotificationBadge(
 //   child: Icon(Icons.notifications),
 // )

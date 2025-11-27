@@ -46,7 +46,6 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
       ),
     );
 
-    // Branch markers removed - only show current location
   }
 
   @override
@@ -85,7 +84,6 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     );
   }
 
-  // Method to animate to a specific location
   void animateToLocation(double latitude, double longitude) {
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
@@ -95,7 +93,6 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
     );
   }
 
-  // Method to fit all markers in view
   void fitAllMarkers() {
     if (_markers.isEmpty) return;
 
@@ -117,7 +114,7 @@ class _GoogleMapWidgetState extends State<GoogleMapWidget> {
           southwest: LatLng(minLat, minLng),
           northeast: LatLng(maxLat, maxLng),
         ),
-        100.0, // padding
+        100.0, 
       ),
     );
   }

@@ -203,7 +203,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     });
 
     try {
-      // Check permission first
       final hasPermission = await _locationService.checkPermissions();
       
       if (!hasPermission) {
@@ -213,7 +212,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             _locationPermissionDenied = true;
             _currentLocation = null;
           });
-          // Show warning popup
           _showLocationPermissionWarning(context);
         }
         return;
@@ -261,7 +259,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         });
       }
     } catch (e) {
-      // Check if it's a permission error
       final errorMessage = e.toString().toLowerCase();
       final isPermissionError = errorMessage.contains('permission') || 
                                 errorMessage.contains('denied') ||
@@ -451,7 +448,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
   }
 
-  Future<List<Attendance>> _loadAttendanceHistory(WidgetRef ref) async {
+    Future<List<Attendance>> _loadAttendanceHistory() async {
     try {
       final authService = ref.read(authServiceProvider);
       final employeeId = authService.currentEmployeeId;
@@ -897,7 +894,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             final lng = _currentLocation!['longitude'] as double?;
             if (lat != null && lng != null) {
               withinBranch = BranchLocationService.isWithinBranchRadius(lat, lng);
-              // Branch location check performed silently
             }
           }
           final isEnabled = (buttonState['enabled'] as bool) && withinBranch;
@@ -1430,17 +1426,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getLocationDisplayText() {
-    // If location permission is denied, show appropriate message
+    
     if (_locationPermissionDenied) {
       return ref.t('ไม่สามารถเข้าถึงตำแหน่ง', 'Location not available');
     }
     
-    // If still loading location
+    
     if (_isLoadingLocation) {
       return ref.t('กำลังระบุตำแหน่ง...', 'Detecting location...');
     }
     
-    // If we have current location
     if (_currentLocation != null) {
       final latitude = _currentLocation!['latitude'] as double;
       final longitude = _currentLocation!['longitude'] as double;
@@ -1463,7 +1458,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       return ref.t('กำลังระบุตำแหน่ง...', 'Detecting location...');
     }
 
-    // Default: location not available
     return ref.t('ไม่สามารถเข้าถึงตำแหน่ง', 'Location not available');
   }
 

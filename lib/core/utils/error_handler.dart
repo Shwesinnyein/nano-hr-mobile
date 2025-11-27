@@ -1,8 +1,6 @@
 import 'package:dio/dio.dart';
 
-/// Centralized error handling utility
 class ErrorHandler {
-  /// Convert DioException to user-friendly error message
   static String handleDioError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
@@ -38,7 +36,6 @@ class ErrorHandler {
     }
   }
   
-  /// Handle general exceptions
   static String handleException(dynamic error) {
     if (error is DioException) {
       return handleDioError(error);
@@ -57,7 +54,6 @@ class ErrorHandler {
         : 'An unexpected error occurred.';
   }
   
-  /// Check if error is network related
   static bool isNetworkError(dynamic error) {
     if (error is DioException) {
       return error.type == DioExceptionType.connectionError ||
@@ -68,7 +64,6 @@ class ErrorHandler {
     return false;
   }
   
-  /// Check if error is authentication related
   static bool isAuthError(dynamic error) {
     if (error is DioException) {
       return error.response?.statusCode == 401 || 

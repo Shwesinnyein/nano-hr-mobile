@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/translation_helper.dart';
 
-// Leave-specific translation helper
+
 class LeaveTranslations {
-  // Leave screen titles and labels
+  
   static String leaveManagement(WidgetRef ref) =>
       ref.t('จัดการการลา', 'Leave Management');
 
@@ -27,7 +27,7 @@ class LeaveTranslations {
   static String recentRequests(WidgetRef ref) =>
       ref.t('คำขอลาล่าสุด', 'Recent Requests');
 
-  // Leave type names
+  
   static String annualLeave(WidgetRef ref) =>
       ref.t('ลาพักผ่อนประจำปี', 'Annual Leave');
 
@@ -54,7 +54,7 @@ class LeaveTranslations {
   static String marriageLeave(WidgetRef ref) =>
       ref.t('ลาสมรส', 'Marriage Leave');
 
-  // Status labels
+  
   static String available(WidgetRef ref) => ref.t('พร้อมใช้งาน', 'Available');
 
   static String usedUp(WidgetRef ref) => ref.t('ใช้หมดแล้ว', 'Used Up');
@@ -63,7 +63,7 @@ class LeaveTranslations {
 
   static String used(WidgetRef ref) => ref.t('ใช้แล้ว', 'used');
 
-  // Leave request screen
+  
   static String leaveRequest(WidgetRef ref) => ref.t('คำขอลา', 'Leave Request');
 
   static String selectLeaveType(WidgetRef ref) =>
@@ -98,7 +98,7 @@ class LeaveTranslations {
   static String selectEndDate(WidgetRef ref) =>
       ref.t('เลือกวันที่สิ้นสุด', 'Select end date');
 
-  // Leave list screen
+  
   static String leaveHistory(WidgetRef ref) =>
       ref.t('ประวัติการลา', 'Leave History');
 
@@ -114,7 +114,7 @@ class LeaveTranslations {
   static String noLeaveRequests(WidgetRef ref) =>
       ref.t('ไม่มีคำขอลา', 'No leave requests');
 
-  // Leave approval screen
+  
   static String leaveApproval(WidgetRef ref) =>
       ref.t('อนุมัติการลา', 'Leave Approval');
 
@@ -135,7 +135,7 @@ class LeaveTranslations {
 
   static String department(WidgetRef ref) => ref.t('แผนก', 'Department');
 
-  // Error messages
+    
   static String errorLoadingLeaveData(WidgetRef ref) =>
       ref.t('เกิดข้อผิดพลาดในการโหลดข้อมูลการลา', 'Error loading leave data');
 
@@ -153,7 +153,7 @@ class LeaveTranslations {
   static String noEmployeesAvailable(WidgetRef ref) =>
       ref.t('ไม่มีพนักงาน', 'No employees available');
 
-  // Success messages
+  
   static String leaveRequestSubmitted(WidgetRef ref) =>
       ref.t('ส่งคำขอลาเรียบร้อยแล้ว', 'Leave request submitted successfully');
 
@@ -165,7 +165,7 @@ class LeaveTranslations {
   static String leaveRequestRejected(WidgetRef ref) =>
       ref.t('ปฏิเสธคำขอลาเรียบร้อยแล้ว', 'Leave request rejected');
 
-  // Common terms
+  
   static String loading(WidgetRef ref) => ref.t('กำลังโหลด...', 'Loading...');
 
   static String retry(WidgetRef ref) => ref.t('ลองใหม่', 'Retry');
@@ -188,7 +188,7 @@ class LeaveTranslations {
 
   static String no(WidgetRef ref) => ref.t('ไม่', 'No');
 
-  // Search and filter translations
+  
   static String searchByEmployeeLeaveTypeReason(WidgetRef ref) => ref.t(
     'ค้นหาตามชื่อพนักงาน ประเภทการลา หรือเหตุผล...',
     'Search by employee, leave type, or reason...',
@@ -203,7 +203,7 @@ class LeaveTranslations {
   static String noRejectedRequests(WidgetRef ref) =>
       ref.t('ไม่มีคำขอที่ปฏิเสธแล้ว', 'No rejected requests');
 
-  // Additional error messages
+  
   static String pleaseSelectFromDateFirst(WidgetRef ref) =>
       ref.t('กรุณาเลือกวันที่เริ่มต้นก่อน', 'Please select from date first');
 
@@ -243,7 +243,7 @@ class LeaveTranslations {
   static String errorSubmittingRequest(WidgetRef ref) =>
       ref.t('เกิดข้อผิดพลาดในการส่งคำขอลา', 'Error submitting leave request');
 
-  // Additional leave list translations
+  
   static String fromDate(WidgetRef ref) => ref.t('จาก:', 'From:');
 
   static String toDate(WidgetRef ref) => ref.t('ถึง:', 'To:');
@@ -260,7 +260,7 @@ class LeaveTranslations {
 
   static String daysUnit(WidgetRef ref) => ref.t('วัน', 'days');
 
-  // Leave request screen translations
+
   static String leaveRequestTitle(WidgetRef ref) =>
       ref.t('คำขอลา', 'Leave Request');
 
@@ -323,7 +323,7 @@ class LeaveTranslations {
   static String failedToSubmitRequest(WidgetRef ref) =>
       ref.t('ไม่สามารถส่งคำขอลาได้', 'Failed to submit leave request');
 
-  // Helper method to translate leave type names dynamically
+  
   static String translateLeaveTypeName(WidgetRef ref, String typeName) {
     final name = typeName.toLowerCase();
 
@@ -347,11 +347,11 @@ class LeaveTranslations {
       return personalLeave(ref);
     }
 
-    // Default: return original name if no match found
+    
     return typeName;
   }
 
-  // Helper method to translate status
+  
   static String translateStatus(WidgetRef ref, String status) {
     final statusLower = status.toLowerCase();
 
@@ -363,7 +363,7 @@ class LeaveTranslations {
       return pending(ref);
     }
 
-    // Default: return original status
+    
     return status;
   }
 }

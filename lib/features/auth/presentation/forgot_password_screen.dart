@@ -32,14 +32,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    // Listen for OTP from notifications
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _listenForOTP();
     });
   }
 
   void _listenForOTP() {
-    // Listen to OTP provider and auto-fill when OTP is received
+    
     ref.listen<String?>(otpProvider, (previous, next) {
       if (next != null && 
           _currentStep == ForgotPasswordStep.otp && 
@@ -47,7 +47,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         setState(() {
           _otpController.text = next;
         });
-        // Clear OTP after using it
+        
         ref.read(otpProvider.notifier).clearOTP();
       }
     });
@@ -62,7 +62,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  // Translation helper
+  
   String _t(String thaiText, String englishText) {
     final isThai = ref.watch(languageProvider);
     return isThai ? thaiText : englishText;
@@ -311,8 +311,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop(); // Close dialog
-                    Navigator.of(context).pop(); // Go back to login
+                    Navigator.of(context).pop(); 
+                    Navigator.of(context).pop(); 
                   },
                   child: Text(
                     _t('ตกลง', 'OK'),
@@ -380,7 +380,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Progress indicator
+           
             Row(
               children: [
                 _buildStepIndicator(
@@ -421,7 +421,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Step content
+            
             if (_currentStep == ForgotPasswordStep.email) _buildEmailStep(),
             if (_currentStep == ForgotPasswordStep.otp) _buildOTPStep(),
             if (_currentStep == ForgotPasswordStep.newPassword)

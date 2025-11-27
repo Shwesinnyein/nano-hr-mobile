@@ -5,7 +5,7 @@ class Employee {
   final String id;
   final String? uid;
   final String? authId;
-  final String name; // nickname from API
+  final String name; 
 
   final String companyName;
   final String locationName;
@@ -69,7 +69,7 @@ class Employee {
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
-    // Handle Firebase timestamp format
+   
     DateTime? parseDateTime(dynamic timestamp) {
       if (timestamp == null) return null;
       if (timestamp is Map && timestamp.containsKey('_seconds')) {

@@ -148,7 +148,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
                 ElevatedButton.icon(
                   onPressed: () {
-                    // Navigate to login using GoRouter
+                    
                     context.go('/login');
                   },
                   icon: const Icon(Icons.login),
@@ -418,7 +418,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   IconData _getInfoIcon(String label) {
-    // Check for both Thai and English labels
+    
     if (label.contains('ชื่อเต็ม') || label.contains('Full Name')) {
       return Icons.person;
     } else if (label.contains('รหัสพนักงาน') || label.contains('Employee ID')) {
@@ -468,6 +468,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     //     _profileImage = File(image.path);
     //   });
     // }
-    // TODO: Implement image picking when image_picker is re-enabled
+    
   }
 }
