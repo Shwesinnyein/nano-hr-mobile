@@ -1950,7 +1950,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => FutureBuilder<List<Attendance>>(
-        future: _loadAttendanceHistory(ref),
+        future: _loadAttendanceHistory(),
         builder: (context, snapshot) {
           return Container(
             height: MediaQuery.of(context).size.height * 0.8,

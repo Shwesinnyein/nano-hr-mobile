@@ -37,6 +37,7 @@ class PushNotificationService {
   bool _initialized = false;
   Future<void>? _initializing;
   bool _localNotificationsInitialized = false;
+  final Set<String> _processedMessageIds = <String>{}; // Track processed messages to prevent duplicates
 
   static const AndroidNotificationChannel _foregroundChannel =
       AndroidNotificationChannel(
@@ -80,16 +81,47 @@ class PushNotificationService {
         return;
       }
 
+      // Enable Firebase's automatic foreground presentation on iOS
+      // On Android, we use local notifications manually
+      final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+      if (isIOS) {
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Enabling Firebase automatic foreground presentation for iOS');
+        }
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,  // Show banner automatically on iOS
+          badge: true,  // Update badge
+          sound: true,  // Play sound
+        );
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Firebase automatic presentation enabled for iOS');
+        }
+      }
+
       await _syncTokenWithBackend(forceReRegister: true);
       _listenForTokenRefresh();
       
       try {
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Initializing local notifications...');
+        }
         await _initializeLocalNotifications();
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Local notifications initialized: $_localNotificationsInitialized');
+        }
       } catch (e) {
-        
+        if (kDebugMode) {
+          debugPrint('❌ [INIT] Failed to initialize local notifications: $e');
+        }
       }
       
+      if (kDebugMode) {
+        debugPrint('🔔 [INIT] Setting up foreground message listener...');
+      }
       _listenForForegroundMessages();
+      if (kDebugMode) {
+        debugPrint('✅ [INIT] PushNotificationService initialized successfully');
+      }
 
       _initialized = true;
     } finally {
@@ -307,69 +339,110 @@ Future<String?> _getMessagingTokenThrottled() async {
   //     _ref.read(notificationProvider.notifier).refreshUnreadCount();
   //   });
   // }
-  void _listenForForegroundMessages1() {
-    if (!kPushNotificationsEnabled) {
-      return;
-    }
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      final notification = message.notification;
-      if (notification != null) {
-        await _showForegroundNotification(notification, message.data);
-      }
-
-      _ref.read(notificationProvider.notifier).refreshUnreadCount();
-    });
-
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      _ref.read(notificationProvider.notifier).refreshUnreadCount();
-    });
-  }
 void _listenForForegroundMessages() {
   if (!kPushNotificationsEnabled) {
     return;
   }
 
+  // Prevent duplicate listeners - cancel existing ones first
   _foregroundMessageSubscription?.cancel();
   _messageOpenedSubscription?.cancel();
+  
+  // Set to null to ensure we don't have stale references
+  _foregroundMessageSubscription = null;
+  _messageOpenedSubscription = null;
 
   
   _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-   
+    // Prevent duplicate processing of the same message
+    final messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
+    if (_processedMessageIds.contains(messageId)) {
+      if (kDebugMode) {
+        debugPrint('⚠️ [FOREGROUND] Message already processed, skipping: $messageId');
+      }
+      return;
+    }
+    _processedMessageIds.add(messageId);
+    
+    // Clean up old message IDs (keep only last 100)
+    if (_processedMessageIds.length > 100) {
+      _processedMessageIds.remove(_processedMessageIds.first);
+    }
+    
+    if (kDebugMode) {
+      debugPrint('📨 [FOREGROUND] Message received: $messageId');
+      debugPrint('📨 [FOREGROUND] Has notification: ${message.notification != null}');
+      debugPrint('📨 [FOREGROUND] Data: ${message.data}');
+      debugPrint('📨 [FOREGROUND] Notification title: ${message.notification?.title}');
+      debugPrint('📨 [FOREGROUND] Notification body: ${message.notification?.body}');
+    }
     
     final settings = await _messaging.getNotificationSettings();
-   
+    if (kDebugMode) {
+      debugPrint('📨 [FOREGROUND] Notification settings: ${settings.authorizationStatus}');
+    }
 
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     
     RemoteNotification? notification = message.notification;
     
+    // On iOS foreground, FCM might strip the notification block, so check data as fallback
     if (notification != null) {
+      if (kDebugMode) {
+        debugPrint('📨 [FOREGROUND] Notification block present');
+        debugPrint('📨 [FOREGROUND] Title: ${notification.title}, Body: ${notification.body}');
+      }
       
       _extractAndStoreOTP(notification.body ?? '', message.data);
       
-     
+      // On iOS: Firebase shows automatically (we set alert: true)
+      // On Android: We show local notification manually
       if (!isIOS) {
+        // Only show local notification on Android
+        if (kDebugMode) {
+          debugPrint('📨 [FOREGROUND] Showing local notification on Android');
+        }
         try {
           await _showForegroundNotification(notification, message.data);
-        
+          if (kDebugMode) {
+            debugPrint('📨 [FOREGROUND] Local notification shown successfully');
+          }
         } catch (e, stackTrace) {
-         
+          if (kDebugMode) {
+            debugPrint('❌ [FOREGROUND] Error showing notification: $e');
+            debugPrint('❌ [FOREGROUND] Stack trace: $stackTrace');
+          }
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('📨 [FOREGROUND] iOS - Firebase will show banner automatically');
         }
       }
     } 
+    // Fallback: If notification block is missing (common on iOS foreground), extract from data
     else if (message.data.isNotEmpty) {
+      if (kDebugMode) {
+        debugPrint('📨 [FOREGROUND] Processing data-only message');
+      }
      
+      // Try multiple possible keys for title and body in data payload
       final title = message.data['title']?.toString() ?? 
                    message.data['notification']?['title']?.toString() ?? 
                    message.data['aps']?['alert']?['title']?.toString() ??
+                   message.data['notification']?['title']?.toString() ??
+                   message.data['notification_title']?.toString() ??
                    'NANO Work';
       final body = message.data['body']?.toString() ?? 
                   message.data['message']?.toString() ?? 
                   message.data['notification']?['body']?.toString() ?? 
                   message.data['aps']?['alert']?['body']?.toString() ??
+                  message.data['notification_body']?.toString() ??
                   'New notification';
       
+      if (kDebugMode) {
+        debugPrint('📨 [FOREGROUND] Extracted title: $title');
+        debugPrint('📨 [FOREGROUND] Extracted body: $body');
+      }
      
       _extractAndStoreOTP(body, message.data);
       
@@ -382,15 +455,30 @@ void _listenForForegroundMessages() {
           apple: null,
         );
         
+        if (kDebugMode) {
+          debugPrint('📨 [FOREGROUND] Showing data-only notification');
+        }
         
-        if (!isIOS) {
-          try {
-            await _showForegroundNotification(dataNotification, message.data);
-            
-          } catch (e, stackTrace) {
-           
+        // Show notification on both iOS and Android
+        try {
+          await _showForegroundNotification(dataNotification, message.data);
+          if (kDebugMode) {
+            debugPrint('📨 [FOREGROUND] Data-only notification shown successfully');
+          }
+        } catch (e, stackTrace) {
+          if (kDebugMode) {
+            debugPrint('❌ [FOREGROUND] Error showing data-only notification: $e');
+            debugPrint('❌ [FOREGROUND] Stack trace: $stackTrace');
           }
         }
+      } else {
+        if (kDebugMode) {
+          debugPrint('⚠️ [FOREGROUND] Skipping notification - default title/body');
+        }
+      }
+    } else {
+      if (kDebugMode) {
+        debugPrint('⚠️ [FOREGROUND] Message has no notification and no data');
       }
     }
 
@@ -607,21 +695,72 @@ void _listenForForegroundMessages() {
     RemoteNotification notification,
     Map<String, dynamic> data,
   ) async {
+    if (kDebugMode) {
+      debugPrint('🔔 [SHOW] Starting to show notification: ${notification.title} - ${notification.body}');
+    }
+
     if (!_localNotificationsInitialized) {
+      if (kDebugMode) {
+        debugPrint('🔔 [SHOW] Local notifications not initialized, initializing...');
+      }
       try {
         await _initializeLocalNotifications();
       } catch (e) {
-       
+        if (kDebugMode) {
+          debugPrint('❌ [SHOW] Failed to initialize local notifications: $e');
+        }
         return;
       }
     }
 
     if (!_localNotificationsInitialized) {
-      
+      if (kDebugMode) {
+        debugPrint('❌ [SHOW] Local notifications still not initialized');
+      }
       return;
     }
 
     try {
+      // Request iOS permissions if needed
+      final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+      if (isIOS) {
+        if (kDebugMode) {
+          debugPrint('🔔 [SHOW] Requesting iOS permissions...');
+        }
+        final iosPlugin = _localNotificationsPlugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+        if (iosPlugin != null) {
+          final permissionGranted = await iosPlugin.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+          if (kDebugMode) {
+            debugPrint('🔔 [SHOW] iOS permission granted: $permissionGranted');
+          }
+          if (permissionGranted != true) {
+            if (kDebugMode) {
+              debugPrint('❌ [SHOW] iOS permissions not granted');
+            }
+            return;
+          }
+        } else {
+          if (kDebugMode) {
+            debugPrint('⚠️ [SHOW] iOS plugin not available');
+          }
+        }
+      }
+
+      // Ensure Android channel exists
+      final androidPlugin = _localNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        if (kDebugMode) {
+          debugPrint('🔔 [SHOW] Creating Android notification channel...');
+        }
+        await androidPlugin.createNotificationChannel(_foregroundChannel);
+      }
+
       final androidDetails = AndroidNotificationDetails(
         _foregroundChannel.id,
         _foregroundChannel.name,
@@ -632,21 +771,53 @@ void _listenForForegroundMessages() {
         largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
       );
 
+      // iOS notification details with banner presentation
       final iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
+        // Force banner presentation even in foreground
+        interruptionLevel: InterruptionLevel.active,
       );
 
+      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
+      final title = notification.title ?? 'NANO Work';
+      final body = notification.body ?? '';
+
+      if (kDebugMode) {
+        debugPrint('🔔 [SHOW] Showing notification - ID: $notificationId, Title: $title, Body: $body');
+      }
+
+      // For iOS, we need to ensure the notification is shown as a banner
+      if (isIOS) {
+        final iosPlugin = _localNotificationsPlugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin>();
+        if (iosPlugin != null) {
+          // Request permissions again to ensure banner presentation
+          await iosPlugin.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+        }
+      }
+
       await _localNotificationsPlugin.show(
-        DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
-        notification.title ?? 'NANO Work',
-        notification.body ?? '',
+        notificationId,
+        title,
+        body,
         NotificationDetails(android: androidDetails, iOS: iosDetails),
         payload: data.isNotEmpty ? jsonEncode(data) : null,
       );
-    } catch (e) {
-     
+
+      if (kDebugMode) {
+        debugPrint('✅ [SHOW] Notification shown successfully');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ [SHOW] Error showing notification: $e');
+        debugPrint('❌ [SHOW] Stack trace: $stackTrace');
+      }
     }
   }
 }

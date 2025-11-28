@@ -107,11 +107,12 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    // Enable iOS foreground presentation to show banners
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(
-          alert: true,
-          badge: true,
-          sound: true,
+          alert: true,  // Show banner/alert
+          badge: true,  // Update badge
+          sound: true,  // Play sound
         );
 
   } catch (e) {
