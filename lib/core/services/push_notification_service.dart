@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_badger/app_badger.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../providers/notification_provider.dart';
 import '../providers/otp_provider.dart';
@@ -38,13 +40,29 @@ class PushNotificationService {
   Future<void>? _initializing;
   bool _localNotificationsInitialized = false;
   final Set<String> _processedMessageIds = <String>{}; // Track processed messages to prevent duplicates
+  int _notificationCounter = 0; // Counter to ensure unique IDs for rapid notifications
 
   static const AndroidNotificationChannel _foregroundChannel =
       AndroidNotificationChannel(
     'nano_hr_foreground',
     'In-app notifications',
     description: 'Notifications displayed while the app is open',
-    importance: Importance.high,
+    importance: Importance.max, // Max importance for immediate display
+    showBadge: true,
+    enableVibration: true,
+    playSound: true,
+  );
+
+  // High importance channel required by Firebase/Google Play
+  static const AndroidNotificationChannel _highImportanceChannel =
+      AndroidNotificationChannel(
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'Used for essential notifications.',
+    importance: Importance.max,
+    showBadge: true,
+    enableVibration: true,
+    playSound: true,
   );
 
   static const String _androidNotificationIcon = '@drawable/nano_notification';
@@ -81,8 +99,7 @@ class PushNotificationService {
         return;
       }
 
-      // Enable Firebase's automatic foreground presentation on iOS
-      // On Android, we use local notifications manually
+      
       final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
       if (isIOS) {
         if (kDebugMode) {
@@ -95,6 +112,20 @@ class PushNotificationService {
         );
         if (kDebugMode) {
           debugPrint('🔔 [INIT] Firebase automatic presentation enabled for iOS');
+        }
+      }
+      
+      try {
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Initializing local notifications...');
+        }
+        await _initializeLocalNotifications();
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Local notifications initialized: $_localNotificationsInitialized');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('❌ [INIT] Failed to initialize local notifications: $e');
         }
       }
 
@@ -130,14 +161,69 @@ class PushNotificationService {
   }
 
   Future<bool> _requestPermission() async {
+    // For Android 13+ (API 33+), we need to request POST_NOTIFICATIONS permission
+    if (Platform.isAndroid) {
+      if (kDebugMode) {
+        debugPrint('🔔 [PERM] Checking Android notification permission...');
+      }
+      
+      try {
+        final status = await Permission.notification.status;
+        if (kDebugMode) {
+          debugPrint('🔔 [PERM] Android notification permission status: $status');
+        }
+        
+        if (status.isDenied) {
+          if (kDebugMode) {
+            debugPrint('🔔 [PERM] Requesting Android notification permission...');
+          }
+          final result = await Permission.notification.request();
+          if (kDebugMode) {
+            debugPrint('🔔 [PERM] Android notification permission request result: $result');
+          }
+          if (result.isDenied || result.isPermanentlyDenied) {
+            if (kDebugMode) {
+              debugPrint('❌ [PERM] Android notification permission denied');
+            }
+            return false;
+          }
+        } else if (status.isPermanentlyDenied) {
+          if (kDebugMode) {
+            debugPrint('❌ [PERM] Android notification permission permanently denied');
+          }
+          return false;
+        }
+        
+        if (kDebugMode) {
+          debugPrint('✅ [PERM] Android notification permission granted');
+        }
+        return true;
+      } catch (e) {
+        // On Android 12 and below, Permission.notification might not be available
+        // In that case, notifications work without runtime permission
+        if (kDebugMode) {
+          debugPrint('⚠️ [PERM] Could not check Android notification permission (likely Android < 13): $e');
+          debugPrint('✅ [PERM] Assuming permission granted for Android < 13');
+        }
+        return true;
+      }
+    }
+    
+    // For iOS, use Firebase's permission request
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    return settings.authorizationStatus == AuthorizationStatus.authorized ||
+    final granted = settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional;
+    
+    if (kDebugMode) {
+      debugPrint('🔔 [PERM] iOS notification permission: $granted');
+    }
+    
+    return granted;
   }
 
   Future<void> _syncTokenWithBackend({bool forceReRegister = false}) async {
@@ -340,9 +426,9 @@ Future<String?> _getMessagingTokenThrottled() async {
   //   });
   // }
 void _listenForForegroundMessages() {
-  if (!kPushNotificationsEnabled) {
-    return;
-  }
+    if (!kPushNotificationsEnabled) {
+      return;
+    }
 
   // Prevent duplicate listeners - cancel existing ones first
   _foregroundMessageSubscription?.cancel();
@@ -354,23 +440,75 @@ void _listenForForegroundMessages() {
 
   
   _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    // Prevent duplicate processing of the same message
-    final messageId = message.messageId ?? '${DateTime.now().millisecondsSinceEpoch}';
-    if (_processedMessageIds.contains(messageId)) {
+    // Extract notification type and content FIRST to create a proper unique ID
+    // This is critical for data-only messages (like leave_rejected/leave_approved)
+    final notificationType = message.data['type']?.toString() ?? 
+                             message.data['notification_type']?.toString() ??
+                             message.data['action']?.toString() ?? '';
+    
+    // Get title and body from notification block or data payload
+    String notificationTitle = message.notification?.title ?? 
+                               message.data['title']?.toString() ?? '';
+    String notificationBody = message.notification?.body ?? 
+                              message.data['body']?.toString() ?? 
+                              message.data['message']?.toString() ?? '';
+    
+    // For leave notifications, construct meaningful titles if missing
+    if ((notificationTitle.isEmpty) && notificationType.isNotEmpty) {
+      if (notificationType.contains('leave_request')) {
+        notificationTitle = 'Leave Request';
+        notificationBody = notificationBody.isEmpty ? (message.data['message']?.toString() ?? 'New leave request received') : notificationBody;
+      } else if (notificationType.contains('leave_approved') || notificationType.contains('approved')) {
+        notificationTitle = 'Leave Approved';
+        notificationBody = notificationBody.isEmpty ? (message.data['message']?.toString() ?? 'Your leave request has been approved') : notificationBody;
+      } else if (notificationType.contains('leave_rejected') || notificationType.contains('rejected')) {
+        notificationTitle = 'Leave Rejected';
+        notificationBody = notificationBody.isEmpty ? (message.data['message']?.toString() ?? 'Your leave request has been rejected') : notificationBody;
+      }
+    }
+    
+    // Create a unique identifier that includes messageId + notification type + content
+    // CRITICAL: For Android, ensure each notification gets a truly unique ID
+    // For iOS, use messageId (Firebase ensures uniqueness)
+    final baseMessageId = message.messageId ?? '';
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+    
+    // Increment counter for each notification to ensure uniqueness (especially for rapid notifications on Android)
+    _notificationCounter++;
+    
+    // For Android: Use counter + timestamp + type + messageId to ensure each notification is unique
+    // This ensures that even if two notifications arrive quickly with same type, they're treated as different
+    // For iOS: Use messageId + type (Firebase ensures unique messageIds, so this is sufficient)
+    final uniqueId = isAndroid
+        ? '${baseMessageId}_${notificationType}_${timestamp}_${_notificationCounter}_${notificationTitle.hashCode}_${notificationBody.hashCode}'
+        : (baseMessageId.isNotEmpty 
+            ? '${baseMessageId}_${notificationType}'
+            : '${timestamp}_${notificationType}');
+    
+    if (_processedMessageIds.contains(uniqueId)) {
       if (kDebugMode) {
-        debugPrint('⚠️ [FOREGROUND] Message already processed, skipping: $messageId');
+        debugPrint('⚠️ [FOREGROUND] Message already processed, skipping: $uniqueId');
+        debugPrint('⚠️ [FOREGROUND] Original messageId: ${message.messageId}');
+        debugPrint('⚠️ [FOREGROUND] Type: $notificationType, Title: $notificationTitle, Body: $notificationBody');
+        debugPrint('⚠️ [FOREGROUND] Counter: $_notificationCounter, Timestamp: $timestamp');
       }
       return;
     }
-    _processedMessageIds.add(messageId);
     
-    // Clean up old message IDs (keep only last 100)
-    if (_processedMessageIds.length > 100) {
-      _processedMessageIds.remove(_processedMessageIds.first);
+    _processedMessageIds.add(uniqueId);
+    
+    // Clean up old message IDs (keep only last 200 to handle rapid notifications)
+    if (_processedMessageIds.length > 200) {
+      final idsToRemove = _processedMessageIds.take(50).toList();
+      for (final id in idsToRemove) {
+        _processedMessageIds.remove(id);
+      }
     }
     
     if (kDebugMode) {
-      debugPrint('📨 [FOREGROUND] Message received: $messageId');
+      debugPrint('📨 [FOREGROUND] Message received - uniqueId: $uniqueId');
+      debugPrint('📨 [FOREGROUND] Original messageId: ${message.messageId}');
       debugPrint('📨 [FOREGROUND] Has notification: ${message.notification != null}');
       debugPrint('📨 [FOREGROUND] Data: ${message.data}');
       debugPrint('📨 [FOREGROUND] Notification title: ${message.notification?.title}');
@@ -387,57 +525,128 @@ void _listenForForegroundMessages() {
     RemoteNotification? notification = message.notification;
     
     // On iOS foreground, FCM might strip the notification block, so check data as fallback
+    // On Android, we ALWAYS show local notification manually (Firebase doesn't show foreground notifications automatically)
     if (notification != null) {
       if (kDebugMode) {
         debugPrint('📨 [FOREGROUND] Notification block present');
         debugPrint('📨 [FOREGROUND] Title: ${notification.title}, Body: ${notification.body}');
+        debugPrint('📨 [FOREGROUND] Platform: ${isIOS ? "iOS" : "Android"}');
+        debugPrint('📨 [FOREGROUND] Has data: ${message.data.isNotEmpty}');
+        debugPrint('📨 [FOREGROUND] Notification type from data: $notificationType');
       }
       
       _extractAndStoreOTP(notification.body ?? '', message.data);
       
-      // On iOS: Firebase shows automatically (we set alert: true)
-      // On Android: We show local notification manually
+      // On iOS: Firebase shows automatically (we set alert: true in main.dart)
+      // On Android: We MUST show local notification manually - Firebase doesn't show foreground notifications
       if (!isIOS) {
-        // Only show local notification on Android
-        if (kDebugMode) {
-          debugPrint('📨 [FOREGROUND] Showing local notification on Android');
-        }
-        try {
-          await _showForegroundNotification(notification, message.data);
+        // Android: ALWAYS show local notification manually - use await to ensure it's displayed
+        // Check if we need to enhance the notification with data payload info (for approve/reject)
+        RemoteNotification notificationToShow = notification;
+        
+        // If notification type is in data, always use the enhanced title/body from data payload
+        // This ensures approve/reject notifications show properly even if notification block has generic content
+        if (notificationType.isNotEmpty) {
+          // Use enhanced title/body from data payload (already extracted at the top)
+          String enhancedTitle = notificationTitle.isNotEmpty ? notificationTitle : (notification.title ?? 'NANO Work');
+          String enhancedBody = notificationBody.isNotEmpty ? notificationBody : (notification.body ?? '');
+          
           if (kDebugMode) {
-            debugPrint('📨 [FOREGROUND] Local notification shown successfully');
+            debugPrint('📨 [FOREGROUND] Android - Notification type detected: $notificationType');
+            debugPrint('📨 [FOREGROUND] Android - Enhancing notification with data payload');
+            debugPrint('📨 [FOREGROUND] Android - Original title: ${notification.title}');
+            debugPrint('📨 [FOREGROUND] Android - Enhanced title: $enhancedTitle');
+            debugPrint('📨 [FOREGROUND] Android - Original body: ${notification.body}');
+            debugPrint('📨 [FOREGROUND] Android - Enhanced body: $enhancedBody');
+          }
+          
+          notificationToShow = RemoteNotification(
+            title: enhancedTitle,
+            body: enhancedBody,
+            android: notification.android,
+            apple: notification.apple,
+          );
+        }
+        
+        if (kDebugMode) {
+          debugPrint('📨 [FOREGROUND] Android - Calling _showForegroundNotification()');
+          debugPrint('📨 [FOREGROUND] Android - Final title: ${notificationToShow.title}');
+          debugPrint('📨 [FOREGROUND] Android - Final body: ${notificationToShow.body}');
+        }
+        // Generate unique notification ID using counter to prevent collisions
+        final notificationId = (_notificationCounter * 1000 + timestamp.remainder(1000)).remainder(1 << 31);
+        
+        try {
+          await _showForegroundNotification(notificationToShow, message.data, notificationId: notificationId);
+          if (kDebugMode) {
+            debugPrint('✅ [FOREGROUND] Android - Local notification shown successfully');
+            debugPrint('✅ [FOREGROUND] Android - Notification ID: $notificationId');
           }
         } catch (e, stackTrace) {
           if (kDebugMode) {
-            debugPrint('❌ [FOREGROUND] Error showing notification: $e');
-            debugPrint('❌ [FOREGROUND] Stack trace: $stackTrace');
+            debugPrint('❌ [FOREGROUND] Android - Error showing notification: $e');
+            debugPrint('❌ [FOREGROUND] Android - Stack trace: $stackTrace');
           }
         }
       } else {
+        // iOS: Firebase shows automatically (we set alert: true in main.dart)
+        // Don't show local notification to avoid duplicates
         if (kDebugMode) {
-          debugPrint('📨 [FOREGROUND] iOS - Firebase will show banner automatically');
+          debugPrint('📨 [FOREGROUND] iOS - Firebase will show banner automatically (no local notification to avoid duplicates)');
         }
       }
     } 
     // Fallback: If notification block is missing (common on iOS foreground), extract from data
+    // This is important for Android when backend sends data-only payloads (e.g., leave_rejected, leave_approved)
     else if (message.data.isNotEmpty) {
       if (kDebugMode) {
         debugPrint('📨 [FOREGROUND] Processing data-only message');
+        debugPrint('📨 [FOREGROUND] Data keys: ${message.data.keys.toList()}');
       }
      
       // Try multiple possible keys for title and body in data payload
-      final title = message.data['title']?.toString() ?? 
+      String? title;
+      String? body;
+      
+      // Check for leave-related notification types
+      final notificationType = message.data['type']?.toString() ?? 
+                              message.data['notification_type']?.toString() ??
+                              message.data['action']?.toString();
+      
+      if (kDebugMode) {
+        debugPrint('📨 [FOREGROUND] Notification type: $notificationType');
+      }
+      
+      // Extract title and body from various possible keys
+      title = message.data['title']?.toString() ?? 
                    message.data['notification']?['title']?.toString() ?? 
                    message.data['aps']?['alert']?['title']?.toString() ??
-                   message.data['notification']?['title']?.toString() ??
-                   message.data['notification_title']?.toString() ??
-                   'NANO Work';
-      final body = message.data['body']?.toString() ?? 
+              message.data['notification_title']?.toString();
+      
+      body = message.data['body']?.toString() ?? 
                   message.data['message']?.toString() ?? 
                   message.data['notification']?['body']?.toString() ?? 
                   message.data['aps']?['alert']?['body']?.toString() ??
-                  message.data['notification_body']?.toString() ??
-                  'New notification';
+             message.data['notification_body']?.toString() ??
+             message.data['text']?.toString();
+      
+      // For leave notifications, construct meaningful messages if title/body are missing
+      if ((title == null || title.isEmpty) && notificationType != null) {
+        if (notificationType.contains('leave_request')) {
+          title = 'Leave Request';
+          body = body ?? message.data['message']?.toString() ?? 'New leave request received';
+        } else if (notificationType.contains('leave_approved') || notificationType.contains('approved')) {
+          title = 'Leave Approved';
+          body = body ?? message.data['message']?.toString() ?? 'Your leave request has been approved';
+        } else if (notificationType.contains('leave_rejected') || notificationType.contains('rejected')) {
+          title = 'Leave Rejected';
+          body = body ?? message.data['message']?.toString() ?? 'Your leave request has been rejected';
+        }
+      }
+      
+      // Default fallback
+      title = title ?? 'NANO Work';
+      body = body ?? 'New notification';
       
       if (kDebugMode) {
         debugPrint('📨 [FOREGROUND] Extracted title: $title');
@@ -446,8 +655,9 @@ void _listenForForegroundMessages() {
      
       _extractAndStoreOTP(body, message.data);
       
-     
-      if (title != 'NANO Work' || body != 'New notification') {
+      // Always show notification if we have meaningful content (not default values)
+      // This ensures leave_rejected and leave_approved are shown on Android
+      if (title != 'NANO Work' || body != 'New notification' || notificationType != null) {
         final dataNotification = RemoteNotification(
           title: title,
           body: body,
@@ -457,23 +667,43 @@ void _listenForForegroundMessages() {
         
         if (kDebugMode) {
           debugPrint('📨 [FOREGROUND] Showing data-only notification');
+          debugPrint('📨 [FOREGROUND] Title: $title, Body: $body, Type: $notificationType');
         }
         
-        // Show notification on both iOS and Android
-        try {
-          await _showForegroundNotification(dataNotification, message.data);
+             // On Android: Always show data-only notifications
+             // On iOS: Firebase shows automatically, don't show local to avoid duplicates
+             if (!isIOS) {
+               // Android: Always show local notification for data-only messages
+               // Generate unique notification ID using counter to prevent collisions
+               final notificationId = (_notificationCounter * 1000 + timestamp.remainder(1000)).remainder(1 << 31);
+               
+               if (kDebugMode) {
+                 debugPrint('📨 [FOREGROUND] Android - Calling _showForegroundNotification() for data-only');
+                 debugPrint('📨 [FOREGROUND] Android - Notification ID: $notificationId');
+               }
+               try {
+                 await _showForegroundNotification(dataNotification, message.data, notificationId: notificationId);
+                 if (kDebugMode) {
+                   debugPrint('✅ [FOREGROUND] Android - Data-only notification shown successfully');
+                 }
+               } catch (e, stackTrace) {
+                 if (kDebugMode) {
+                   debugPrint('❌ [FOREGROUND] Android - Error showing data-only notification: $e');
+                   debugPrint('❌ [FOREGROUND] Android - Stack trace: $stackTrace');
+                 }
+               }
+             } else {
+          // iOS: Firebase shows automatically (we set alert: true in main.dart)
+          // NEVER show local notification for iOS to avoid duplicates
+          // Firebase handles all iOS foreground notifications automatically
           if (kDebugMode) {
-            debugPrint('📨 [FOREGROUND] Data-only notification shown successfully');
-          }
-        } catch (e, stackTrace) {
-          if (kDebugMode) {
-            debugPrint('❌ [FOREGROUND] Error showing data-only notification: $e');
-            debugPrint('❌ [FOREGROUND] Stack trace: $stackTrace');
+            debugPrint('📨 [FOREGROUND] iOS - Firebase will show banner automatically');
+            debugPrint('📨 [FOREGROUND] iOS - NOT showing local notification to prevent duplicates');
           }
         }
       } else {
         if (kDebugMode) {
-          debugPrint('⚠️ [FOREGROUND] Skipping notification - default title/body');
+          debugPrint('⚠️ [FOREGROUND] Skipping notification - default title/body and no notification type');
         }
       }
     } else {
@@ -680,7 +910,15 @@ void _listenForForegroundMessages() {
       final androidPlugin =
           _localNotificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
-      await androidPlugin?.createNotificationChannel(_foregroundChannel);
+      if (androidPlugin != null) {
+        // Create high importance channel (required by Firebase/Google Play)
+        await androidPlugin.createNotificationChannel(_highImportanceChannel);
+        // Create foreground channel for in-app notifications
+        await androidPlugin.createNotificationChannel(_foregroundChannel);
+        if (kDebugMode) {
+          debugPrint('🔔 [INIT] Created Android notification channels: high_importance_channel, nano_hr_foreground');
+        }
+      }
 
       _localNotificationsInitialized = true;
       
@@ -693,10 +931,16 @@ void _listenForForegroundMessages() {
 
   Future<void> _showForegroundNotification(
     RemoteNotification notification,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    int? notificationId,
+  }) async {
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
     if (kDebugMode) {
-      debugPrint('🔔 [SHOW] Starting to show notification: ${notification.title} - ${notification.body}');
+      debugPrint('🔔 [SHOW] ===== STARTING _showForegroundNotification() =====');
+      debugPrint('🔔 [SHOW] Platform: ${isAndroid ? "Android" : "iOS"}');
+      debugPrint('🔔 [SHOW] Title: ${notification.title}');
+      debugPrint('🔔 [SHOW] Body: ${notification.body}');
+      debugPrint('🔔 [SHOW] Data: $data');
     }
 
     if (!_localNotificationsInitialized) {
@@ -742,7 +986,7 @@ void _listenForForegroundMessages() {
             if (kDebugMode) {
               debugPrint('❌ [SHOW] iOS permissions not granted');
             }
-            return;
+      return;
           }
         } else {
           if (kDebugMode) {
@@ -751,24 +995,103 @@ void _listenForForegroundMessages() {
         }
       }
 
-      // Ensure Android channel exists
-      final androidPlugin = _localNotificationsPlugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      if (androidPlugin != null) {
-        if (kDebugMode) {
-          debugPrint('🔔 [SHOW] Creating Android notification channel...');
+      // For Android: Check permissions and ensure channel is ready
+      if (!isIOS) {
+        // Check Android notification permission (Android 13+)
+        bool permissionGranted = true;
+        try {
+          final permissionStatus = await Permission.notification.status;
+          if (kDebugMode) {
+            debugPrint('🔔 [SHOW] Android notification permission status: $permissionStatus');
+          }
+          
+          if (permissionStatus.isDenied) {
+            if (kDebugMode) {
+              debugPrint('⚠️ [SHOW] Android notification permission denied, requesting...');
+            }
+            final result = await Permission.notification.request();
+            if (kDebugMode) {
+              debugPrint('🔔 [SHOW] Android notification permission request result: $result');
+            }
+            if (result.isDenied || result.isPermanentlyDenied) {
+              if (kDebugMode) {
+                debugPrint('❌ [SHOW] Android notification permission not granted, cannot show notification');
+              }
+              permissionGranted = false;
+            } else {
+              permissionGranted = true;
+            }
+          } else if (permissionStatus.isPermanentlyDenied) {
+            if (kDebugMode) {
+              debugPrint('❌ [SHOW] Android notification permission permanently denied');
+            }
+            permissionGranted = false;
+          } else {
+            permissionGranted = true;
+          }
+        } catch (e) {
+          // On Android 12 and below, proceed without permission check
+          if (kDebugMode) {
+            debugPrint('✅ [SHOW] Android < 13, proceeding without permission check: $e');
+          }
+          permissionGranted = true; // Assume granted for Android < 13
         }
-        await androidPlugin.createNotificationChannel(_foregroundChannel);
+        
+        if (!permissionGranted) {
+          if (kDebugMode) {
+            debugPrint('❌ [SHOW] Cannot show notification - permission not granted');
+          }
+          return;
+        }
+        
+        // Ensure Android channels exist and are properly configured
+        final androidPlugin = _localNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        if (androidPlugin != null) {
+          if (kDebugMode) {
+            debugPrint('🔔 [SHOW] Ensuring Android notification channels exist...');
+          }
+          try {
+            // Create high importance channel (required by Firebase/Google Play)
+            await androidPlugin.createNotificationChannel(_highImportanceChannel);
+            // Create foreground channel for in-app notifications
+            await androidPlugin.createNotificationChannel(_foregroundChannel);
+            if (kDebugMode) {
+              debugPrint('✅ [SHOW] Android notification channels ready');
+              debugPrint('🔔 [SHOW] High importance channel: ${_highImportanceChannel.id}');
+              debugPrint('🔔 [SHOW] Foreground channel: ${_foregroundChannel.id}');
+            }
+          } catch (e) {
+            if (kDebugMode) {
+              debugPrint('⚠️ [SHOW] Error creating channels (might already exist): $e');
+            }
+            // Continue anyway - channels might already exist
+          }
+        } else {
+          if (kDebugMode) {
+            debugPrint('❌ [SHOW] Android plugin not available!');
+          }
+          return;
+        }
       }
 
+      // Use high_importance_channel for Android (required by Firebase/Google Play)
+      // This matches the channel ID in AndroidManifest.xml
       final androidDetails = AndroidNotificationDetails(
-        _foregroundChannel.id,
-        _foregroundChannel.name,
-        channelDescription: _foregroundChannel.description,
-        importance: Importance.high,
-        priority: Priority.high,
+        _highImportanceChannel.id, // Use high_importance_channel instead of _foregroundChannel
+        _highImportanceChannel.name,
+        channelDescription: _highImportanceChannel.description,
+        importance: Importance.max, // Max importance for immediate display
+        priority: Priority.max, // Max priority to show immediately
+        showWhen: true,
+        enableVibration: true,
+        playSound: true,
         icon: _androidNotificationIcon,
         largeIcon: const DrawableResourceAndroidBitmap('nano_notification'),
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.message,
+        autoCancel: true,
+        ongoing: false,
       );
 
       // iOS notification details with banner presentation
@@ -780,12 +1103,19 @@ void _listenForForegroundMessages() {
         interruptionLevel: InterruptionLevel.active,
       );
 
-      final notificationId = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
+      // Use provided notificationId or generate a unique one
+      // This ensures each notification gets a unique ID, preventing one from replacing another
+      final finalNotificationId = notificationId ?? DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
       final title = notification.title ?? 'NANO Work';
       final body = notification.body ?? '';
 
       if (kDebugMode) {
-        debugPrint('🔔 [SHOW] Showing notification - ID: $notificationId, Title: $title, Body: $body');
+        debugPrint('🔔 [SHOW] About to call _localNotificationsPlugin.show()');
+        debugPrint('🔔 [SHOW] Notification ID: $finalNotificationId');
+        debugPrint('🔔 [SHOW] Title: $title');
+        debugPrint('🔔 [SHOW] Body: $body');
+        debugPrint('🔔 [SHOW] Platform: ${isIOS ? "iOS" : "Android"}');
+        debugPrint('🔔 [SHOW] Channel ID: ${isIOS ? "iOS" : _highImportanceChannel.id}');
       }
 
       // For iOS, we need to ensure the notification is shown as a banner
@@ -802,8 +1132,24 @@ void _listenForForegroundMessages() {
         }
       }
 
+      if (kDebugMode) {
+        debugPrint('🔔 [SHOW] Calling _localNotificationsPlugin.show() NOW');
+        debugPrint('🔔 [SHOW] Platform: ${isIOS ? "iOS" : "Android"}');
+        debugPrint('🔔 [SHOW] Notification ID: $finalNotificationId');
+      }
+
+      // Show notification - this is the critical call
+      if (kDebugMode) {
+        debugPrint('🔔 [SHOW] EXECUTING _localNotificationsPlugin.show() NOW');
+        if (!isIOS) {
+          debugPrint('🔔 [SHOW] Channel ID: ${_highImportanceChannel.id}');
+        }
+        debugPrint('🔔 [SHOW] Importance: ${androidDetails.importance}');
+        debugPrint('🔔 [SHOW] Priority: ${androidDetails.priority}');
+      }
+
       await _localNotificationsPlugin.show(
-        notificationId,
+        finalNotificationId,
         title,
         body,
         NotificationDetails(android: androidDetails, iOS: iosDetails),
@@ -811,13 +1157,20 @@ void _listenForForegroundMessages() {
       );
 
       if (kDebugMode) {
-        debugPrint('✅ [SHOW] Notification shown successfully');
+        debugPrint('✅ [SHOW] ===== Notification shown successfully =====');
+        debugPrint('✅ [SHOW] Platform: ${isIOS ? "iOS" : "Android"}');
+        debugPrint('✅ [SHOW] Notification ID: $finalNotificationId');
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('❌ [SHOW] Error showing notification: $e');
+        debugPrint('❌ [SHOW] ===== ERROR showing notification =====');
+        debugPrint('❌ [SHOW] Error: $e');
+        debugPrint('❌ [SHOW] Error type: ${e.runtimeType}');
         debugPrint('❌ [SHOW] Stack trace: $stackTrace');
+        debugPrint('❌ [SHOW] Platform: ${defaultTargetPlatform == TargetPlatform.android ? "Android" : "iOS"}');
       }
+      // Re-throw to see the error in logs
+      rethrow;
     }
   }
 }

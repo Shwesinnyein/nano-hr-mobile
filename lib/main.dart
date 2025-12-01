@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -44,9 +45,21 @@ Future<void> _ensureBackgroundNotificationsInitialized() async {
   final androidPlugin =
       _backgroundNotificationsPlugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
-  await androidPlugin?.createNotificationChannel(
-    _backgroundNotificationChannel,
-  );
+  if (androidPlugin != null) {
+    // Create high importance channel (required by Firebase/Google Play)
+    const highImportanceChannel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
+      description: 'Used for essential notifications.',
+      importance: Importance.max,
+      showBadge: true,
+      enableVibration: true,
+      playSound: true,
+    );
+    await androidPlugin.createNotificationChannel(highImportanceChannel);
+    // Create foreground channel for background notifications
+    await androidPlugin.createNotificationChannel(_backgroundNotificationChannel);
+  }
 
   _backgroundNotificationsInitialized = true;
 }
@@ -58,22 +71,70 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final notification = message.notification;
   final data = message.data;
 
-  final title = notification?.title ?? data['title']?.toString();
-  final body = notification?.body ?? data['body']?.toString();
+  // Extract title and body from notification or data payload
+  String? title;
+  String? body;
+  
+  if (notification != null) {
+    title = notification.title;
+    body = notification.body;
+  } else if (data.isNotEmpty) {
+    // Try multiple possible keys for title and body in data payload
+    title = data['title']?.toString() ?? 
+            data['notification']?['title']?.toString() ?? 
+            data['notification_title']?.toString();
+    
+    body = data['body']?.toString() ?? 
+           data['message']?.toString() ?? 
+           data['notification']?['body']?.toString() ?? 
+           data['notification_body']?.toString() ??
+           data['text']?.toString();
+    
+    // Check for leave-related notification types
+    final notificationType = data['type']?.toString() ?? 
+                            data['notification_type']?.toString() ??
+                            data['action']?.toString();
+    
+    // For leave notifications, construct meaningful messages if title/body are missing
+    if ((title == null || title.isEmpty) && notificationType != null) {
+      if (notificationType.contains('leave_request')) {
+        title = 'Leave Request';
+        body = body ?? data['message']?.toString() ?? 'New leave request received';
+      } else if (notificationType.contains('leave_approved') || notificationType.contains('approved')) {
+        title = 'Leave Approved';
+        body = body ?? data['message']?.toString() ?? 'Your leave request has been approved';
+      } else if (notificationType.contains('leave_rejected') || notificationType.contains('rejected')) {
+        title = 'Leave Rejected';
+        body = body ?? data['message']?.toString() ?? 'Your leave request has been rejected';
+      }
+    }
+  }
 
-  if (title == null && body == null) {
+  // Default fallback
+  title = title ?? 'NANO Work';
+  body = body ?? 'New notification';
+
+  if (title == 'NANO Work' && body == 'New notification' && data.isEmpty) {
     return;
   }
 
   await _ensureBackgroundNotificationsInitialized();
 
+  // Use high_importance_channel for background notifications (required by Firebase/Google Play)
   const androidDetails = AndroidNotificationDetails(
-    'nano_hr_foreground',
-    'In-app notifications',
-    channelDescription: 'Notifications displayed while the app is open',
-    importance: Importance.max,
-    priority: Priority.high,
+    'high_importance_channel', // Use the channel defined in AndroidManifest
+    'High Importance Notifications',
+    channelDescription: 'Used for essential notifications.',
+    importance: Importance.max, // Max importance for immediate display
+    priority: Priority.max, // Max priority for immediate display
+    showWhen: true,
+    enableVibration: true,
+    playSound: true,
     icon: '@drawable/nano_notification',
+    visibility: NotificationVisibility.public,
+    category: AndroidNotificationCategory.message,
+    autoCancel: true,
+    ongoing: false,
   );
 
   const iosDetails = DarwinNotificationDetails(
@@ -108,12 +169,16 @@ void main() async {
     );
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     // Enable iOS foreground presentation to show banners
-    await FirebaseMessaging.instance
-        .setForegroundNotificationPresentationOptions(
-          alert: true,  // Show banner/alert
-          badge: true,  // Update badge
-          sound: true,  // Play sound
-        );
+    // NOTE: This is also set in PushNotificationService, but we set it here too for safety
+    // On Android, this setting has no effect - we use local notifications manually
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: true,  // Show banner/alert
+            badge: true,  // Update badge
+            sound: true,  // Play sound
+          );
+    }
 
   } catch (e) {
     // Firebase initialization error handled silently
