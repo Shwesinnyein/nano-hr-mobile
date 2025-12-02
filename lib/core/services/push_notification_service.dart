@@ -447,10 +447,13 @@ void _listenForForegroundMessages() {
                              message.data['action']?.toString() ?? '';
     
     // Get title and body from notification block or data payload
+    // Priority: notification block > data['title']/data['body'] > data['notification_title']/data['notification_body'] > data['message']
     String notificationTitle = message.notification?.title ?? 
-                               message.data['title']?.toString() ?? '';
+                               message.data['title']?.toString() ??
+                               message.data['notification_title']?.toString() ?? '';
     String notificationBody = message.notification?.body ?? 
                               message.data['body']?.toString() ?? 
+                              message.data['notification_body']?.toString() ??
                               message.data['message']?.toString() ?? '';
     
     // For leave notifications, construct meaningful titles if missing
