@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
+    <!-- Push notification permissions -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
     <application
         android:label="NANO Work"
         android:name="${applicationName}"
@@ -11,9 +15,22 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/nano_notification" />
-        <meta-data
+        <!-- REMOVED: default_notification_channel_id to prevent Android from auto-showing notifications -->
+        <!-- We show notifications manually in Flutter to have full control and prevent duplicates -->
+        <!-- <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="high_importance_channel" />
+            android:value="high_importance_channel" /> -->
+        
+        <!-- Native Firebase Messaging Service - catches ALL notifications, even when app is paused -->
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
         <activity
             android:name="com.nano.hr.MainActivity"
             android:exported="true"

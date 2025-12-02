@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class BranchLocation {
   final String branchId;
@@ -15,10 +16,19 @@ class BranchLocation {
 }
 
 class BranchLocationService {
-  static const double maxBranchRadius = 0.065; 
-  static const double gpsTolerance = 0.0;
+  static const double maxBranchRadius = 0.07; // ~7km radius
+  
+  static double get gpsTolerance {
+   
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 0.015; // ~1.5km tolerance for Android
+    } else {
+      return 0.005; // ~500m tolerance for iOS (more accurate)
+    }
+  }
 
   static final List<BranchLocation> branches = [
+
     BranchLocation(
       branchId: '001',
       branchName: '001 Branch',
@@ -26,6 +36,14 @@ class BranchLocationService {
       longitude: 98.3354308362058,
       
     
+    ),
+    BranchLocation(
+      branchId: 'office',
+      branchName: 'Office',
+      latitude: 13.636352033946068, 
+      longitude: 100.61196970051486,
+      
+      
     ),
     BranchLocation(
       branchId: '002',

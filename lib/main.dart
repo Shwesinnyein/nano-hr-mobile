@@ -66,6 +66,12 @@ Future<void> _ensureBackgroundNotificationsInitialized() async {
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // STEP 4: Background handler - must be top-level function
+  debugPrint('🔔 [BACKGROUND] Background handler called');
+  debugPrint('🔔 [BACKGROUND] MessageId: ${message.messageId}');
+  debugPrint('🔔 [BACKGROUND] Has notification: ${message.notification != null}');
+  debugPrint('🔔 [BACKGROUND] Data: ${message.data}');
+  
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final notification = message.notification;
@@ -164,10 +170,18 @@ void main() async {
   ]);
 
   try {
+    // STEP 1: Initialize Firebase FIRST
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // STEP 4: Register background handler - CRITICAL for Android background notifications
+    // Must be registered before runApp() - Android needs this isolate ready
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    if (kDebugMode) {
+      debugPrint('✅ [MAIN] Background message handler registered');
+    }
+    
     // Enable iOS foreground presentation to show banners
     // NOTE: This is also set in PushNotificationService, but we set it here too for safety
     // On Android, this setting has no effect - we use local notifications manually
@@ -178,10 +192,16 @@ void main() async {
             badge: true,  // Update badge
             sound: true,  // Play sound
           );
+      if (kDebugMode) {
+        debugPrint('✅ [MAIN] iOS foreground presentation enabled');
+      }
     }
 
   } catch (e) {
-    // Firebase initialization error handled silently
+    if (kDebugMode) {
+      debugPrint('❌ [MAIN] Firebase initialization error: $e');
+    }
+    // Continue even if Firebase init fails - app should still work
   }
 
   FlutterError.onError = (FlutterErrorDetails details) {
