@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/file_utils.dart';
@@ -46,6 +49,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   bool _isLoadingShift = false;
   String? _remainingDaysHours; 
   bool _remainingLoaded = false;
+  String? _description;
 
   Future<void> _loadShiftByDate(String date) async {
     setState(() {
@@ -224,21 +228,14 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                     color: AppTheme.kNanoWhite,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  LeaveTranslations.leaveRequestTitle(ref),
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.kNanoWhite.withOpacity(0.8),
-                  ),
-                ),
-                if (_remainingDaysHours != null && _remainingDaysHours!.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                if (_description != null && _description!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
                   Text(
-                    _remainingDaysHours!,
+                    _description!,
                     style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.kNanoWhite.withOpacity(0.95),
+                      fontSize: 14,
+                      color: AppTheme.kNanoWhite.withOpacity(0.9),
+                      height: 1.5,
                     ),
                   ),
                 ],
@@ -261,6 +258,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       if (mounted) {
         setState(() {
           _remainingDaysHours = target.remainingDaysHours;
+          _description = target.description;
         });
       }
     } catch (_) {}
@@ -1084,20 +1082,71 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   void _pickImage(ImageSource source) async {
     try {
+      // Check and request permissions
+      PermissionStatus permissionStatus;
+      if (source == ImageSource.camera) {
+        permissionStatus = await Permission.camera.request();
+        if (!permissionStatus.isGranted) {
+          if (permissionStatus.isPermanentlyDenied) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(LeaveTranslations.cameraPermissionDenied(ref)),
+                action: SnackBarAction(
+                  label: 'Settings',
+                  onPressed: () => openAppSettings(),
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(LeaveTranslations.cameraPermissionRequired(ref)),
+              ),
+            );
+          }
+          return;
+        }
+      } else {
+        permissionStatus = await Permission.photos.request();
+        if (!permissionStatus.isGranted) {
+          if (permissionStatus.isPermanentlyDenied) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(LeaveTranslations.galleryPermissionDenied(ref)),
+                action: SnackBarAction(
+                  label: 'Settings',
+                  onPressed: () => openAppSettings(),
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(LeaveTranslations.galleryPermissionRequired(ref)),
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       final ImagePicker picker = ImagePicker();
-      final XFile? pickedFile = await picker.pickImage(source: source);
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1080,
+      );
 
       if (pickedFile != null) {
         final File file = File(pickedFile.path);
-
         await _addAttachment(file);
-      } else {
-      
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${LeaveTranslations.errorPickingImage(ref)}: $e'),
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     }
@@ -1113,14 +1162,41 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Upload to Firebase Storage
+      String? firebaseUrl;
+      try {
+        firebaseUrl = await _uploadToFirebaseStorage(file);
+      } catch (e) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${LeaveTranslations.errorUploadingImage(ref)}: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+
+      Navigator.pop(context); // Close loading dialog
+
       final AttachmentModel attachment = AttachmentModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         fileName: file.path.split('/').last,
         localPath: file.path,
+        firebaseUrl: firebaseUrl,
         fileType: FileUtils.getFileExtension(file.path.split('/').last),
         fileSizeMB: fileSizeMB,
         createdAt: DateTime.now(),
-        isUploaded: false,
+        isUploaded: firebaseUrl != null,
       );
 
       setState(() {
@@ -1136,6 +1212,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         ),
       );
     } catch (e) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context); // Close loading dialog if still open
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1144,6 +1223,40 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           backgroundColor: AppTheme.errorColor,
         ),
       );
+    }
+  }
+
+  Future<String?> _uploadToFirebaseStorage(File file) async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final employeeId = authService.currentEmployeeId;
+      
+      if (employeeId == null) {
+        throw Exception('User not logged in');
+      }
+
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final fileName = 'leave_attachments/${employeeId}_$timestamp.${file.path.split('.').last}';
+      
+      final storageRef = FirebaseStorage.instance.ref().child(fileName);
+      
+      final uploadTask = storageRef.putFile(
+        file,
+        SettableMetadata(
+          contentType: 'image/${file.path.split('.').last}',
+          customMetadata: {
+            'employeeId': employeeId,
+            'uploadedAt': DateTime.now().toIso8601String(),
+          },
+        ),
+      );
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Failed to upload to Firebase Storage: $e');
     }
   }
 
