@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="Nano Wok">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-11-28T06:31:11.834618Z">
+        <DropdownSelection timestamp="2025-12-02T07:32:05.390630Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=R58N219ZEMR" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/shwesin/.android/avd/Medium_Phone.avd" />
             </handle>
           </Target>
         </DropdownSelection>

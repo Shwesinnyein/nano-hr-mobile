@@ -216,6 +216,18 @@ class LeaveTranslations {
   static String imageAdded(WidgetRef ref) =>
       ref.t('เพิ่มรูปภาพเรียบร้อยแล้ว', 'Image added');
 
+  static String imageUploadedSuccessfully(WidgetRef ref) =>
+      ref.t('อัปโหลดรูปภาพสำเร็จ', 'Image uploaded successfully');
+
+  static String errorLoadingImage(WidgetRef ref) =>
+      ref.t('ไม่สามารถโหลดรูปภาพ', 'Failed to load image');
+
+  static String maxImagesReached(WidgetRef ref, int max) =>
+      ref.t(
+        'อัปโหลดรูปภาพได้สูงสุด $max รูป',
+        'Maximum $max images allowed',
+      );
+
   static String errorAddingImage(WidgetRef ref) =>
       ref.t('เกิดข้อผิดพลาดในการเพิ่มรูปภาพ', 'Error adding image');
 
@@ -263,6 +275,21 @@ class LeaveTranslations {
 
   static String leaveRequestTitle(WidgetRef ref) =>
       ref.t('คำขอลา', 'Leave Request');
+
+  static String cameraPermissionRequired(WidgetRef ref) =>
+      ref.t('ต้องการสิทธิ์ในการเข้าถึงกล้อง', 'Camera permission is required');
+
+  static String cameraPermissionDenied(WidgetRef ref) =>
+      ref.t('สิทธิ์ในการเข้าถึงกล้องถูกปฏิเสธ กรุณาเปิดในตั้งค่า', 'Camera permission denied. Please enable in settings');
+
+  static String galleryPermissionRequired(WidgetRef ref) =>
+      ref.t('ต้องการสิทธิ์ในการเข้าถึงแกลเลอรี', 'Gallery permission is required');
+
+  static String galleryPermissionDenied(WidgetRef ref) =>
+      ref.t('สิทธิ์ในการเข้าถึงแกลเลอรีถูกปฏิเสธ กรุณาเปิดในตั้งค่า', 'Gallery permission denied. Please enable in settings');
+
+  static String errorUploadingImage(WidgetRef ref) =>
+      ref.t('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ', 'Error uploading image');
 
   static String durationType(WidgetRef ref) =>
       ref.t('ประเภทระยะเวลา', 'Duration Type');

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:dio/dio.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/file_utils.dart';
@@ -45,6 +49,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
   TimeOfDay? _endTime;
   final _reason = TextEditingController();
   List<AttachmentModel> _attachments = [];
+  static const int _maxAttachments = 5; // Maximum number of images allowed
   Map<String, dynamic>? _shiftData; 
   bool _isLoadingShift = false;
   String? _remainingDaysHours; 
@@ -813,8 +818,13 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               ),
             ),
             Text(
-              '${_attachments.length}/1',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              '${_attachments.length}/$_maxAttachments',
+              style: TextStyle(
+                fontSize: 12,
+                color: _attachments.length >= _maxAttachments
+                    ? AppTheme.errorColor
+                    : Colors.grey[600],
+              ),
             ),
           ],
         ),
@@ -842,7 +852,19 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
         if (_attachments.isNotEmpty) ...[
           const SizedBox(height: 16),
-          ..._attachments.map((attachment) => _buildAttachmentItem(attachment)),
+          // Show all image previews
+          ..._attachments.asMap().entries.map((entry) {
+            final index = entry.key;
+            final attachment = entry.value;
+            return Column(
+              children: [
+                _buildImagePreview(attachment, index),
+                const SizedBox(height: 12),
+                _buildAttachmentItem(attachment),
+                if (index < _attachments.length - 1) const SizedBox(height: 16),
+              ],
+            );
+          }),
         ],
       ],
     );
@@ -853,15 +875,16 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     required String label,
     required VoidCallback onTap,
   }) {
+    final isDisabled = _attachments.length >= _maxAttachments;
     return GestureDetector(
-      onTap: _attachments.isNotEmpty ? null : onTap,
+      onTap: isDisabled ? null : onTap,
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: _attachments.isNotEmpty ? Colors.grey[100] : AppTheme.kSurface,
+          color: isDisabled ? Colors.grey[100] : AppTheme.kSurface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _attachments.isNotEmpty
+            color: isDisabled
                 ? Colors.grey.withOpacity(0.3)
                 : AppTheme.kNanoGold.withOpacity(0.3),
             width: 1.5,
@@ -872,7 +895,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
           children: [
             Icon(
               icon,
-              color: _attachments.isNotEmpty
+              color: isDisabled
                   ? Colors.grey[400]
                   : AppTheme.kNanoGold,
               size: 20,
@@ -883,12 +906,116 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: _attachments.isNotEmpty
+                color: isDisabled
                     ? Colors.grey[400]
                     : AppTheme.kNanoGold,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePreview(AttachmentModel attachment, int index) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImageViewer(index),
+      child: Container(
+        width: double.infinity,
+        height: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.kNanoGold.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: attachment.localPath.isNotEmpty
+            ? Image.file(
+                File(attachment.localPath),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.broken_image,
+                            size: 48,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            LeaveTranslations.errorLoadingImage(ref),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              )
+            : attachment.firebaseUrl != null
+                ? Image.network(
+                    attachment.firebaseUrl!,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.broken_image,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                LeaveTranslations.errorLoadingImage(ref),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: Icon(
+                        Icons.image,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                    ),
+                  ),
         ),
       ),
     );
@@ -969,6 +1096,17 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
             icon: Icon(Icons.close, color: AppTheme.errorColor, size: 20),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showFullScreenImageViewer(int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(
+          attachments: _attachments,
+          initialIndex: initialIndex,
+        ),
       ),
     );
   }
@@ -1082,67 +1220,88 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   void _pickImage(ImageSource source) async {
     try {
-      // Check and request permissions
-      PermissionStatus permissionStatus;
-      if (source == ImageSource.camera) {
-        permissionStatus = await Permission.camera.request();
-        if (!permissionStatus.isGranted) {
-          if (permissionStatus.isPermanentlyDenied) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(LeaveTranslations.cameraPermissionDenied(ref)),
-                action: SnackBarAction(
-                  label: 'Settings',
-                  onPressed: () => openAppSettings(),
+      // Let image_picker handle permission request automatically
+      // It will show the native system permission dialog
+      final ImagePicker picker = ImagePicker();
+      
+      if (source == ImageSource.gallery) {
+        // Allow multiple image selection from gallery
+        final List<XFile> pickedFiles = await picker.pickMultiImage(
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
+
+        if (pickedFiles.isNotEmpty) {
+          for (final pickedFile in pickedFiles) {
+            if (_attachments.length >= _maxAttachments) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    LeaveTranslations.maxImagesReached(ref, _maxAttachments),
+                  ),
+                  backgroundColor: AppTheme.errorColor,
                 ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(LeaveTranslations.cameraPermissionRequired(ref)),
-              ),
-            );
+              );
+              break;
+            }
+            final File file = File(pickedFile.path);
+            await _addAttachment(file);
           }
-          return;
         }
       } else {
-        permissionStatus = await Permission.photos.request();
-        if (!permissionStatus.isGranted) {
-          if (permissionStatus.isPermanentlyDenied) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(LeaveTranslations.galleryPermissionDenied(ref)),
-                action: SnackBarAction(
-                  label: 'Settings',
-                  onPressed: () => openAppSettings(),
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(LeaveTranslations.galleryPermissionRequired(ref)),
-              ),
-            );
-          }
-          return;
+        // Camera - single image at a time
+        final XFile? pickedFile = await picker.pickImage(
+          source: source,
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1080,
+        );
+
+        if (pickedFile != null) {
+          final File file = File(pickedFile.path);
+          await _addAttachment(file);
         }
       }
+    } on PlatformException catch (e) {
+      // Handle permission denied errors
+      if (e.code == 'photo_access_denied' || e.code == 'camera_access_denied') {
+        // Check if permission is permanently denied
+        PermissionStatus status;
+        if (source == ImageSource.camera) {
+          status = await Permission.camera.status;
+        } else {
+          status = await Permission.photos.status;
+        }
 
-      final ImagePicker picker = ImagePicker();
-      final XFile? pickedFile = await picker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1080,
-      );
-
-      if (pickedFile != null) {
-        final File file = File(pickedFile.path);
-        await _addAttachment(file);
+        if (status.isPermanentlyDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                source == ImageSource.camera
+                    ? LeaveTranslations.cameraPermissionDenied(ref)
+                    : LeaveTranslations.galleryPermissionDenied(ref),
+              ),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: () => openAppSettings(),
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        // If not permanently denied, the native dialog will show on next attempt
+      } else {
+        // Handle other PlatformException errors
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${LeaveTranslations.errorPickingImage(ref)}: ${e.message ?? e.toString()}'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
       }
     } catch (e) {
+      // Handle all other exceptions
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${LeaveTranslations.errorPickingImage(ref)}: $e'),
@@ -1154,6 +1313,19 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
   Future<void> _addAttachment(File file) async {
     try {
+      // Check if max attachments reached
+      if (_attachments.length >= _maxAttachments) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              LeaveTranslations.maxImagesReached(ref, _maxAttachments),
+            ),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        return;
+      }
+
       final double fileSizeMB = FileUtils.getFileSizeInMB(file);
       if (fileSizeMB > 10) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1205,10 +1377,9 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '${LeaveTranslations.imageAdded(ref)}: ${attachment.fileName}',
-          ),
+          content: Text(LeaveTranslations.imageUploadedSuccessfully(ref)),
           backgroundColor: AppTheme.successColor,
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
@@ -1358,7 +1529,10 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'reason': _reason.text.trim(),
         'isHalfDay': false,
         'halfDayType': 'morning', 
-        'attachments': [], 
+        'attachments': _attachments
+            .where((att) => att.firebaseUrl != null && att.firebaseUrl!.isNotEmpty)
+            .map((att) => att.firebaseUrl!)
+            .toList(), 
         'approvalLevel': approvalWorkflow['level'],
         'currentApprover': approvalWorkflow['currentApprover'],
         'approvalWorkflow': approvalWorkflow['workflow'],
@@ -1400,16 +1574,11 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         
       }
 
-     
-      final List<File> attachmentFiles = _attachments
-          .map((attachment) => File(attachment.localPath))
-          .toList();
-
       final leaveService = LeaveService();
-      final response = await leaveService.createLeaveRequestWithAttachments(
-        requestData,
-        attachmentFiles,
-      );
+      
+      // Since images are already uploaded to Firebase Storage, send URLs in requestData
+      // Use regular createLeaveRequest method (not with attachments)
+      final response = await leaveService.createLeaveRequest(requestData);
 
       if (response['success'] == true) {
       
@@ -1693,5 +1862,294 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
       default:
         return Icons.calendar_today;
     }
+  }
+}
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<AttachmentModel> attachments;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.attachments,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveImage(AttachmentModel attachment) async {
+    try {
+      if (attachment.firebaseUrl == null && attachment.localPath.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No image to save'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // If it's a local file, share it directly
+      if (attachment.localPath.isNotEmpty) {
+        final file = File(attachment.localPath);
+        if (await file.exists()) {
+          await Share.shareXFiles([XFile(file.path)]);
+          return;
+        }
+      }
+
+      // If it's a Firebase URL, download and save
+      if (attachment.firebaseUrl != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        try {
+          final dio = Dio();
+          final response = await dio.get(
+            attachment.firebaseUrl!,
+            options: Options(responseType: ResponseType.bytes),
+          );
+
+          Navigator.pop(context); // Close loading dialog
+
+          final directory = await getTemporaryDirectory();
+          final fileName = attachment.fileName.isNotEmpty
+              ? attachment.fileName
+              : 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final filePath = '${directory.path}/$fileName';
+          final file = File(filePath);
+          await file.writeAsBytes(response.data);
+
+          await Share.shareXFiles([XFile(filePath)]);
+        } catch (e) {
+          Navigator.pop(context); // Close loading dialog
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving image: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // PageView for images
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.attachments.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final attachment = widget.attachments[index];
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: Center(
+                  child: attachment.localPath.isNotEmpty
+                      ? Image.file(
+                          File(attachment.localPath),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              padding: const EdgeInsets.all(50),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.white,
+                                    size: 64,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Failed to load image',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                      : attachment.firebaseUrl != null
+                          ? Image.network(
+                              attachment.firebaseUrl!,
+                              fit: BoxFit.contain,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  padding: const EdgeInsets.all(50),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      CircularProgressIndicator(
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded /
+                                                loadingProgress.expectedTotalBytes!
+                                            : null,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Loading image...',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  padding: const EdgeInsets.all(50),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: Colors.white,
+                                        size: 64,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Failed to load image',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              padding: const EdgeInsets.all(50),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.image,
+                                    color: Colors.white,
+                                    size: 64,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No image available',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                ),
+              );
+            },
+          ),
+
+          // Top bar with close button, page indicator, and share button
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Close button (X)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+
+                  // Page indicator (1 of 2)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1} of ${widget.attachments.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // Share/Save button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.share, color: Colors.white),
+                      onPressed: () => _saveImage(widget.attachments[_currentIndex]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

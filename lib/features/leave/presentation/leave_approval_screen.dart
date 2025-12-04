@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/models/notification_model.dart';
 import '../../../core/services/leave_service.dart';
 import '../data/leave_repository.dart';
@@ -271,11 +272,71 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         leaveRequests = [];
       }
 
+      // Get current user's branch if user is a manager or team-lead
+      String? currentUserBranch;
+      if (userLevel == 'manager' || userLevel == 'team-lead') {
+        try {
+          final apiService = ApiService();
+          final profileResponse = await apiService.getEmployeeProfile(
+            employeeId: currentEmployeeId,
+          );
+          if (profileResponse['success'] == true) {
+            final employeeData = profileResponse['data'] ?? profileResponse['employee'];
+            currentUserBranch = employeeData['branchName']?.toString() ?? 
+                               employeeData['branch']?.toString();
+          }
+        } catch (e) {
+          // If we can't get branch, continue without branch filtering
+        }
+      }
+
       final List<Map<String, dynamic>> teamRequests = [];
       for (final leaveRequest in leaveRequests) {
-        if (leaveRequest['employeeId'] != currentEmployeeId) {
-          teamRequests.add(leaveRequest);
+        // Skip own requests
+        if (leaveRequest['employeeId'] == currentEmployeeId) {
+          continue;
         }
+
+        // Get employee's position and branch from leave request
+        final employeePosition = (leaveRequest['positionName']?.toString() ?? 
+                                  leaveRequest['position']?.toString() ?? '').toLowerCase();
+        final employeeBranch = leaveRequest['branchName']?.toString() ?? 
+                              leaveRequest['branch']?.toString() ?? '';
+
+        // For managers: filter out other managers and only show same branch salesmen
+        if (userLevel == 'manager') {
+          // Exclude other managers
+          if (employeePosition.contains('manager') || 
+              employeePosition.contains('supervisor')) {
+            continue;
+          }
+
+          // Only show requests from same branch salesmen
+          if (currentUserBranch != null && 
+              currentUserBranch.isNotEmpty &&
+              employeeBranch != currentUserBranch) {
+            continue;
+          }
+        }
+
+        // For team leads: filter out other team leads and only show same branch employees
+        if (userLevel == 'team-lead') {
+          // Exclude other team leads/programmers
+          if (employeePosition.contains('team lead') || 
+              employeePosition.contains('programmer') ||
+              employeePosition.contains('developer')) {
+            continue;
+          }
+
+          // Only show requests from same branch employees
+          if (currentUserBranch != null && 
+              currentUserBranch.isNotEmpty &&
+              employeeBranch != currentUserBranch) {
+            continue;
+          }
+        }
+
+        teamRequests.add(leaveRequest);
       }
 
       final List<NotificationModel> pendingList = [];

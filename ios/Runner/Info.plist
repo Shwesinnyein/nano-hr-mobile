@@ -30,6 +30,10 @@
 	<string>This app needs location access to track attendance check-in/out locations.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs location access to track attendance check-in/out locations.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take photos for leave request attachments.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access to select images for leave request attachments.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

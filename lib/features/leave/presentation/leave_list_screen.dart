@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../../../app/theme.dart';
 import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
@@ -651,101 +656,140 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 70,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: attachments.length,
-            itemBuilder: (context, index) {
-              final attachment = attachments[index];
-              final url = attachment['publicUrl'] ?? attachment['url'] ?? '';
-              final fileName =
-                  attachment['originalName'] ??
-                  attachment['fileName'] ??
-                  'attachment_${index + 1}';
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: attachments.asMap().entries.map((entry) {
+            final index = entry.key;
+            final attachment = entry.value;
+            final url = attachment['publicUrl'] ?? attachment['url'] ?? attachment['firebaseUrl'] ?? '';
+            final fileName =
+                attachment['originalName'] ??
+                attachment['fileName'] ??
+                attachment['name'] ??
+                url.split('/').last;
+            final fileType = attachment['fileType'] ?? attachment['type'] ?? '';
+            final contentType = attachment['contentType'] ?? attachment['mimeType'] ?? '';
 
-              return Container(
-                margin: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () => _openAttachment(url),
-                  child: Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.kNanoGold.withOpacity(0.3),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+            // Check if it's an image by multiple methods
+            final isImage = _isImageFile(fileName, url) || 
+                           (fileType.toString().toLowerCase().contains('image')) ||
+                           (contentType.toString().toLowerCase().startsWith('image/'));
+
+            return GestureDetector(
+              onTap: () => _openAttachment(url, allAttachments: attachments, initialIndex: index),
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.kNanoGold.withOpacity(0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                    child: _isImageFile(fileName)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              url,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
+                  ],
+                ),
+                child: isImage && url.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFFD4A574).withOpacity(0.3),
+                              child: Icon(
+                                Icons.image,
+                                color: AppTheme.kNanoGold,
+                                size: 32,
+                              ),
+                            );
+                          },
+                          loadingBuilder:
+                              (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
                                 return Container(
-                                  color: Colors.grey[100],
-                                  child: Icon(
-                                    Icons.image,
-                                    color: Colors.grey[400],
-                                    size: 28,
+                                  color: const Color(0xFFD4A574).withOpacity(0.3),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value:
+                                          loadingProgress
+                                                  .expectedTotalBytes !=
+                                              null
+                                          ? loadingProgress
+                                                    .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                          : null,
+                                      color: AppTheme.kNanoGold,
+                                    ),
                                   ),
                                 );
                               },
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      color: Colors.grey[100],
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          value:
-                                              loadingProgress
-                                                      .expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                        .cumulativeBytesLoaded /
-                                                    loadingProgress
-                                                        .expectedTotalBytes!
-                                              : null,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                            ),
-                          )
-                        : Container(
-                            color: Colors.grey[100],
-                            child: Center(
-                              child: Icon(
-                                _getFileIcon(fileName),
-                                color: AppTheme.kNanoGold,
-                                size: 28,
-                              ),
-                            ),
+                        ),
+                      )
+                    : Container(
+                        color: const Color(0xFFD4A574).withOpacity(0.3),
+                        child: Center(
+                          child: Icon(
+                            _getFileIcon(fileName),
+                            color: AppTheme.kNanoGold,
+                            size: 32,
                           ),
-                  ),
-                ),
-              );
-            },
-          ),
+                        ),
+                      ),
+              ),
+            );
+          }).toList(),
         ),
       ],
     );
   }
 
-  bool _isImageFile(String fileName) {
-    final extension = fileName.toLowerCase().split('.').last;
-    return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(extension);
+  bool _isImageFile(String fileName, [String? url]) {
+    // Check filename extension
+    if (fileName.contains('.')) {
+      final extension = fileName.toLowerCase().split('.').last;
+      if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif'].contains(extension)) {
+        return true;
+      }
+    }
+    
+    // Check URL if provided
+    if (url != null && url.isNotEmpty) {
+      final urlLower = url.toLowerCase();
+      // Check if URL contains image extensions
+      if (urlLower.contains('.jpg') || 
+          urlLower.contains('.jpeg') || 
+          urlLower.contains('.png') || 
+          urlLower.contains('.gif') || 
+          urlLower.contains('.bmp') || 
+          urlLower.contains('.webp') ||
+          urlLower.contains('.heic') ||
+          urlLower.contains('.heif')) {
+        return true;
+      }
+      // Check if it's a Firebase Storage URL with image content type
+      if (urlLower.contains('firebasestorage') || urlLower.contains('storage.googleapis.com')) {
+        // Assume it's an image if we can't determine otherwise (common for Firebase URLs)
+        // But also check for common non-image patterns
+        if (!urlLower.contains('.pdf') && 
+            !urlLower.contains('.doc') && 
+            !urlLower.contains('.xls') &&
+            !urlLower.contains('.zip')) {
+          return true; // Likely an image
+        }
+      }
+    }
+    
+    return false;
   }
 
   IconData _getFileIcon(String fileName) {
@@ -1038,14 +1082,22 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
           itemCount: attachments.length,
           itemBuilder: (context, index) {
             final attachment = attachments[index];
-            final url = attachment['publicUrl'] ?? attachment['url'] ?? '';
+            final url = attachment['publicUrl'] ?? attachment['url'] ?? attachment['firebaseUrl'] ?? '';
             final fileName =
                 attachment['originalName'] ??
                 attachment['fileName'] ??
-                'attachment_${index + 1}';
+                attachment['name'] ??
+                url.split('/').last;
+            final fileType = attachment['fileType'] ?? attachment['type'] ?? '';
+            final contentType = attachment['contentType'] ?? attachment['mimeType'] ?? '';
+
+            // Check if it's an image by multiple methods
+            final isImage = _isImageFile(fileName, url) || 
+                           (fileType.toString().toLowerCase().contains('image')) ||
+                           (contentType.toString().toLowerCase().startsWith('image/'));
 
             return GestureDetector(
-              onTap: () => _openAttachment(url),
+              onTap: () => _openAttachment(url, allAttachments: attachments, initialIndex: index),
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -1053,7 +1105,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     color: AppTheme.kNanoGold.withOpacity(0.3),
                   ),
                 ),
-                child: _isImageFile(fileName)
+                child: isImage && url.isNotEmpty
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: Image.network(
@@ -1212,24 +1264,75 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     }
   }
 
-  Future<void> _openAttachment(String url) async {
+  Future<void> _openAttachment(String url, {List<Map<String, dynamic>>? allAttachments, int? initialIndex}) async {
     try {
+      if (url.isEmpty) {
+        _showErrorSnackBar('Invalid attachment URL');
+        return;
+      }
+
+      // Get attachment info if available
+      Map<String, dynamic>? currentAttachment;
+      if (allAttachments != null && initialIndex != null && initialIndex < allAttachments.length) {
+        currentAttachment = allAttachments[initialIndex];
+      } else if (allAttachments != null) {
+        currentAttachment = allAttachments.firstWhere(
+          (att) => (att['publicUrl'] ?? att['url'] ?? att['firebaseUrl'] ?? '') == url,
+          orElse: () => <String, dynamic>{},
+        );
+      }
+
+      final fileName = currentAttachment != null
+          ? (currentAttachment['originalName'] ?? 
+             currentAttachment['fileName'] ?? 
+             currentAttachment['name'] ?? 
+             url.split('/').last)
+          : url.split('/').last;
       
-      final fileName = url.split('/').last.toLowerCase();
-      final isImage = [
-        'jpg',
-        'jpeg',
-        'png',
-        'gif',
-        'bmp',
-        'webp',
-      ].any((ext) => fileName.endsWith(ext));
+      final fileType = currentAttachment?['fileType'] ?? currentAttachment?['type'] ?? '';
+      final contentType = currentAttachment?['contentType'] ?? currentAttachment?['mimeType'] ?? '';
+
+      // Use improved image detection
+      final isImage = _isImageFile(fileName, url) || 
+                     (fileType.toString().toLowerCase().contains('image')) ||
+                     (contentType.toString().toLowerCase().startsWith('image/'));
 
       if (isImage) {
-        
-        _showImageViewer(url);
+        // If we have all attachments, show full-screen viewer with navigation
+        if (allAttachments != null && allAttachments.isNotEmpty) {
+          final List<String> imageUrls = allAttachments
+              .where((att) {
+                final attUrl = att['publicUrl'] ?? att['url'] ?? att['firebaseUrl'] ?? '';
+                if (attUrl.isEmpty) return false;
+                
+                final attFileName = att['originalName'] ?? 
+                                   att['fileName'] ?? 
+                                   att['name'] ?? 
+                                   attUrl.toString().split('/').last;
+                final attFileType = att['fileType'] ?? att['type'] ?? '';
+                final attContentType = att['contentType'] ?? att['mimeType'] ?? '';
+                
+                return _isImageFile(attFileName.toString(), attUrl.toString()) ||
+                       (attFileType.toString().toLowerCase().contains('image')) ||
+                       (attContentType.toString().toLowerCase().startsWith('image/'));
+              })
+              .map<String>((att) {
+                final attUrl = att['publicUrl'] ?? att['url'] ?? att['firebaseUrl'] ?? '';
+                return attUrl.toString();
+              })
+              .where((url) => url.isNotEmpty)
+              .toList();
+          
+          if (imageUrls.isNotEmpty) {
+            final idx = initialIndex ?? imageUrls.indexWhere((u) => u == url);
+            _showFullScreenImageViewer(imageUrls, idx >= 0 ? idx : 0);
+            return;
+          }
+        }
+        // Fallback to single image viewer (always show in-app, never in browser)
+        _showFullScreenImageViewer([url], 0);
       } else {
-        
+        // For non-image files, open in external browser
         final Uri uri = Uri.parse(url);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1242,22 +1345,158 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
     }
   }
 
-  void _showImageViewer(String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.black,
-          child: Stack(
-            children: [
+  void _showFullScreenImageViewer(List<String> imageUrls, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
 
-              Center(
-                child: InteractiveViewer(
-                  minScale: 0.5,
-                  maxScale: 3.0,
+  void _showImageViewer(String imageUrl) {
+    _showFullScreenImageViewer([imageUrl], 0);
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.imageUrls,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveImage(String imageUrl) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      try {
+        final dio = Dio();
+        final response = await dio.get(
+          imageUrl,
+          options: Options(responseType: ResponseType.bytes),
+        );
+
+        Navigator.pop(context); // Close loading dialog
+
+        final directory = await getTemporaryDirectory();
+        final fileName = imageUrl.split('/').last;
+        final filePath = '${directory.path}/$fileName';
+        final file = File(filePath);
+        await file.writeAsBytes(response.data);
+
+        await Share.shareXFiles([XFile(filePath)]);
+      } catch (e) {
+        Navigator.pop(context); // Close loading dialog
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving image: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog if still open
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // PageView for images
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.imageUrls.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final imageUrl = widget.imageUrls[index];
+              return InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: Center(
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        padding: const EdgeInsets.all(50),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Loading image...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         padding: const EdgeInsets.all(50),
@@ -1281,86 +1520,65 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                         ),
                       );
                     },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        padding: const EdgeInsets.all(50),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Loading image...',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
                   ),
                 ),
-              ),
-              
-              Positioned(
-                top: 40,
-                right: 20,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ),
-              
-              Positioned(
-                top: 40,
-                right: 80,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.download, color: Colors.white),
-                    onPressed: () async {
-                      try {
-                        final Uri uri = Uri.parse(imageUrl);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalApplication,
-                          );
-                        }
-                      } catch (e) {
-                        _showErrorSnackBar('Could not download image: $e');
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
-    );
-  }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+          // Top bar with close button, page indicator, and share button
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Close button (X)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+
+                  // Page indicator (1 of 2)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1} of ${widget.imageUrls.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // Share/Save button
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.share, color: Colors.white),
+                      onPressed: () => _saveImage(widget.imageUrls[_currentIndex]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -21,29 +21,33 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
     final position = authService.currentPositionName ?? '';
+    print('position: $position');
 
     if (currentEmployeeId == null) return false;
 
     final positionLower = position.toLowerCase();
 
+    // HR can see Team Leave Management
     if (positionLower.contains('hr') ||
         positionLower.contains('human resource')) {
       return true;
     }
 
-    if (positionLower.contains('manager') ||
-        positionLower.contains('supervisor') ||
-        positionLower.contains('lead')) {
-      return true;
-    }
-
+    // Approver/Management can see Team Leave Management
     if (positionLower.contains('approver') ||
         positionLower.contains('management')) {
       return true;
     }
 
-    if (positionLower.contains('programmer') ||
-        positionLower.contains('developer')) {
+    // Manager can see Team Leave Management
+    if (positionLower.contains('manager') ||
+        positionLower.contains('supervisor')) {
+      return true;
+    }
+
+    // Programmer (Team Lead) can see Team Leave Management
+    // Handles both "Programmer (Team Lead)" and "nano-store-office-programmer-team-lead" formats
+    if (positionLower.contains('programmer (team lead)') || positionLower.contains('nano-store-office-programmer-team-lead')) {
       return true;
     }
 
