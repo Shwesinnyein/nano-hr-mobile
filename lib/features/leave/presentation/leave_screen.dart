@@ -39,6 +39,11 @@ class _LeaveScreenState extends ConsumerState<LeaveScreen> {
       return true;
     }
 
+    // Warehouse Manager can see Team Leave Management
+    if (positionLower.contains('warehouse manager')) {
+      return true;
+    }
+
     // Manager can see Team Leave Management
     if (positionLower.contains('manager') ||
         positionLower.contains('supervisor')) {

@@ -93,27 +93,35 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
   String _getUserLevel(AuthService auth) {
     final position = auth.currentPositionName ?? '';
+    final positionLower = position.toLowerCase();
 
-    if (position.toLowerCase().contains('hr') ||
-        position.toLowerCase().contains('human resource')) {
+    if (positionLower.contains('hr') ||
+        positionLower.contains('human resource')) {
       return 'hr';
     }
 
-    if (position.toLowerCase().contains('approver') ||
-        position.toLowerCase().contains('management')) {
+    if (positionLower.contains('approver') ||
+        positionLower.contains('management')) {
       return 'approver';
     }
 
-    if (position.toLowerCase().contains('team lead')) {
+    // Check for warehouse manager before general manager check
+    if (positionLower.contains('warehouse manager')) {
+      return 'warehouse-manager';
+    }
+
+    if (positionLower.contains('manager')) {
+      return 'manager';
+    }
+
+    // Check for team lead positions - handle both formats
+    if (positionLower.contains('programmer team lead') ||
+        positionLower.contains('programmer (team lead)') ||
+        positionLower.contains('nano-store-office-programmer-team-lead')) {
       return 'team-lead';
     }
 
-    if (position.toLowerCase().contains('programmer') ||
-        position.toLowerCase().contains('developer')) {
-      return 'team-lead';
-    }
-
-    return 'manager';
+    return 'employee';
   }
 
   Future<void> _loadEmployeeLeaves({bool showLoading = true}) async {
@@ -272,9 +280,9 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         leaveRequests = [];
       }
 
-      // Get current user's branch if user is a manager or team-lead
+      // Get current user's branch if user is a manager, team-lead, or warehouse-manager
       String? currentUserBranch;
-      if (userLevel == 'manager' || userLevel == 'team-lead') {
+      if (userLevel == 'manager' || userLevel == 'team-lead' || userLevel == 'warehouse-manager') {
         try {
           final apiService = ApiService();
           final profileResponse = await apiService.getEmployeeProfile(
@@ -321,10 +329,31 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
         // For team leads: filter out other team leads and only show same branch employees
         if (userLevel == 'team-lead') {
-          // Exclude other team leads/programmers
-          if (employeePosition.contains('team lead') || 
-              employeePosition.contains('programmer') ||
-              employeePosition.contains('developer')) {
+          // Exclude other team leads (but allow regular programmers)
+          if (employeePosition.contains('programmer team lead') || 
+              employeePosition.contains('programmer (team lead)') ||
+              employeePosition.contains('nano-store-office-programmer-team-lead')) {
+            continue;
+          }
+
+          // Only show requests from same branch employees
+          if (currentUserBranch != null && 
+              currentUserBranch.isNotEmpty &&
+              employeeBranch != currentUserBranch) {
+            continue;
+          }
+        }
+
+        // For warehouse managers: filter out other warehouse managers and only show warehouse workers/administrators
+        if (userLevel == 'warehouse-manager') {
+          // Exclude other warehouse managers
+          if (employeePosition.contains('warehouse manager')) {
+            continue;
+          }
+
+          // Only show requests from warehouse workers and warehouse administrators
+          if (!employeePosition.contains('warehouse worker') && 
+              !employeePosition.contains('warehouse administrator')) {
             continue;
           }
 
@@ -888,15 +917,23 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     final isApprovedByHR =
         statusLower == 'approved_hr' || statusLower == 'approved_by_hr';
 
+    final isApprovedByWarehouseManager =
+        statusLower == 'approved_warehouse_manager' ||
+        statusLower == 'approved_by_warehouse_manager' ||
+        (statusLower.contains('approved') && statusLower.contains('warehouse_manager'));
+
     final showActions = userLevel == 'hr'
         ? (isPendingOrSent ||
               isApprovedByManager ||
-              isApprovedByTeamLead)
+              isApprovedByTeamLead ||
+              isApprovedByWarehouseManager)
         : userLevel == 'approver'
         ? (isPendingOrSent ||
               isApprovedByHR) 
         : userLevel == 'team-lead'
         ? isPendingOrSent 
+        : userLevel == 'warehouse-manager'
+        ? isPendingOrSent
         : isPendingOrSent; 
 
     return GestureDetector(
@@ -988,7 +1025,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         : statusLower == 'approved_manager' ||
                               statusLower == 'approved_by_manager' ||
                               (statusLower.contains('approved') &&
-                                  statusLower.contains('manager'))
+                                  statusLower.contains('manager') &&
+                                  !statusLower.contains('warehouse'))
                         ? Colors.blue.withOpacity(0.1)
                         : statusLower == 'approved_hr' ||
                               statusLower == 'approved_by_hr' ||
@@ -1000,6 +1038,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                               (statusLower.contains('approved') &&
                                   statusLower.contains('team_lead'))
                         ? Colors.teal.withOpacity(0.1)
+                        : statusLower == 'approved_warehouse_manager' ||
+                              statusLower == 'approved_by_warehouse_manager' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('warehouse_manager'))
+                        ? Colors.indigo.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1011,7 +1054,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         : statusLower == 'approved_manager' ||
                               statusLower == 'approved_by_manager' ||
                               (statusLower.contains('approved') &&
-                                  statusLower.contains('manager'))
+                                  statusLower.contains('manager') &&
+                                  !statusLower.contains('warehouse'))
                         ? 'Approved by Manager'
                         : statusLower == 'approved_hr' ||
                               statusLower == 'approved_by_hr' ||
@@ -1023,6 +1067,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                               (statusLower.contains('approved') &&
                                   statusLower.contains('team_lead'))
                         ? 'Approved by Team Lead'
+                        : statusLower == 'approved_warehouse_manager' ||
+                              statusLower == 'approved_by_warehouse_manager' ||
+                              (statusLower.contains('approved') &&
+                                  statusLower.contains('warehouse_manager'))
+                        ? 'Approved by Warehouse Manager'
                         : 'Pending',
                     style: TextStyle(
                       fontSize: 11,
@@ -1034,7 +1083,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                           : statusLower == 'approved_manager' ||
                                 statusLower == 'approved_by_manager' ||
                                 (statusLower.contains('approved') &&
-                                    statusLower.contains('manager'))
+                                    statusLower.contains('manager') &&
+                                    !statusLower.contains('warehouse'))
                           ? Colors.blue[700]
                           : statusLower == 'approved_hr' ||
                                 statusLower == 'approved_by_hr' ||
@@ -1046,6 +1096,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                                 (statusLower.contains('approved') &&
                                     statusLower.contains('team_lead'))
                           ? Colors.teal[700]
+                          : statusLower == 'approved_warehouse_manager' ||
+                                statusLower == 'approved_by_warehouse_manager' ||
+                                (statusLower.contains('approved') &&
+                                    statusLower.contains('warehouse_manager'))
+                          ? Colors.indigo[700]
                           : Colors.orange[700],
                     ),
                   ),
@@ -1563,13 +1618,21 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             statusLower == 'approved_by_hr' ||
             (statusLower.contains('approved') && statusLower.contains('hr'));
 
+        final isApprovedByWarehouseManager =
+            statusLower == 'approved_warehouse_manager' ||
+            statusLower == 'approved_by_warehouse_manager' ||
+            (statusLower.contains('approved') && statusLower.contains('warehouse_manager'));
+
         final canAct = userLevel == 'hr'
             ? (isPendingOrSent ||
                   isApprovedByManager ||
-                  isApprovedByTeamLead) 
+                  isApprovedByTeamLead ||
+                  isApprovedByWarehouseManager) 
             : userLevel == 'approver'
             ? (isPendingOrSent ||
                   isApprovedByHR) 
+            : userLevel == 'warehouse-manager'
+            ? isPendingOrSent
             : isPendingOrSent; 
 
         if (currentStatus != null && !canAct) {
