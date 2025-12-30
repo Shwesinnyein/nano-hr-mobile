@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/employee_login_screen.dart';
 import '../features/attendance/presentation/attendance_screen.dart';
+import '../features/attendance/presentation/attendance_calendar_screen.dart';
 import '../features/leave/presentation/leave_balance_screen.dart';
 import '../features/leave/presentation/leave_request_screen.dart';
 import '../features/leave/presentation/leave_screen.dart';
@@ -34,6 +35,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/attendance',
         builder: (_, __) =>
             const MainLayout(currentIndex: 0, child: AttendanceScreen()),
+      ),
+      GoRoute(
+        path: '/attendance/calendar',
+        builder: (_, __) => const AttendanceCalendarScreen(),
       ),
       GoRoute(
         path: '/leave',

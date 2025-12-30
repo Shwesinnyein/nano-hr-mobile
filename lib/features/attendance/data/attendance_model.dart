@@ -20,6 +20,9 @@ class Attendance {
     this.employeeName,
     this.duration,
     this.status,
+    this.checkInDate,
+    this.checkOutDate,
+    this.isOvernightShift = false,
   });
 
   final String id;
@@ -40,6 +43,9 @@ class Attendance {
   final String? employeeName;
   final String? duration;
   final String? status;
+  final String? checkInDate; // Date when checked in (YYYY-MM-DD)
+  final String? checkOutDate; // Date when checked out (YYYY-MM-DD)
+  final bool isOvernightShift; // true if checkInDate != checkOutDate
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic dateValue) {
@@ -140,6 +146,15 @@ class Attendance {
 
     final isAutoCheckout =
         json['isAutoCheckout'] == true || json['isAutoCheckout'] == 'true';
+    
+    // Parse checkInDate and checkOutDate
+    final checkInDate = json['checkInDate']?.toString();
+    final checkOutDate = json['checkOutDate']?.toString();
+    
+    // Determine if it's an overnight shift
+    final isOvernightShift = json['isOvernightShift'] == true || 
+        json['isOvernightShift'] == 'true' ||
+        (checkInDate != null && checkOutDate != null && checkInDate != checkOutDate);
 
     return Attendance(
       id: id,
@@ -160,6 +175,9 @@ class Attendance {
       employeeName: json['employeeName']?.toString(),
       duration: json['duration']?.toString(),
       status: json['status']?.toString(),
+      checkInDate: checkInDate,
+      checkOutDate: checkOutDate,
+      isOvernightShift: isOvernightShift,
     );
   }
 
@@ -183,6 +201,9 @@ class Attendance {
       'employeeName': employeeName,
       'duration': duration,
       'status': status,
+      'checkInDate': checkInDate,
+      'checkOutDate': checkOutDate,
+      'isOvernightShift': isOvernightShift,
     };
   }
 

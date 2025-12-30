@@ -4,11 +4,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
-    <!-- Camera and storage permissions -->
+    <!-- Camera permission (still needed for taking photos) -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Note: READ_MEDIA_IMAGES and READ_EXTERNAL_STORAGE removed to comply with Google Play policy -->
+    <!-- The app uses Android Photo Picker (Android 13+) which doesn't require these permissions -->
+    <!-- For Android 12 and below, image_picker will handle permissions automatically -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     
     <!-- Push notification permissions -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

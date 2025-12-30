@@ -345,6 +345,7 @@ class LeaveRequest {
   final String? endTime;
   final String reason;
   final String status;
+  final String? rejectReason;
   final double? totalDays;
   final List<Map<String, dynamic>> attachments;
   final String createdAt;
@@ -363,6 +364,7 @@ class LeaveRequest {
     this.endTime,
     required this.reason,
     required this.status,
+    this.rejectReason,
     this.totalDays,
     required this.attachments,
     required this.createdAt,
@@ -388,6 +390,11 @@ class LeaveRequest {
       endTime: json['endTime'],
       reason: json['reason'] ?? '',
       status: json['status'] ?? 'pending',
+      rejectReason: json['rejectReason'] ?? 
+                    json['rejectionReason'] ?? 
+                    json['rejectedReason'] ?? 
+                    json['rejection_reason'] ?? 
+                    json['reject_reason'],
       totalDays: json['totalDays'] != null
           ? (json['totalDays'] is int
               ? (json['totalDays'] as int).toDouble()

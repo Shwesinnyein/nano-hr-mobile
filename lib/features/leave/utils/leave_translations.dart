@@ -249,6 +249,27 @@ class LeaveTranslations {
   static String pleaseProvideReason(WidgetRef ref) =>
       ref.t('กรุณาระบุเหตุผลในการลา', 'Please provide a reason for leave');
 
+  static String rejectLeaveRequest(WidgetRef ref) =>
+      ref.t('ปฏิเสธคำขอลา', 'Reject Leave Request');
+
+  static String pleaseProvideRejectionReason(WidgetRef ref) =>
+      ref.t('กรุณาระบุเหตุผลในการปฏิเสธคำขอลานี้', 'Please provide a reason for rejecting this leave request.');
+
+  static String rejectionReason(WidgetRef ref) =>
+      ref.t('เหตุผลในการปฏิเสธ', 'Rejection Reason');
+
+  static String enterRejectionReason(WidgetRef ref) =>
+      ref.t('กรอกเหตุผลในการปฏิเสธ', 'Enter reason for rejection');
+
+  static String rejectionReasonRequired(WidgetRef ref) =>
+      ref.t('กรุณาระบุเหตุผลในการปฏิเสธ', 'Rejection reason is required');
+
+  static String requestType(WidgetRef ref) =>
+      ref.t('ประเภทคำขอ', 'Request Type');
+
+  static String pleaseSelectDateFirstForShift(WidgetRef ref) =>
+      ref.t('กรุณาเลือกวันที่ก่อนเพื่อโหลดกะการทำงานของคุณ', 'Please select a date first to load your working shift');
+
   static String employeeNotFound(WidgetRef ref) =>
       ref.t('ไม่พบข้อมูลพนักงาน', 'Employee not found');
 
@@ -393,4 +414,35 @@ class LeaveTranslations {
     
     return status;
   }
+
+  // Approval Steps Translations
+  static String approveByStep(WidgetRef ref) =>
+      ref.t('อนุมัติตามขั้นตอน', 'Approve By Step');
+
+  static String teamLead(WidgetRef ref) =>
+      ref.t('หัวหน้าทีม', 'Team Lead');
+
+  static String hr(WidgetRef ref) =>
+      ref.t('ฝ่ายบุคคล', 'HR');
+
+  static String approver(WidgetRef ref) =>
+      ref.t('ผู้อนุมัติ', 'Approver');
+
+  static String manager(WidgetRef ref) =>
+      ref.t('ผู้จัดการ', 'Manager');
+
+  static String warehouseManager(WidgetRef ref) =>
+      ref.t('ผู้จัดการคลังสินค้า', 'Warehouse Manager');
+
+  static String warehouseWorker(WidgetRef ref) =>
+      ref.t('พนักงานคลังสินค้า', 'Warehouse Worker');
+
+  static String warehouseAdministrator(WidgetRef ref) =>
+      ref.t('ผู้ดูแลคลังสินค้า', 'Warehouse Administrator');
+
+  static String approvedStatus(WidgetRef ref) =>
+      ref.t('อนุมัติแล้ว', 'Approved');
+
+  static String pendingStatus(WidgetRef ref) =>
+      ref.t('รอดำเนินการ', 'Pending');
 }

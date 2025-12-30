@@ -112,71 +112,104 @@ class AttendanceRepository {
     String? address,
   }) async {
     try {
+      // First check today's attendance
       final statusResponse = await _attendanceService.getTodayAttendanceStatus(
         employeeId: userId,
       );
 
-      if (statusResponse['success'] != true) {
-        throw Exception(
-          'No check-in record found for today. Please check in first.',
+      Map<String, dynamic>? checkInRecord;
+      bool todayHasOpenRecord = false;
+      
+      if (statusResponse['success'] == true) {
+        checkInRecord = statusResponse['record'];
+        // Check if today's record is actually open (has check-in but no check-out)
+        if (checkInRecord != null && 
+            checkInRecord['checkInAt'] != null && 
+            (checkInRecord['checkOutAt'] == null || checkInRecord['checkOutAt'] == '')) {
+          todayHasOpenRecord = true;
+        }
+      }
+
+      // If no open record today, check yesterday for night shifts (e.g., 22:00 - 06:00)
+      // Only for Driver and Security positions
+      final positionName = (employeeData['positionName'] ?? '').toString().toLowerCase();
+      final isNightShiftPosition = positionName.contains('driver') || positionName.contains('security');
+      
+      // For night shift workers: if today doesn't have an open record, check yesterday
+      if (isNightShiftPosition && !todayHasOpenRecord) {
+        // Use Thailand timezone for calculating yesterday's date
+        final thailandNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+        final yesterday = thailandNow.subtract(const Duration(days: 1));
+        final yesterdayDateString =
+            '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+        
+        final yesterdayShiftData = await _attendanceService.getShiftDataWithFilter(
+          employeeId: userId,
+          date: yesterdayDateString,
         );
+        
+        if (yesterdayShiftData['success'] == true) {
+          final yesterdayAttendanceData = yesterdayShiftData['attendanceData'] as List?;
+          if (yesterdayAttendanceData?.isNotEmpty == true) {
+            // Check all records from yesterday, not just the first one
+            for (final yesterdayRecord in yesterdayAttendanceData!) {
+              // If yesterday has check-in but no check-out, use that record
+              if (yesterdayRecord['checkInAt'] != null && 
+                  (yesterdayRecord['checkOutAt'] == null || yesterdayRecord['checkOutAt'] == '')) {
+                checkInRecord = yesterdayRecord;
+                break; // Use the first open record found
+              }
+            }
+          }
+        }
       }
 
-      final checkInRecord = statusResponse['record'];
-      if (checkInRecord == null) {
-        throw Exception('No open check-in record found for today.');
-      }
-
-      final thailandTime = _getThailandTime();
-      final dateString = thailandTime['date']!;
-      final localTimeString = thailandTime['time']!;
-      final timestamp = thailandTime['timestamp']!;
-
-      final checkOutData = {
-        'id': checkInRecord['id'], 
-        'uid': checkInRecord['uid'], 
-        'employeeId': checkInRecord['employeeId'], 
-        'employeeName':
-            checkInRecord['employeeName'], 
-        'location': address ?? checkInRecord['location'], 
-        'branch': checkInRecord['branch'], 
-        'branchName': checkInRecord['branchName'], 
-        'type': 'checkout', 
-        'date': dateString, 
-        'time': localTimeString, 
-        'checkInAt': checkInRecord['checkInAt'], 
-        'checkOutAt': localTimeString, 
-        'timestamp': timestamp, 
-        'createdAt': checkInRecord['createdAt'], 
-        'updatedAt': timestamp, 
-      };
-
-      if (latitude != null) {
-        checkOutData['checkOutLatitude'] = latitude;
-      }
-      if (longitude != null) {
-        checkOutData['checkOutLongitude'] = longitude;
-      }
-      if (address != null) {
-        checkOutData['checkOutAddress'] = address;
-      }
-
+      // Use the simpler checkout API format - backend will find the open record automatically
+      // For overnight workers, backend handles "checked_in_previous_day" status
+      String checkOutLocation = address ?? employeeData['locationName'] ?? 'Unknown Location';
+      
       if (latitude != null && longitude != null) {
         final nearestBranch = BranchLocationService.findNearestBranch(
           latitude,
           longitude,
         );
-
         if (nearestBranch != null) {
-          checkOutData['checkOutLocation'] = nearestBranch.branchName;
-        } else {
-          checkOutData['checkOutLocation'] = address ?? 'Unknown Location';
+          checkOutLocation = nearestBranch.branchName;
         }
-      } else {
-        checkOutData['checkOutLocation'] = address ?? checkInRecord['location'] ?? 'Unknown Location';
       }
 
-      await _attendanceService.checkInOutWithRecordData(checkOutData);
+      // Build checkout payload according to API spec
+      // Include all required fields for the checkInOut method
+      final checkOutData = {
+        'employeeId': userId,
+        'employeeName': employeeData['fullName'] ?? 'Unknown',
+        'position': employeeData['positionName'] ?? 'Employee',
+        'positionName': employeeData['positionName'] ?? 'Employee',
+        'company': employeeData['companyName'] ?? 'NANO-STORES',
+        'companyName': employeeData['companyName'] ?? 'NANO-STORES',
+        'locationName': address ?? employeeData['locationName'] ?? 'BKK',
+        'location': address ?? employeeData['locationName'] ?? 'BKK',
+        'branch': employeeData['branchName'] ?? '001',
+        'branchName': employeeData['branchName'] ?? 'Main Branch',
+        'type': 'checkout',
+        'checkOutLocation': checkOutLocation, // Use checkOutLocation for checkout
+      };
+
+      // Add location coordinates if available
+      if (latitude != null) {
+        checkOutData['latitude'] = latitude;
+      }
+      if (longitude != null) {
+        checkOutData['longitude'] = longitude;
+      }
+      if (address != null) {
+        checkOutData['address'] = address;
+      }
+
+      // Use the simpler checkInOut method - backend will automatically find and update the open check-in record
+      // Backend handles finding yesterday's record for overnight workers via "checked_in_previous_day" status
+      // The checkInOut method throws an exception if it fails, so we don't need to check response
+      await _attendanceService.checkInOut(checkOutData);
     } catch (e) {
       throw Exception('Check-out failed: ${e.toString()}');
     }

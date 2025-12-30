@@ -947,19 +947,19 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
 
 
                     _buildDetailRow(
-                      'Request Type',
+                      LeaveTranslations.requestType(ref),
                       request.requestType?.toUpperCase() ?? 'N/A',
                       Icons.category,
                     ),
 
                     if (request.requestType == 'daily') ...[
                       _buildDetailRow(
-                        'From Date',
+                        LeaveTranslations.fromDateField(ref),
                         request.fromDate ?? 'N/A',
                         Icons.calendar_today,
                       ),
                       _buildDetailRow(
-                        'To Date',
+                        LeaveTranslations.toDateField(ref),
                         request.toDate ?? 'N/A',
                         Icons.calendar_today,
                       ),
@@ -994,13 +994,23 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                     ],
 
                     _buildDetailRow(
-                      'Reason',
+                      LeaveTranslations.reason(ref),
                       request.reason.isNotEmpty
                           ? request.reason
                           : 'No reason provided',
                       Icons.note,
                       isMultiline: true,
                     ),
+
+                    if (request.status.toLowerCase() == 'rejected' && 
+                        request.rejectReason != null && 
+                        request.rejectReason!.isNotEmpty)
+                      _buildDetailRow(
+                        LeaveTranslations.rejectionReason(ref),
+                        request.rejectReason!,
+                        Icons.cancel,
+                        isMultiline: true,
+                      ),
 
                     if (request.attachments.isNotEmpty)
                       _buildAttachmentsSection(request.attachments),

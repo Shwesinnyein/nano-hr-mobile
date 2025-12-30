@@ -16,7 +16,7 @@ class BranchLocation {
 }
 
 class BranchLocationService {
-  static const double maxBranchRadius = 0.07; // ~7km radius
+  static const double maxBranchRadius = 0.08; // ~7km radius
   
   static double get gpsTolerance {
    
@@ -32,8 +32,11 @@ class BranchLocationService {
     BranchLocation(
       branchId: '001',
       branchName: '001 Branch',
-      latitude: 7.839157085732598, 
-      longitude: 98.3354308362058,
+      // latitude: 7.839157085732598, 
+      // longitude: 98.3354308362058,
+      latitude:7.839318661884799,
+     longitude: 98.33528091774687,
+    
       
     
     ),

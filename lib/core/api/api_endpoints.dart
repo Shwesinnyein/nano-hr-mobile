@@ -21,10 +21,13 @@ static const String baseUrl = 'https://nano-api-production.vercel.app';
   static const String searchAttendanceByName = '/attendance/search-by-name';
 
   // Employee endpoints
-  static const String employeeProfile ='/employee/profile'; 
+  static const String employeeProfile ='/employee/profile';
+  static String getEmployeeProfileByUid(String uid) => '/profile/$uid'; 
   static const String updateProfile = '/employee/update-profile';
   static const String employeeList = '/employee/list';
   static const String employeeShiftByDate = '/employee/shift/get-by-date';
+  static String getShiftCalendar(String employeeId, String fromDate, String toDate) =>
+      '/employee/$employeeId/shift-calendar?fromDate=$fromDate&toDate=$toDate';
 
   // Leave endpoints
   static const String createLeaveRequest = '/leave/create';

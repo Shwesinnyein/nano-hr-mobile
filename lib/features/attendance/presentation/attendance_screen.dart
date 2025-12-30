@@ -6,6 +6,7 @@ import 'package:nano_hr_mobile/features/attendance/data/attendance_model.dart';
 import '../data/attendance_repository.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/attendance_service.dart';
 import '../../../app/theme.dart';
 import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
@@ -29,7 +30,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   bool _showDetails = false;
   Map<String, dynamic>? _employeeProfile;
   Map<String, dynamic>? _attendanceStatus;
+  Map<String, dynamic>? _apiStatusResponse; // Store API status response with canCheckIn/canCheckOut
   Map<String, dynamic>? _shiftData;
+  Map<String, dynamic>? _yesterdayShiftData; // For night shifts that cross midnight
   bool _isLoadingStatus = false;
 
   final LocationService _locationService = LocationService();
@@ -69,14 +72,102 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       return _cachedButtonState!;
     }
 
+    // Use API status response if available (preferred method)
+    if (_apiStatusResponse != null && _apiStatusResponse!['success'] == true) {
+      final canCheckIn = _apiStatusResponse!['canCheckIn'] == true;
+      final canCheckOut = _apiStatusResponse!['canCheckOut'] == true;
+      final status = _apiStatusResponse!['status']?.toString() ?? '';
+      final buttonTextFromApi = _apiStatusResponse!['buttonText']?.toString();
+      final action = _apiStatusResponse!['action']?.toString() ?? '';
+
+      String buttonText;
+      IconData buttonIcon;
+      List<Color> buttonColors;
+      bool isEnabled;
+
+      // Handle "checked_in_previous_day" status for overnight workers
+      if (status == 'checked_in_previous_day') {
+        buttonText = ref.t('ออกงาน', 'Check Out');
+        buttonIcon = Icons.logout;
+        buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
+        isEnabled = true;
+      } else if (canCheckIn) {
+        buttonText = buttonTextFromApi ?? ref.t('เข้างาน', 'Check In');
+        buttonIcon = Icons.login;
+        buttonColors = [AppTheme.kNanoGold, AppTheme.kNanoGoldDark];
+        isEnabled = true;
+      } else if (canCheckOut) {
+        buttonText = buttonTextFromApi ?? ref.t('ออกงาน', 'Check Out');
+        buttonIcon = Icons.logout;
+        buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
+        isEnabled = true;
+      } else {
+        // Fallback: check if it's a night shift position
+        final bool isNightShift = isNightShiftPosition();
+        if (isNightShift && action == 'checkin') {
+          // Overnight workers can always check in after checkout
+          buttonText = ref.t('เข้างาน', 'Check In');
+          buttonIcon = Icons.login;
+          buttonColors = [AppTheme.kNanoGold, AppTheme.kNanoGoldDark];
+          isEnabled = true;
+        } else {
+          buttonText = buttonTextFromApi ?? ref.t('ออกงานแล้ว', 'Already Checked Out');
+          buttonIcon = Icons.check_circle;
+          buttonColors = [Colors.grey, Colors.grey.shade600];
+          isEnabled = false;
+        }
+      }
+
+      final buttonState = {
+        'text': buttonText,
+        'icon': buttonIcon,
+        'colors': buttonColors,
+        'enabled': isEnabled,
+      };
+
+      _cachedButtonState = buttonState;
+      _lastButtonStateUpdate = DateTime.now();
+
+      return buttonState;
+    }
+
+    // Fallback: Use local logic if API response not available
     final attendanceData = _shiftData?['attendanceData'] as List?;
     final latestRecord = attendanceData?.isNotEmpty == true
         ? attendanceData!.first
         : null;
-    final hasCheckedIn = latestRecord?['checkInAt'] != null;
-    final hasCheckedOut = latestRecord?['checkOutAt'] != null;
-
-    final bool canCheckIn = !hasCheckedIn;
+    
+    // Check yesterday's attendance for night shifts (e.g., 22:00 - 06:00)
+    // Only for Driver and Security positions
+    // If today has no open attendance, check yesterday
+    Map<String, dynamic>? activeRecord = latestRecord;
+    if (isNightShiftPosition() && 
+        (latestRecord == null || 
+         (latestRecord['checkInAt'] != null && latestRecord['checkOutAt'] != null))) {
+      // No open attendance today, check yesterday (only for Driver/Security)
+      final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+      if (yesterdayAttendanceData?.isNotEmpty == true) {
+        final yesterdayRecord = yesterdayAttendanceData!.first;
+        // If yesterday has check-in but no check-out, use that record
+        if (yesterdayRecord['checkInAt'] != null && 
+            yesterdayRecord['checkOutAt'] == null) {
+          activeRecord = yesterdayRecord;
+        }
+      }
+    }
+    
+    final hasCheckedIn = activeRecord?['checkInAt'] != null;
+    final hasCheckedOut = activeRecord?['checkOutAt'] != null;
+    
+    // For Driver and Security: Always allow check-in/out (no restrictions)
+    // They can check in multiple times per day and check out anytime
+    final bool isNightShift = isNightShiftPosition();
+    
+    // Allow check-in if:
+    // 1. No check-in record exists, OR
+    // 2. The active record is fully checked out (both check-in and check-out exist)
+    // For night shift workers: always allow check-in after checkout
+    final bool canCheckIn = !hasCheckedIn || (hasCheckedIn && hasCheckedOut);
     final bool canCheckOut = hasCheckedIn && !hasCheckedOut;
 
     String buttonText;
@@ -95,10 +186,20 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       buttonColors = [AppTheme.kNanoGoldDark, AppTheme.kNanoGold];
       isEnabled = true;
     } else {
-      buttonText = ref.t('ออกงานแล้ว', 'Already Checked Out');
-      buttonIcon = Icons.check_circle;
-      buttonColors = [Colors.grey, Colors.grey.shade600];
-      isEnabled = false;
+      // For Driver/Security: Never show disabled "Already Checked Out"
+      // Always allow them to check in again
+      if (isNightShift) {
+        buttonText = ref.t('เข้างาน', 'Check In');
+        buttonIcon = Icons.login;
+        buttonColors = [AppTheme.kNanoGold, AppTheme.kNanoGoldDark];
+        isEnabled = true;
+      } else {
+        // For other positions: show disabled state if already checked out
+        buttonText = ref.t('ออกงานแล้ว', 'Already Checked Out');
+        buttonIcon = Icons.check_circle;
+        buttonColors = [Colors.grey, Colors.grey.shade600];
+        isEnabled = false;
+      }
     }
 
     final buttonState = {
@@ -150,9 +251,40 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
+      // Fetch today's attendance data first to get employee profile
       final shiftDataResponse = await apiService.getShiftDataWithFilter(
         employeeId: employeeId,
         date: dateString,
+      );
+
+      // Check if employee is Driver or Security from the shift data response
+      bool shouldCheckYesterday = false;
+      if (shiftDataResponse['success'] == true && shiftDataResponse['employee'] != null) {
+        final employee = shiftDataResponse['employee'] as Map<String, dynamic>;
+        final positionName = (employee['positionName'] ?? employee['position'] ?? '').toString().toLowerCase();
+        shouldCheckYesterday = positionName.contains('driver') || positionName.contains('security');
+      } else if (_employeeProfile != null) {
+        // Fallback to existing profile if available
+        shouldCheckYesterday = isNightShiftPosition();
+      }
+
+      // Also check yesterday for night shifts that cross midnight (only for Driver/Security)
+      Map<String, dynamic>? yesterdayShiftDataResponse;
+      if (shouldCheckYesterday) {
+        final yesterday = today.subtract(const Duration(days: 1));
+        final yesterdayDateString =
+            '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+        yesterdayShiftDataResponse = await apiService.getShiftDataWithFilter(
+          employeeId: employeeId,
+          date: yesterdayDateString,
+        );
+      }
+
+      // Fetch API status response (includes canCheckIn, canCheckOut, status, etc.)
+      final attendanceService = ref.read(attendanceServiceProvider);
+      final statusResponse = await attendanceService.getTodayAttendanceStatus(
+        employeeId: employeeId,
       );
 
       if (mounted) {
@@ -164,13 +296,44 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               _employeeProfile = _shiftData!['employee'];
             }
 
-            if (_shiftData?['attendanceData'] != null) {
+            // Store yesterday's data for night shift handling (only for Driver/Security)
+            if (yesterdayShiftDataResponse != null && yesterdayShiftDataResponse['success'] == true) {
+              _yesterdayShiftData = yesterdayShiftDataResponse;
+            }
+
+            // Store API status response for button logic
+            _apiStatusResponse = statusResponse;
+
+            // Determine active record (today's or yesterday's if not checked out)
+            Map<String, dynamic>? activeRecord;
+            final todayAttendanceData = _shiftData?['attendanceData'] as List?;
+            if (todayAttendanceData?.isNotEmpty == true) {
+              final todayRecord = todayAttendanceData!.first;
+              if (todayRecord['checkInAt'] != null && 
+                  todayRecord['checkOutAt'] == null) {
+                activeRecord = todayRecord;
+              }
+            }
+            
+            // If no open attendance today, check yesterday (only for Driver/Security night shifts)
+            if (activeRecord == null && isNightShiftPosition() && _yesterdayShiftData != null) {
+              final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+              if (yesterdayAttendanceData?.isNotEmpty == true) {
+                final yesterdayRecord = yesterdayAttendanceData!.first;
+                if (yesterdayRecord['checkInAt'] != null && 
+                    yesterdayRecord['checkOutAt'] == null) {
+                  activeRecord = yesterdayRecord;
+                }
+              }
+            }
+
+            if (_shiftData?['attendanceData'] != null || activeRecord != null) {
               _attendanceStatus = {
                 'success': true,
-                'data': _shiftData!['attendanceData'],
-                'record': _shiftData!['attendanceData'].isNotEmpty
+                'data': _shiftData?['attendanceData'] ?? [],
+                'record': activeRecord ?? (_shiftData?['attendanceData']?.isNotEmpty == true
                     ? _shiftData!['attendanceData'][0]
-                    : null,
+                    : null),
               };
             }
 
@@ -403,26 +566,87 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
+      // Fetch today's attendance data first to get employee profile
       final response = await apiService.getShiftDataWithFilter(
         employeeId: employeeId,
         date: dateString,
+      );
+
+      // Check if employee is Driver or Security from the response
+      bool shouldCheckYesterday = false;
+      if (response['success'] == true && response['employee'] != null) {
+        final employee = response['employee'] as Map<String, dynamic>;
+        final positionName = (employee['positionName'] ?? employee['position'] ?? '').toString().toLowerCase();
+        shouldCheckYesterday = positionName.contains('driver') || positionName.contains('security');
+      } else if (_employeeProfile != null) {
+        // Fallback to existing profile if available
+        shouldCheckYesterday = isNightShiftPosition();
+      }
+
+      // Also check yesterday for night shifts that cross midnight (only for Driver/Security)
+      Map<String, dynamic>? yesterdayResponse;
+      if (shouldCheckYesterday) {
+        final yesterday = today.subtract(const Duration(days: 1));
+        final yesterdayDateString =
+            '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+
+        yesterdayResponse = await apiService.getShiftDataWithFilter(
+          employeeId: employeeId,
+          date: yesterdayDateString,
+        );
+      }
+
+      // Fetch API status response (includes canCheckIn, canCheckOut, status, etc.)
+      final attendanceService = ref.read(attendanceServiceProvider);
+      final statusResponse = await attendanceService.getTodayAttendanceStatus(
+        employeeId: employeeId,
       );
 
       if (response['success'] == true) {
         setState(() {
           _shiftData = response;
 
+          // Store API status response for button logic
+          _apiStatusResponse = statusResponse;
+
+          // Store yesterday's data for night shift handling (only for Driver/Security)
+          if (yesterdayResponse != null && yesterdayResponse['success'] == true) {
+            _yesterdayShiftData = yesterdayResponse;
+          }
+
           if (_shiftData?['employee'] != null) {
             _employeeProfile = _shiftData!['employee'];
           }
 
-          if (_shiftData?['attendanceData'] != null) {
-            final attendanceData = _shiftData!['attendanceData'];
-            final hasAttendanceData = attendanceData.isNotEmpty;
-            final latestRecord = hasAttendanceData ? attendanceData[0] : null;
+          // Determine active record (today's or yesterday's if not checked out)
+          Map<String, dynamic>? activeRecord;
+          final todayAttendanceData = _shiftData?['attendanceData'] as List?;
+          if (todayAttendanceData != null && todayAttendanceData.isNotEmpty) {
+            final todayRecord = todayAttendanceData[0] as Map<String, dynamic>;
+            if (todayRecord['checkInAt'] != null && 
+                todayRecord['checkOutAt'] == null) {
+              activeRecord = todayRecord;
+            }
+          }
+          
+          // If no open attendance today, check yesterday (only for Driver/Security night shifts)
+          if (activeRecord == null && isNightShiftPosition() && _yesterdayShiftData != null) {
+            final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+            if (yesterdayAttendanceData != null && yesterdayAttendanceData.isNotEmpty) {
+              final yesterdayRecord = yesterdayAttendanceData[0] as Map<String, dynamic>;
+              if (yesterdayRecord['checkInAt'] != null && 
+                  yesterdayRecord['checkOutAt'] == null) {
+                activeRecord = yesterdayRecord;
+              }
+            }
+          }
+
+          if (_shiftData?['attendanceData'] != null || activeRecord != null) {
+            final attendanceData = _shiftData?['attendanceData'] ?? [];
+            final latestRecord = activeRecord ?? (attendanceData.isNotEmpty ? attendanceData[0] : null);
 
             String status = 'not_checked_in';
-            if (hasAttendanceData && latestRecord != null) {
+            if (latestRecord != null) {
               if (latestRecord['checkInAt'] != null &&
                   latestRecord['checkOutAt'] == null) {
                 status = 'checked_in';
@@ -533,30 +757,35 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           Expanded(
             child: Container(
               color: AppTheme.kBackground,
-              child: Column(
-                children: [
-                  AnimatedFadeIn(
-                    delay: const Duration(milliseconds: 100),
-                    child: _buildHeader(context, ref, state),
-                  ),
-                  const SizedBox(height: 20),
-                  AnimatedFadeIn(
-                    delay: const Duration(milliseconds: 200),
-                    child: _buildCheckInOutButton(context, ref, controller, state),
-                  ),
-                  const SizedBox(height: 20),
-                  AnimatedFadeIn(
-                    delay: const Duration(milliseconds: 300),
-                    child: _buildViewDetailsButton(context, ref, state),
-                  ),
-                  if (_showDetails) ...[
-                    const SizedBox(height: 20),
-                    AnimatedSlideIn(
-                      delay: const Duration(milliseconds: 400),
-                      child: _buildAttendanceList(ref, state),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    AnimatedFadeIn(
+                      delay: const Duration(milliseconds: 100),
+                      child: _buildHeader(context, ref, state),
                     ),
+                    const SizedBox(height: 20),
+                    AnimatedFadeIn(
+                      delay: const Duration(milliseconds: 200),
+                      child: _buildCheckInOutButton(context, ref, controller, state),
+                    ),
+                    const SizedBox(height: 20),
+                    AnimatedFadeIn(
+                      delay: const Duration(milliseconds: 300),
+                      child: _buildViewDetailsButton(context, ref, state),
+                    ),
+                    if (_showDetails) ...[
+                      const SizedBox(height: 20),
+                      AnimatedSlideIn(
+                        delay: const Duration(milliseconds: 400),
+                        child: _buildAttendanceList(ref, state),
+                      ),
+                    ],
+                    // Add bottom padding to ensure buttons are always accessible
+                    const SizedBox(height: 20),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -695,7 +924,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            constraints: const BoxConstraints(maxHeight: 50),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
@@ -707,21 +937,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.location_on,
-                  color: Colors.white.withOpacity(0.9),
-                  size: 18,
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    Icons.location_on,
+                    color: Colors.white.withOpacity(0.9),
+                    size: 16,
+                  ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     _getLocationDisplayText(),
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 3,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -772,16 +1005,72 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       ),
       child: state.when(
         data: (entries) {
+          // Get active record (today's or yesterday's if not checked out)
+          Map<String, dynamic>? activeRecord;
           final attendanceData = _shiftData?['attendanceData'] as List?;
-          final latestRecord = attendanceData?.isNotEmpty == true
+          if (attendanceData?.isNotEmpty == true) {
+            final todayRecord = attendanceData!.first;
+            if (todayRecord['checkInAt'] != null && 
+                todayRecord['checkOutAt'] == null) {
+              activeRecord = todayRecord;
+            }
+          }
+          
+          // If no open attendance today, check yesterday for night shifts (only for Driver/Security)
+          if (activeRecord == null && isNightShiftPosition() && _yesterdayShiftData != null) {
+            final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+            if (yesterdayAttendanceData?.isNotEmpty == true) {
+              final yesterdayRecord = yesterdayAttendanceData!.first;
+              if (yesterdayRecord['checkInAt'] != null && 
+                  yesterdayRecord['checkOutAt'] == null) {
+                activeRecord = yesterdayRecord;
+              }
+            }
+          }
+          
+          // Fallback to today's latest record if no active record found
+          final latestRecord = activeRecord ?? (attendanceData?.isNotEmpty == true
               ? attendanceData!.first
-              : null;
+              : null);
 
           final hasCheckedIn = latestRecord?['checkInAt'] != null;
           final hasCheckedOut = latestRecord?['checkOutAt'] != null;
 
           final checkInTime = latestRecord?['checkInAt']?.toString();
           final checkOutTime = latestRecord?['checkOutAt']?.toString();
+          final checkInDate = latestRecord?['checkInDate']?.toString();
+          final checkOutDate = latestRecord?['checkOutDate']?.toString();
+          final isOvernightShift = latestRecord?['isOvernightShift'] == true || 
+              latestRecord?['isOvernightShift'] == 'true' ||
+              (checkInDate != null && checkOutDate != null && checkInDate != checkOutDate);
+
+          // Format date for display
+          String formatDateForDisplay(String? dateStr) {
+            if (dateStr == null) return '';
+            try {
+              final date = DateTime.parse(dateStr);
+              return fmtDate(date);
+            } catch (e) {
+              return dateStr;
+            }
+          }
+
+          // Format time for display (extract time from datetime string)
+          String formatTimeForDisplay(String? timeStr) {
+            if (timeStr == null) return '';
+            try {
+              if (timeStr.contains('T')) {
+                final dateTime = DateTime.parse(timeStr);
+                return fmt(dateTime);
+              } else if (timeStr.contains(':')) {
+                // Already a time string (HH:mm:ss)
+                return timeStr.split('.').first; // Remove milliseconds if present
+              }
+              return timeStr;
+            } catch (e) {
+              return timeStr;
+            }
+          }
 
           return Column(
             children: [
@@ -815,23 +1104,132 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 8),
-              if (checkInTime != null) ...[
-                Text(
-                  '${ref.t('เข้างาน', 'Check In')}: $checkInTime',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
+              if (isOvernightShift) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    ref.t('กะข้ามคืน', 'Overnight Shift'),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
+              ],
+              const SizedBox(height: 16),
+              if (checkInTime != null) ...[
                 if (checkOutTime != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '${ref.t('ออกงาน', 'Check Out')}: $checkOutTime',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
-                      fontSize: 14,
-                    ),
+                  // Both check-in and check-out: display side by side
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Check-in on the left
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ref.t('เข้างาน', 'Check In'),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              formatTimeForDisplay(checkInTime),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (checkInDate != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                formatDateForDisplay(checkInDate),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Divider in the middle
+                      Container(
+                        width: 1,
+                        height: 50,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        color: Colors.white.withOpacity(0.3),
+                      ),
+                      // Check-out on the right
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              ref.t('ออกงาน', 'Check Out'),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              formatTimeForDisplay(checkOutTime),
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (checkOutDate != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                formatDateForDisplay(checkOutDate),
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  // Only check-in: display centered
+                  Column(
+                    children: [
+                      Text(
+                        '${ref.t('เข้างาน', 'Check In')}: ${formatTimeForDisplay(checkInTime)}',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (checkInDate != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          formatDateForDisplay(checkInDate),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ],
@@ -877,6 +1275,54 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
+  /// Checks if the employee position requires night shift handling (crosses midnight)
+  /// Only Driver and Security positions need to check yesterday's attendance
+  bool isNightShiftPosition() {
+    final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
+    if (employeeProfile == null) {
+      return false;
+    }
+
+    final positionName = (employeeProfile['positionName'] ?? employeeProfile['position'] ?? '').toString().toLowerCase();
+    
+    // Only Driver and Security positions have night shifts that cross midnight
+    return positionName.contains('driver') || positionName.contains('security');
+  }
+
+  /// Determines if location restriction should be enforced based on company and position
+  /// 
+  /// Rules:
+  /// - nanovip company → No restriction (can check in/out everywhere)
+  /// - nanostore company + office position → No restriction (can check in/out everywhere)
+  /// - nanostore company + non-office position → Restriction (must be in branch area)
+  /// - BranchLocation company → Restriction (must be in branch area)
+  /// - Default → Restriction (must be in branch area) for safety
+  bool shouldEnforceLocationRestriction() {
+    final employeeProfile = _employeeProfile ?? _getEmployeeFromShiftData();
+    if (employeeProfile == null) {
+      // Default to enforcing restriction for safety
+      return true;
+    }
+
+    final companyName = (employeeProfile['companyName'] ?? employeeProfile['company'] ?? '').toString().toLowerCase();
+    final positionName = (employeeProfile['positionName'] ?? employeeProfile['position'] ?? '').toString().toLowerCase();
+
+    // nanovip employees can check in/out everywhere (no restriction)
+    if (companyName.contains('nanovip') || companyName.contains('nano-vip')) {
+      return false;
+    }
+
+    // nanostore office employees can check in/out everywhere (no restriction)
+    if ((companyName.contains('nanostore') || companyName.contains('nano-store')) && 
+        positionName.contains('office')) {
+      return false;
+    }
+
+    // BranchLocation employees and nanostore non-office employees must be in office area
+    // Default: enforce restriction for safety
+    return true;
+  }
+
   Widget _buildCheckInOutButton(
     BuildContext context,
     WidgetRef ref,
@@ -888,18 +1334,45 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       child: state.when(
         data: (entries) {
           final buttonState = _getButtonState(entries);
+          final shouldEnforce = shouldEnforceLocationRestriction();
+          
+          // Always check if within branch radius (for display purposes)
           bool withinBranch = false;
+          String? nearestBranchName;
           if (_currentLocation != null) {
             final lat = _currentLocation!['latitude'] as double?;
             final lng = _currentLocation!['longitude'] as double?;
             if (lat != null && lng != null) {
               withinBranch = BranchLocationService.isWithinBranchRadius(lat, lng);
+              // Get nearest branch info for display
+              final nearestBranchInfo = BranchLocationService.getNearestBranchInfo(lat, lng);
+              if (nearestBranchInfo != null) {
+                nearestBranchName = nearestBranchInfo['branchName'] as String?;
+              }
             }
           }
-          final isEnabled = (buttonState['enabled'] as bool) && withinBranch;
-          final displayText = withinBranch
-              ? buttonState['text'] as String
-              : ref.t('นอกพื้นที่สำนักงาน', 'Outside office area');
+
+          // If no restriction needed, consider it as within branch for button enablement
+          // But still show branch info if available
+          final isEnabled = shouldEnforce
+              ? ((buttonState['enabled'] as bool) && withinBranch)
+              : (buttonState['enabled'] as bool);
+          
+          // Build display text
+          String displayText;
+          if (shouldEnforce && !withinBranch) {
+            // Restriction enforced but outside area
+            displayText = ref.t('นอกพื้นที่สำนักงาน', 'Outside office area');
+          } else if (!shouldEnforce && withinBranch && nearestBranchName != null) {
+            // No restriction but within branch - show branch name
+            displayText = '${buttonState['text'] as String} - $nearestBranchName';
+          } else if (!shouldEnforce && !withinBranch && nearestBranchName != null) {
+            // No restriction, outside branch but show nearest branch
+            displayText = '${buttonState['text'] as String} (Near: $nearestBranchName)';
+          } else {
+            // Default: just show button text
+            displayText = buttonState['text'] as String;
+          }
 
           return Container(
             width: double.infinity,
@@ -1019,7 +1492,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       };
 
       bool isCheckOut = false;
+      Map<String, dynamic>? activeRecord;
 
+      // Check today's attendance first
       final attendanceData = _shiftData?['attendanceData'] as List?;
       if (attendanceData?.isNotEmpty == true) {
         final latestRecord = attendanceData!.first;
@@ -1027,9 +1502,34 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final hasCheckedOut = latestRecord['checkOutAt'] != null;
 
         if (hasCheckedIn && !hasCheckedOut) {
-          isCheckOut = true; 
+          isCheckOut = true;
+          activeRecord = latestRecord;
         } else if (hasCheckedIn && hasCheckedOut) {
-          throw Exception('You have already checked out today');
+          // Today is already checked out, check if yesterday has open attendance (only for Driver/Security)
+          if (isNightShiftPosition()) {
+            final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+            if (yesterdayAttendanceData?.isNotEmpty == true) {
+              final yesterdayRecord = yesterdayAttendanceData!.first;
+              if (yesterdayRecord['checkInAt'] != null && 
+                  yesterdayRecord['checkOutAt'] == null) {
+                isCheckOut = true;
+                activeRecord = yesterdayRecord;
+              }
+            }
+          }
+        }
+      } else {
+        // No attendance today, check yesterday for night shifts (only for Driver/Security)
+        if (isNightShiftPosition()) {
+          final yesterdayAttendanceData = _yesterdayShiftData?['attendanceData'] as List?;
+          if (yesterdayAttendanceData?.isNotEmpty == true) {
+            final yesterdayRecord = yesterdayAttendanceData!.first;
+            if (yesterdayRecord['checkInAt'] != null && 
+                yesterdayRecord['checkOutAt'] == null) {
+              isCheckOut = true;
+              activeRecord = yesterdayRecord;
+            }
+          }
         }
       }
 
@@ -1043,6 +1543,28 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final latitude = result['latitude'] as double?;
         final longitude = result['longitude'] as double?;
         final address = result['address'] as String?;
+
+        // Validate location if restriction is enforced
+        final shouldEnforce = shouldEnforceLocationRestriction();
+        if (shouldEnforce && latitude != null && longitude != null) {
+          final withinBranch = BranchLocationService.isWithinBranchRadius(
+            latitude,
+            longitude,
+          );
+          if (!withinBranch) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    ref.t('นอกพื้นที่สำนักงาน', 'Outside office area'),
+                  ),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+            }
+            return;
+          }
+        }
 
         if (context.mounted) {
           showDialog(
@@ -1542,7 +2064,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  _showAttendanceDetails(context, state);
+                  context.push('/attendance/calendar');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
@@ -1561,7 +2083,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      ref.t('ประวัติ', 'History'),
+                      ref.t('ดูการเข้างาน', 'Attendance'),
                       style: const TextStyle(
                         color: AppTheme.kNanoGold,
                         fontSize: 16,

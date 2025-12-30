@@ -420,8 +420,8 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
                 Icon(Icons.info_outline, color: Colors.grey, size: 20),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Please select a date first to load your working shift',
+                    child: Text(
+                    LeaveTranslations.pleaseSelectDateFirstForShift(ref),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
@@ -1505,9 +1505,23 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         return;
       }
 
+      // Get employee profile to check company name
+      Map<String, dynamic>? employeeProfile;
+      String? companyName;
+      try {
+        final profileResponse = await authService.getEmployeeProfile();
+        if (profileResponse['success'] == true && profileResponse['employee'] != null) {
+          employeeProfile = profileResponse['employee'] as Map<String, dynamic>;
+          companyName = (employeeProfile['companyName'] ?? employeeProfile['company'] ?? '').toString();
+        }
+      } catch (e) {
+        // If profile fetch fails, continue with default workflow
+      }
      
-     
-      final approvalWorkflow = _getApprovalWorkflow(currentPositionName ?? '');
+      final approvalWorkflow = _getApprovalWorkflow(
+        currentPositionName ?? '',
+        companyName: companyName,
+      );
 
       final requestData = {
         'employeeId': currentEmployeeId,
@@ -1516,6 +1530,7 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
         'firstName': currentEmployeeFirstName ?? '',
         'lastName': currentEmployeeLastName ?? '',
         'positionName': currentPositionName ?? '',
+        'companyName': companyName ?? '',
         'leaveType': widget.leaveType, 
         'leaveTypeName': widget.leaveTypeName.isNotEmpty
             ? widget.leaveTypeName
@@ -1739,8 +1754,21 @@ class _LeaveRequestScreenState extends ConsumerState<LeaveRequestScreen> {
     }
   }
 
-  Map<String, String> _getApprovalWorkflow(String positionName) {
+  Map<String, String> _getApprovalWorkflow(
+    String positionName, {
+    String? companyName,
+  }) {
     final position = positionName.toLowerCase();
+    final company = (companyName ?? '').toString().toLowerCase();
+
+    // For nano-vip company, all employees go directly to HR
+    if (company.contains('nano-vip') || company.contains('nanovip')) {
+      return {
+        'level': 'hr',
+        'currentApprover': 'hr',
+        'workflow': 'employee -> hr',
+      };
+    }
 
     if (position.contains('hr') || position.contains('human resource')) {
       return {

@@ -295,6 +295,8 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       case 'approved_team_lead':
       case 'approved_manager':
       case 'approved_hr':
+      case 'approved_warehouse_manager':
+      case 'approved_by_warehouse_manager':
         if (isOwnRequest) {
           if (mounted) {
             context.push('/leave/list');

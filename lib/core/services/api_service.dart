@@ -545,6 +545,31 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getEmployeeProfileByUid(String uid) async {
+    try {
+      final response = await _dio.get(
+        '/profile/$uid',
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get employee profile: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return e.response!.data;
+      } else {
+        return {'success': false, 'message': 'Network error: ${e.message}'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Unexpected error: $e'};
+    }
+  }
+
   Future<Map<String, dynamic>> getEmployeeShiftByDate({
     required String employeeId,
     required String date, 
@@ -742,6 +767,47 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getShiftCalendar({
+    required String employeeId,
+    required String fromDate,
+    required String toDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        ApiEndpoints.getShiftCalendar(employeeId, fromDate, toDate),
+      );
+      
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': response.data,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Failed to get shift calendar: ${response.statusCode}',
+        };
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return {
+          'success': false,
+          'message': e.response!.data['message'] ?? 'Failed to get shift calendar',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': 'Network error: ${e.message}',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Unexpected error: ${e.toString()}',
+      };
+    }
+  }
+
   Future<Map<String, dynamic>> getAttendanceListWithFilter({
     required String employeeId,
     int? month,
@@ -882,6 +948,7 @@ class ApiService {
     double? longitude,
     String? address,
     String? checkInLocation,
+    String? checkOutLocation,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -910,6 +977,9 @@ class ApiService {
       }
       if (checkInLocation != null) {
         data['checkInLocation'] = checkInLocation;
+      }
+      if (checkOutLocation != null) {
+        data['checkOutLocation'] = checkOutLocation;
       }
 
       final response = await _dio.post(ApiEndpoints.checkInOut, data: data);
@@ -946,9 +1016,26 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
+        // Check if the response data indicates success
+        final responseData = response.data;
+        if (responseData is Map<String, dynamic>) {
+          // If server returns success field, use it
+          if (responseData.containsKey('success')) {
+            return {
+              'success': responseData['success'] == true,
+              'data': responseData,
+              'message': responseData['message'] ?? 
+                (responseData['success'] == true 
+                  ? 'Check in/out successful' 
+                  : 'Check in/out failed'),
+            };
+          }
+        }
+        
+        // Default: assume success if status is 200
         return {
           'success': true,
-          'data': response.data,
+          'data': responseData,
           'message': 'Check in/out successful',
         };
       } else {
@@ -958,11 +1045,20 @@ class ApiService {
         };
       }
     } on DioException catch (e) {
+      if (kDebugMode) {
+        debugPrint('Check-out API error: ${e.message}');
+        debugPrint('Response data: ${e.response?.data}');
+      }
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Check in/out failed',
+        'message': e.response?.data['message'] ?? 
+          e.response?.data['error'] ?? 
+          'Check in/out failed: ${e.message}',
       };
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Check-out unexpected error: $e');
+      }
       return {'success': false, 'message': 'Unexpected error: $e'};
     }
   }

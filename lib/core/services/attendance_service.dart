@@ -85,6 +85,7 @@ class AttendanceService {
         longitude: data['longitude'],
         address: data['address'],
         checkInLocation: data['checkInLocation'],
+        checkOutLocation: data['checkOutLocation'],
       );
 
       if (response['success'] == true) {

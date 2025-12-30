@@ -17,6 +17,10 @@ class LeaveService {
     _approvalCacheTimestamp = null;
   }
 
+  static Map<String, dynamic>? getApprovalCache(String cacheKey) {
+    return _leaveApprovalCache[cacheKey];
+  }
+
   LeaveService() {
     _dio.options.baseUrl = ApiEndpoints.baseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 10);
@@ -340,12 +344,41 @@ Map<String, dynamic> data,
     }
   }
 
+  /// Updates leave request status (approve/reject)
+  /// 
+  /// Payload structure sent to backend:
+  /// {
+  ///   "leaveId": "string",
+  ///   "userId": "string",           // approver's employee ID
+  ///   "userRole": "string",         // team-lead, manager, hr, warehouse-manager, etc.
+  ///   "action": "approve" | "reject",
+  ///   "note": "string" (optional),
+  ///   "rejectReason": "string" (when rejecting),
+  ///   "rejectionReason": "string" (when rejecting - alternative field name),
+  ///   "rejectedReason": "string" (when rejecting - alternative field name),
+  ///   "rejection_reason": "string" (when rejecting - alternative field name),
+  ///   "reject_reason": "string" (when rejecting - alternative field name)
+  /// }
+  /// 
+  /// Example reject payload:
+  /// {
+  ///   "leaveId": "abc123",
+  ///   "userId": "EMP-001",
+  ///   "userRole": "team-lead",
+  ///   "action": "reject",
+  ///   "rejectReason": "Insufficient leave balance",
+  ///   "rejectionReason": "Insufficient leave balance",
+  ///   "rejectedReason": "Insufficient leave balance",
+  ///   "rejection_reason": "Insufficient leave balance",
+  ///   "reject_reason": "Insufficient leave balance"
+  /// }
   Future<Map<String, dynamic>> updateLeaveStatus({
     required String leaveId,
     required String status, 
     required String approverId,
     required String userRole, 
     String? note,
+    String? rejectReason,
   }) async {
     try {
       final stopwatch = Stopwatch()..start();
@@ -356,7 +389,16 @@ Map<String, dynamic> data,
         'userRole': userRole, 
         'action': status == 'approved' ? 'approve' : 'reject',
         if (note != null && note.isNotEmpty) 'note': note,
+        // Try multiple field name variations for backend compatibility
+        if (rejectReason != null && rejectReason.isNotEmpty) ...{
+          'rejectReason': rejectReason,
+          'rejectionReason': rejectReason,
+          'rejectedReason': rejectReason,
+          'rejection_reason': rejectReason,
+          'reject_reason': rejectReason,
+        },
       };
+
 
       final response = await _dio.put(
         ApiEndpoints.leaveStatus(leaveId),
@@ -384,12 +426,41 @@ Map<String, dynamic> data,
     }
   }
 
+  /// Approves or rejects leave request (alternative endpoint)
+  /// 
+  /// Payload structure sent to backend:
+  /// {
+  ///   "leaveId": "string",
+  ///   "userId": "string",           // approver's employee ID
+  ///   "userRole": "string",         // team-lead, manager, hr, warehouse-manager, etc.
+  ///   "action": "approve" | "reject",
+  ///   "note": "string" (optional),
+  ///   "rejectReason": "string" (when rejecting),
+  ///   "rejectionReason": "string" (when rejecting - alternative field name),
+  ///   "rejectedReason": "string" (when rejecting - alternative field name),
+  ///   "rejection_reason": "string" (when rejecting - alternative field name),
+  ///   "reject_reason": "string" (when rejecting - alternative field name)
+  /// }
+  /// 
+  /// Example reject payload:
+  /// {
+  ///   "leaveId": "abc123",
+  ///   "userId": "EMP-001",
+  ///   "userRole": "team-lead",
+  ///   "action": "reject",
+  ///   "rejectReason": "Insufficient leave balance",
+  ///   "rejectionReason": "Insufficient leave balance",
+  ///   "rejectedReason": "Insufficient leave balance",
+  ///   "rejection_reason": "Insufficient leave balance",
+  ///   "reject_reason": "Insufficient leave balance"
+  /// }
   Future<Map<String, dynamic>> approveOrRejectLeave({
     required String leaveId,
     required String action, 
     required String approverId,
     required String userRole, 
     String? note,
+    String? rejectReason,
   }) async {
     try {
       final stopwatch = Stopwatch()..start();
@@ -400,7 +471,16 @@ Map<String, dynamic> data,
         'userRole': userRole, 
         'action': action,
         if (note != null && note.isNotEmpty) 'note': note,
+        // Try multiple field name variations for backend compatibility
+        if (rejectReason != null && rejectReason.isNotEmpty) ...{
+          'rejectReason': rejectReason,
+          'rejectionReason': rejectReason,
+          'rejectedReason': rejectReason,
+          'rejection_reason': rejectReason,
+          'reject_reason': rejectReason,
+        },
       };
+
 
       final response = await _dio.put(
         ApiEndpoints.leaveApproval(leaveId),
