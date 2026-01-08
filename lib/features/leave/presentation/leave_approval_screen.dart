@@ -285,13 +285,47 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       return const SizedBox.shrink();
     }
     
-    // Determine which steps are completed based on status
+    // Determine which steps are completed based on status and approval history
     bool isRejected = statusLower == 'rejected';
     bool isApproved = statusLower == 'approved';
     bool isApprovedByManager = statusLower.contains('approved') && statusLower.contains('manager') && !statusLower.contains('warehouse');
     bool isApprovedByTeamLead = statusLower.contains('approved') && statusLower.contains('team_lead');
     bool isApprovedByWarehouseManager = statusLower.contains('approved') && statusLower.contains('warehouse_manager');
     bool isApprovedByHR = statusLower.contains('approved') && statusLower.contains('hr');
+    
+    // Helper function to check if a step is approved in approval history
+    bool isStepApprovedInHistory(String stepName) {
+      final stepNormalized = stepName.replaceAll('_', ' ').replaceAll('-', ' ').toLowerCase();
+      
+      for (final entry in approvalHistory) {
+        if (entry is Map<String, dynamic>) {
+          final entryLevel = (entry['level'] ?? '').toString().toLowerCase();
+          final entryLevelNormalized = entryLevel.replaceAll('_', ' ').replaceAll('-', ' ');
+          final entryAction = (entry['action'] ?? '').toString().toLowerCase();
+          
+          // Check if this entry matches the step
+          bool isMatch = false;
+          if (stepNormalized == entryLevelNormalized ||
+              stepNormalized == entryLevel ||
+              stepName.toLowerCase() == entryLevel) {
+            isMatch = true;
+          } else if ((stepNormalized.contains('team') && stepNormalized.contains('lead') && 
+                     entryLevelNormalized.contains('team') && entryLevelNormalized.contains('lead')) ||
+                    (stepNormalized.contains('hr') && entryLevelNormalized.contains('hr')) ||
+                    (stepNormalized.contains('manager') && !stepNormalized.contains('warehouse') && 
+                     entryLevelNormalized.contains('manager') && !entryLevelNormalized.contains('warehouse')) ||
+                    (stepNormalized.contains('warehouse') && entryLevelNormalized.contains('warehouse')) ||
+                    (stepNormalized.contains('approver') && entryLevelNormalized.contains('approver'))) {
+            isMatch = true;
+          }
+          
+          if (isMatch && entryAction == 'approve') {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
     
     // Determine step statuses - check each step in order
     List<bool> stepApproved = List.generate(steps.length, (index) {
@@ -303,20 +337,55 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       // If rejected, no steps are approved
       if (isRejected) return false;
       
+      // First, check approval history for this step
+      final isApprovedInHistory = isStepApprovedInHistory(step);
+      
       // Check each step type (handle different formats: "team_lead", "team lead", "Team Lead", etc.)
       final stepNormalized = step.replaceAll('_', ' ').replaceAll('-', ' ');
       
+      bool isApprovedByStatus = false;
       if (stepNormalized.contains('manager') && !stepNormalized.contains('warehouse')) {
-        return isApprovedByManager;
+        isApprovedByStatus = isApprovedByManager;
       } else if (stepNormalized.contains('team') && stepNormalized.contains('lead')) {
-        return isApprovedByTeamLead;
+        isApprovedByStatus = isApprovedByTeamLead;
       } else if (stepNormalized.contains('warehouse')) {
-        return isApprovedByWarehouseManager;
+        isApprovedByStatus = isApprovedByWarehouseManager;
       } else if (stepNormalized.contains('hr') || stepNormalized.contains('human resource')) {
-        return isApprovedByHR;
+        isApprovedByStatus = isApprovedByHR;
       } else if (stepNormalized.contains('approver')) {
         // Approver step is approved only if HR is approved and request is fully approved
-        return isApprovedByHR && isApproved;
+        isApprovedByStatus = isApprovedByHR && isApproved;
+      }
+      
+      // Step is approved if found in history OR status indicates approval
+      if (isApprovedInHistory || isApprovedByStatus) {
+        return true;
+      }
+      
+      // If a later step is approved, mark previous steps as approved too (sequential approval)
+      // This handles cases where status shows "approved_hr" meaning Manager already approved
+      for (int i = index + 1; i < steps.length; i++) {
+        final laterStep = steps[i].toLowerCase();
+        final laterStepNormalized = laterStep.replaceAll('_', ' ').replaceAll('-', ' ');
+        
+        // Check if later step is approved in history
+        if (isStepApprovedInHistory(laterStep)) {
+          return true;
+        }
+        
+        // Check if later step is approved by status
+        bool laterStepApproved = false;
+        if (laterStepNormalized.contains('hr') && isApprovedByHR) {
+          laterStepApproved = true;
+        } else if (laterStepNormalized.contains('approver') && isApproved) {
+          laterStepApproved = true;
+        } else if (laterStepNormalized.contains('manager') && !laterStepNormalized.contains('warehouse') && isApprovedByManager) {
+          laterStepApproved = true;
+        }
+        
+        if (laterStepApproved) {
+          return true;
+        }
       }
       
       return false;
@@ -375,14 +444,6 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
             final stepNormalized = stepLower.replaceAll('_', ' ').replaceAll('-', ' ');
             final approverNamesCache = (details['approverNames'] as Map<String, String>?) ?? {};
             
-            debugPrint('=== Finding approver for step ===');
-            debugPrint('Original step name: $stepName');
-            debugPrint('Step lower: $stepLower');
-            debugPrint('Step normalized: $stepNormalized');
-            debugPrint('Display name (translated): $displayName');
-            debugPrint('Step is approved: $stepIsApproved');
-            debugPrint('Approval history entries: ${approvalHistory.length}');
-            debugPrint('Cache has ${approverNamesCache.length} entries: ${approverNamesCache.keys}');
             
             // Try to match by level - find the approval entry that matches this step
             for (final entry in approvalHistory) {
@@ -1304,6 +1365,77 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         notification.data['leaveId'] ??
         notification.data['id'];
     final live = leaveId != null ? _leaveDetails[leaveId] : null;
+    
+    // Extract attachments from leave request data (as List<Map<String, dynamic>> like leave_list_screen)
+    List<Map<String, dynamic>> attachments = [];
+    
+    // First, try from _leaveDetails (if already loaded)
+    if (live != null && live['attachments'] != null && live['attachments'] is List) {
+      final attList = live['attachments'] as List;
+      // Convert to List<Map<String, dynamic>> if they're strings, otherwise use as-is
+      attachments = attList.map((e) {
+        if (e is String) {
+          return {'publicUrl': e, 'url': e};
+        } else if (e is Map<String, dynamic>) {
+          return e;
+        }
+        return <String, dynamic>{};
+      }).where((e) => e.isNotEmpty).toList();
+      debugPrint('✓ Found ${attachments.length} attachments from _leaveDetails');
+    } else {
+      // Try to extract from notification data (the request object is stored here)
+      try {
+        // Check if attachments are already a list
+        if (notification.data['attachments'] is List) {
+          final attList = notification.data['attachments'] as List;
+          attachments = attList.map((e) {
+            if (e is String) {
+              return {'publicUrl': e, 'url': e};
+            } else if (e is Map<String, dynamic>) {
+              return e;
+            }
+            return <String, dynamic>{};
+          }).where((e) => e.isNotEmpty).toList();
+          if (attachments.isNotEmpty) {
+            debugPrint('✓ Found ${attachments.length} attachments from notification.data[attachments]');
+          }
+        }
+        
+        // If no attachments found, try to extract from attachment object
+        // This matches the extraction logic in _showLeaveDetails
+        if (attachments.isEmpty && notification.data['attachment'] != null) {
+          final attachment = notification.data['attachment'];
+          debugPrint('Checking attachment object: ${attachment.runtimeType}');
+          
+          if (attachment is Map<String, dynamic>) {
+            // Check for files array (same as _showLeaveDetails)
+            final files = attachment['files'];
+            if (files is List) {
+              attachments = files
+                  .map((e) {
+                    if (e is Map<String, dynamic>) {
+                      return e;
+                    } else if (e is String) {
+                      return {'publicUrl': e, 'url': e};
+                    }
+                    return <String, dynamic>{};
+                  })
+                  .where((e) => e.isNotEmpty)
+                  .toList();
+              if (attachments.isNotEmpty) {
+                debugPrint('✓ Found ${attachments.length} attachments from attachment.files');
+              }
+            }
+          }
+        }
+        
+        if (attachments.isEmpty) {
+          debugPrint('⚠ No attachments found. Notification data keys: ${notification.data.keys.toList()}');
+        }
+      } catch (e) {
+        debugPrint('✗ Error extracting attachments: $e');
+      }
+    }
     final rawStatus =
         (live?['status'] ??
                 live?['statusName'] ??
@@ -1377,27 +1509,23 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top row: Person icon + Name + Status badge (top right)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppTheme.kNanoGold.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+                // Person icon on the left
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
                   child: Icon(
                     Icons.person,
                     color: AppTheme.kNanoGold,
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
+                // Name - aligned with other labels
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                  child: Text(
                         employeeName.isNotEmpty
                             ? employeeName
                             : 'Employee ${notification.senderId ?? 'Unknown'}',
@@ -1407,29 +1535,8 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        employeeId.isNotEmpty ? employeeId : 'ID: Unknown',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        positionName.isNotEmpty
-                            ? positionName
-                            : 'Position: Unknown',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
+                // Status badge in top right
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -1464,67 +1571,46 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    statusLower == 'approved'
-                        ? 'Approved'
-                        : statusLower == 'rejected'
-                        ? 'Rejected'
-                        : statusLower == 'approved_manager' ||
-                              statusLower == 'approved_by_manager' ||
-                              (statusLower.contains('approved') &&
-                                  statusLower.contains('manager') &&
-                                  !statusLower.contains('warehouse'))
-                        ? 'Approved by Manager'
-                        : statusLower == 'approved_hr' ||
-                              statusLower == 'approved_by_hr' ||
-                              (statusLower.contains('approved') &&
-                                  statusLower.contains('hr'))
-                        ? 'Approved by HR'
-                        : statusLower == 'approved_team_lead' ||
-                              statusLower == 'approved_by_team_lead' ||
-                              (statusLower.contains('approved') &&
-                                  statusLower.contains('team_lead'))
-                        ? 'Approved by Team Lead'
-                        : statusLower == 'approved_warehouse_manager' ||
-                              statusLower == 'approved_by_warehouse_manager' ||
-                              (statusLower.contains('approved') &&
-                                  statusLower.contains('warehouse_manager'))
-                        ? 'Approved by Warehouse Manager'
-                        : 'Pending',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: statusLower == 'approved'
-                          ? Colors.green[700]
-                          : statusLower == 'rejected'
-                          ? Colors.red[700]
-                          : statusLower == 'approved_manager' ||
-                                statusLower == 'approved_by_manager' ||
-                                (statusLower.contains('approved') &&
-                                    statusLower.contains('manager') &&
-                                    !statusLower.contains('warehouse'))
-                          ? Colors.blue[700]
-                          : statusLower == 'approved_hr' ||
-                                statusLower == 'approved_by_hr' ||
-                                (statusLower.contains('approved') &&
-                                    statusLower.contains('hr'))
-                          ? Colors.purple[700]
-                          : statusLower == 'approved_team_lead' ||
-                                statusLower == 'approved_by_team_lead' ||
-                                (statusLower.contains('approved') &&
-                                    statusLower.contains('team_lead'))
-                          ? Colors.teal[700]
-                          : statusLower == 'approved_warehouse_manager' ||
-                                statusLower == 'approved_by_warehouse_manager' ||
-                                (statusLower.contains('approved') &&
-                                    statusLower.contains('warehouse_manager'))
-                          ? Colors.indigo[700]
-                          : Colors.orange[700],
-                    ),
-                  ),
+                  child: _buildStatusText(statusLower),
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            // Employee ID - aligned with name (same left margin as name)
+            Padding(
+              padding: const EdgeInsets.only(left: 28), // Icon width (20) + spacing (8)
+                  child: Text(
+                employeeId.isNotEmpty ? employeeId : 'ID: Unknown',
+                    style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            const SizedBox(height: 4),
+            // Position - aligned with name
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                positionName.isNotEmpty
+                    ? positionName
+                    : 'Position: Unknown',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            // Display attachments if available - aligned with labels
+            if (attachments.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 28),
+                child: _buildAttachmentsPreview(attachments),
+              ),
+            ],
             if (showActions) ...[
               Container(
                 height: 0,
@@ -1784,11 +1870,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         final d = details ?? {};
         final status = (d['status'] ?? 'Pending').toString();
         final statusLower = status.toLowerCase();
-        final Color statusColor = statusLower == 'approved'
-            ? AppTheme.successColor
-            : statusLower == 'rejected'
-            ? AppTheme.errorColor
-            : AppTheme.warningColor;
+        final Color statusColor = _getStatusColor(statusLower);
         return Padding(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1854,14 +1936,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                           width: 1,
                         ),
                       ),
-                      child: Text(
-                        status[0].toUpperCase() + status.substring(1),
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
+                      child: _buildStatusTextForDetail(statusLower, statusColor),
                     ),
                   ],
                 ),
@@ -2476,9 +2551,423 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     }
   }
 
+  String _getStatusText(String statusLower) {
+    if (statusLower == 'approved') {
+      return 'Approved';
+    } else if (statusLower == 'rejected') {
+      return 'Rejected';
+    } else if (statusLower == 'approved_manager' ||
+               statusLower == 'approved_by_manager' ||
+               (statusLower.contains('approved') &&
+                statusLower.contains('manager') &&
+                !statusLower.contains('warehouse'))) {
+      return 'Approved Manager';
+    } else if (statusLower == 'approved_hr' ||
+               statusLower == 'approved_by_hr' ||
+               (statusLower.contains('approved') && statusLower.contains('hr'))) {
+      return 'Approved HR';
+    } else if (statusLower == 'approved_team_lead' ||
+               statusLower == 'approved_by_team_lead' ||
+               (statusLower.contains('approved') && statusLower.contains('team_lead'))) {
+      return 'Approved Team Lead';
+    } else if (statusLower == 'approved_warehouse_manager' ||
+               statusLower == 'approved_by_warehouse_manager' ||
+               (statusLower.contains('approved') && statusLower.contains('warehouse_manager'))) {
+      return 'Approved WH Mgr';
+    } else if (statusLower == 'pending' || statusLower == 'sent') {
+      return 'Pending';
+    } else {
+      // Fallback: format the status nicely
+      return statusLower
+          .replaceAll('_', ' ')
+          .split(' ')
+          .map((word) => word.isEmpty 
+              ? word 
+              : word[0].toUpperCase() + word.substring(1))
+          .join(' ');
+    }
+  }
+
+  Color _getStatusColor(String statusLower) {
+    if (statusLower == 'approved') {
+      return Colors.green[700]!;
+    } else if (statusLower == 'rejected') {
+      return Colors.red[700]!;
+    } else if (statusLower == 'approved_manager' ||
+               statusLower == 'approved_by_manager' ||
+               (statusLower.contains('approved') &&
+                statusLower.contains('manager') &&
+                !statusLower.contains('warehouse'))) {
+      return Colors.blue[700]!;
+    } else if (statusLower == 'approved_hr' ||
+               statusLower == 'approved_by_hr' ||
+               (statusLower.contains('approved') && statusLower.contains('hr'))) {
+      return Colors.purple[700]!;
+    } else if (statusLower == 'approved_team_lead' ||
+               statusLower == 'approved_by_team_lead' ||
+               (statusLower.contains('approved') && statusLower.contains('team_lead'))) {
+      return Colors.teal[700]!;
+    } else if (statusLower == 'approved_warehouse_manager' ||
+               statusLower == 'approved_by_warehouse_manager' ||
+               (statusLower.contains('approved') && statusLower.contains('warehouse_manager'))) {
+      return Colors.indigo[700]!;
+    } else {
+      return Colors.orange[700]!;
+    }
+  }
+
+  Widget _buildStatusText(String statusLower) {
+    return Text(
+      _getStatusText(statusLower),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: _getStatusColor(statusLower),
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildStatusTextForDetail(String statusLower, Color statusColor) {
+    return Text(
+      _getStatusText(statusLower),
+      style: TextStyle(
+        color: statusColor,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildAttachmentsPreview(List<Map<String, dynamic>> attachments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.attach_file, size: 16, color: AppTheme.kNanoGold),
+            const SizedBox(width: 8),
+            Text(
+              '${LeaveTranslations.attachmentsLabel(ref)} (${attachments.length})',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.kNanoGold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: attachments.asMap().entries.map((entry) {
+            final index = entry.key;
+            final attachment = entry.value;
+            final url = attachment['publicUrl'] ?? attachment['url'] ?? attachment['firebaseUrl'] ?? '';
+            final fileName =
+                attachment['originalName'] ??
+                attachment['fileName'] ??
+                attachment['name'] ??
+                url.split('/').last;
+            final fileType = attachment['fileType'] ?? attachment['type'] ?? '';
+            final contentType = attachment['contentType'] ?? attachment['mimeType'] ?? '';
+
+            // Check if it's an image by multiple methods
+            final isImage = _isImageFile(fileName, url) || 
+                           (fileType.toString().toLowerCase().contains('image')) ||
+                           (contentType.toString().toLowerCase().startsWith('image/'));
+
+            return GestureDetector(
+              onTap: () => _openAttachment(url, allAttachments: attachments, initialIndex: index),
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.kNanoGold.withOpacity(0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: isImage && url.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFFD4A574).withOpacity(0.3),
+                              child: Icon(
+                                Icons.image,
+                                color: AppTheme.kNanoGold,
+                                size: 32,
+                              ),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              color: const Color(0xFFD4A574).withOpacity(0.3),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: AppTheme.kNanoGold,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    : Container(
+                        color: const Color(0xFFD4A574).withOpacity(0.3),
+                        child: Center(
+                          child: Icon(
+                            _getFileIcon(fileName),
+                            color: AppTheme.kNanoGold,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  bool _isImageFile(String fileName, [String? url]) {
+    // Check filename extension
+    if (fileName.contains('.')) {
+      final extension = fileName.toLowerCase().split('.').last;
+      if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic', 'heif'].contains(extension)) {
+        return true;
+      }
+    }
+    
+    // Check URL if provided
+    if (url != null && url.isNotEmpty) {
+      final urlLower = url.toLowerCase();
+      // Check if URL contains image extensions
+      if (urlLower.contains('.jpg') || 
+          urlLower.contains('.jpeg') || 
+          urlLower.contains('.png') || 
+          urlLower.contains('.gif') || 
+          urlLower.contains('.bmp') || 
+          urlLower.contains('.webp') ||
+          urlLower.contains('.heic') ||
+          urlLower.contains('.heif')) {
+        return true;
+      }
+      // Check if it's a Firebase Storage URL with image content type
+      if (urlLower.contains('firebasestorage') || urlLower.contains('storage.googleapis.com')) {
+        // Assume it's an image if we can't determine otherwise (common for Firebase URLs)
+        // But also check for common non-image patterns
+        if (!urlLower.contains('.pdf') && 
+            !urlLower.contains('.doc') && 
+            !urlLower.contains('.xls') &&
+            !urlLower.contains('.zip')) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  IconData _getFileIcon(String fileName) {
+    final extension = fileName.toLowerCase().split('.').last;
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'doc':
+      case 'docx':
+        return Icons.description;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart;
+      case 'ppt':
+      case 'pptx':
+        return Icons.slideshow;
+      case 'txt':
+        return Icons.text_snippet;
+      case 'zip':
+      case 'rar':
+        return Icons.archive;
+      default:
+        return Icons.attach_file;
+    }
+  }
+
+  Future<void> _openAttachment(String url, {List<Map<String, dynamic>>? allAttachments, int? initialIndex}) async {
+    if (allAttachments != null && allAttachments.isNotEmpty) {
+      // Extract URLs from attachment objects for full-screen viewer
+      final List<String> imageUrls = allAttachments
+          .map((att) => att['publicUrl']?.toString() ?? att['url']?.toString() ?? att['firebaseUrl']?.toString() ?? '')
+          .whereType<String>()
+          .where((url) => url.isNotEmpty)
+          .toList();
+      
+      if (imageUrls.isNotEmpty) {
+        final index = initialIndex != null && initialIndex < imageUrls.length 
+            ? initialIndex 
+            : imageUrls.indexOf(url);
+        if (index >= 0) {
+          _showFullScreenImage(context, imageUrls, index);
+        } else {
+          _showFullScreenImage(context, imageUrls, 0);
+        }
+      }
+    } else {
+      // Fallback: show single image
+      _showFullScreenImage(context, [url], 0);
+    }
+  }
+
+  void _showFullScreenImage(
+    BuildContext context,
+    List<String> imageUrls,
+    int initialIndex,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppTheme.successColor),
+    );
+  }
+}
+
+class _FullScreenImageViewer extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const _FullScreenImageViewer({
+    required this.imageUrls,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          '${_currentIndex + 1} of ${widget.imageUrls.length}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: () {
+              // Share functionality can be added here if needed
+            },
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        itemBuilder: (context, index) {
+          return Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          color: Colors.white,
+                          size: 64,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Failed to load image',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

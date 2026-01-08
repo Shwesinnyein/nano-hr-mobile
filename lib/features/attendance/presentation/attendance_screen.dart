@@ -1294,6 +1294,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   /// Rules:
   /// - nanovip company → No restriction (can check in/out everywhere)
   /// - nanostore company + office position → No restriction (can check in/out everywhere)
+  /// - branch name contains "office" → No restriction (can check in/out everywhere)
   /// - nanostore company + non-office position → Restriction (must be in branch area)
   /// - BranchLocation company → Restriction (must be in branch area)
   /// - Default → Restriction (must be in branch area) for safety
@@ -1306,6 +1307,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     final companyName = (employeeProfile['companyName'] ?? employeeProfile['company'] ?? '').toString().toLowerCase();
     final positionName = (employeeProfile['positionName'] ?? employeeProfile['position'] ?? '').toString().toLowerCase();
+    final branchName = (employeeProfile['branchName'] ?? employeeProfile['branch'] ?? '').toString().toLowerCase();
 
     // nanovip employees can check in/out everywhere (no restriction)
     if (companyName.contains('nanovip') || companyName.contains('nano-vip')) {
@@ -1315,6 +1317,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     // nanostore office employees can check in/out everywhere (no restriction)
     if ((companyName.contains('nanostore') || companyName.contains('nano-store')) && 
         positionName.contains('office')) {
+      return false;
+    }
+
+    // If branch name contains "office", allow check in/out everywhere (no restriction)
+    if (branchName.contains('office')) {
       return false;
     }
 

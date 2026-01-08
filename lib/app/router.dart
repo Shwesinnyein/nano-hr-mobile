@@ -260,7 +260,7 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
 
   Future<void> _checkAuthAndNavigate() async {
     // Minimum display time to ensure splash is visible (3.5 seconds)
-    await Future.delayed(const Duration(milliseconds: 3500));
+    await Future.delayed(const Duration(milliseconds: 3000));
 
     if (!mounted) return;
 
