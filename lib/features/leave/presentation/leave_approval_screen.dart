@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart';
 import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/api_service.dart';
@@ -139,37 +139,122 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
     try {
       final leaveService = LeaveService();
       final userLevel = _getUserLevel(auth);
+      final positionName = auth.currentPositionName ?? '';
+      
+      print('=== LOADING EMPLOYEE LEAVES ===');
+      print('Current Employee ID: ${auth.currentEmployeeId}');
+      print('Position Name: $positionName');
+      print('Detected User Level: $userLevel');
+      print('Is Warehouse Manager: ${userLevel == 'warehouse-manager'}');
 
       List<Map<String, dynamic>> allEmployeeLeaves = [];
 
+      // Try getLeaveHistory first for all roles (API handles filtering for warehouse managers)
       try {
-        allEmployeeLeaves = await leaveService.getLeaveHistory(
-          currentEmployeeId,
-        );
-
+        print('Trying getLeaveHistory API...');
+        allEmployeeLeaves = await leaveService.getLeaveHistory(currentEmployeeId);
+        print('getLeaveHistory returned ${allEmployeeLeaves.length} leaves');
+        
         if (allEmployeeLeaves.isNotEmpty) {
-          final sample = allEmployeeLeaves.first;
-        } else {}
+          print('Successfully loaded ${allEmployeeLeaves.length} leaves from getLeaveHistory');
+        }
       } catch (e) {
+        print('getLeaveHistory failed: $e');
+        // If getLeaveHistory fails, try fallback approach
         try {
-          final processedLeaves = await leaveService
-              .getLeaveRequestsForApproval(userLevel, currentEmployeeId);
+          if (userLevel == 'warehouse-manager') {
+            print('=== WAREHOUSE MANAGER - Using fallback: getAllLeaveRequests ===');
+            // Fallback for warehouse managers: get all leaves and filter
+            final allLeaves = await leaveService.getAllLeaveRequests();
+            print('Total leaves fetched: ${allLeaves.length}');
+            
+            allEmployeeLeaves = allLeaves.where((leave) {
+              // Check if employee is warehouse worker or warehouse administrator
+              final positionName = (leave['positionName'] ?? 
+                                   leave['position'] ?? 
+                                   leave['employeePosition'] ??
+                                   leave['employeePositionName'] ??
+                                   '').toString().toLowerCase();
+              
+              final isWarehouseWorker = positionName.contains('warehouse worker') ||
+                                       positionName.contains('warehouse-worker') ||
+                                       positionName.contains('warehouse_worker') ||
+                                       positionName.contains('warehouseworker');
+              final isWarehouseAdministrator = positionName.contains('warehouse administrator') ||
+                                              positionName.contains('warehouse-administrator') ||
+                                              positionName.contains('warehouse_administrator') ||
+                                              positionName.contains('warehouseadministrator');
+              
+              if (!isWarehouseWorker && !isWarehouseAdministrator) {
+                return false;
+              }
+              
+              // Check if this leave has been processed (approved/rejected) by the warehouse manager
+              final approvalHistory = leave['approvalHistory'] as List<dynamic>? ?? [];
+              final hasWarehouseManagerAction = approvalHistory.any((history) {
+                final historyUserId = history['userId']?.toString() ?? '';
+                final historyLevel = (history['level']?.toString() ?? '').toLowerCase();
+                final historyAction = (history['action']?.toString() ?? '').toLowerCase();
+                
+                return historyUserId == currentEmployeeId &&
+                       (historyLevel.contains('warehouse') && historyLevel.contains('manager')) &&
+                       (historyAction == 'approve' || historyAction == 'reject');
+              });
+              
+              return hasWarehouseManagerAction;
+            }).toList();
+            
+            print('Filtered leaves for warehouse manager: ${allEmployeeLeaves.length}');
+          } else {
+            // Fallback for other roles
+            final processedLeaves = await leaveService
+                .getLeaveRequestsForApproval(userLevel, currentEmployeeId);
 
-          allEmployeeLeaves = processedLeaves.where((leave) {
-            final approvalHistory =
-                leave['approvalHistory'] as List<dynamic>? ?? [];
-            return approvalHistory.any((history) {
-              final historyUserId = history['userId']?.toString() ?? '';
-              final historyLevel = history['level']?.toString() ?? '';
-              return historyUserId == currentEmployeeId &&
-                  historyLevel == userLevel;
-            });
-          }).toList();
+            allEmployeeLeaves = processedLeaves.where((leave) {
+              final approvalHistory =
+                  leave['approvalHistory'] as List<dynamic>? ?? [];
+              return approvalHistory.any((history) {
+                final historyUserId = history['userId']?.toString() ?? '';
+                final historyLevel = history['level']?.toString() ?? '';
+                
+                // Check if user ID matches
+                if (historyUserId != currentEmployeeId) {
+                  return false;
+                }
+                
+                // Normalize levels for comparison (handle underscore, hyphen, and case variations)
+                final normalizedUserLevel = userLevel.toLowerCase().replaceAll('_', '-');
+                final normalizedHistoryLevel = historyLevel.toLowerCase().replaceAll('_', '-');
+                
+                // Exact match
+                if (normalizedHistoryLevel == normalizedUserLevel) {
+                  return true;
+                }
+                
+                // Fuzzy match for warehouse manager variations
+                if (normalizedUserLevel.contains('warehouse') && normalizedUserLevel.contains('manager') &&
+                    normalizedHistoryLevel.contains('warehouse') && normalizedHistoryLevel.contains('manager')) {
+                  return true;
+                }
+                
+                // Fuzzy match for other variations
+                if ((normalizedUserLevel.contains('team') && normalizedUserLevel.contains('lead') &&
+                     normalizedHistoryLevel.contains('team') && normalizedHistoryLevel.contains('lead')) ||
+                    (normalizedUserLevel.contains('hr') && normalizedHistoryLevel.contains('hr')) ||
+                    (normalizedUserLevel.contains('approver') && normalizedHistoryLevel.contains('approver'))) {
+                  return true;
+                }
+                
+                return false;
+              });
+            }).toList();
+          }
         } catch (fallbackError) {
+          print('Fallback also failed: $fallbackError');
           allEmployeeLeaves = [];
         }
       }
-
+      
       allEmployeeLeaves = allEmployeeLeaves.where((leave) {
         final employeeId = leave['employeeId']?.toString();
         return employeeId == null || employeeId != currentEmployeeId;
@@ -997,7 +1082,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            'Employee Leaves',
+                            LeaveTranslations.employeeLeaves(ref),
                             style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1126,18 +1211,25 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
 
     final employeeId = leave['employeeId']?.toString() ?? '';
     final leaveType = leave['leaveTypeName']?.toString() ?? 'Unknown Type';
+    final requestType = leave['requestType']?.toString().toLowerCase() ?? 'daily';
     final startDate =
-        leave['startDate']?.toString() ??
-        leave['fromDate']?.toString() ??
-        leave['date']?.toString() ??
-        '';
+        requestType == 'hourly'
+            ? (leave['date']?.toString() ?? '')
+            : (leave['startDate']?.toString() ??
+                leave['fromDate']?.toString() ??
+                leave['date']?.toString() ??
+                '');
     final endDate =
-        leave['endDate']?.toString() ??
-        leave['toDate']?.toString() ??
-        leave['date']?.toString() ??
-        '';
-
+        requestType == 'hourly'
+            ? (leave['date']?.toString() ?? '')
+            : (leave['endDate']?.toString() ??
+                leave['toDate']?.toString() ??
+                leave['date']?.toString() ??
+                '');
+    final startTime = leave['startTime']?.toString() ?? '';
+    final endTime = leave['endTime']?.toString() ?? '';
     final totalDays = leave['totalDays']?.toString() ?? '0';
+    final totalHours = leave['totalHours']?.toString() ?? '0';
     final reason = leave['reason']?.toString() ?? '';
     final status = leave['status']?.toString() ?? 'pending';
     final statusName = leave['statusName']?.toString() ?? '';
@@ -1147,6 +1239,56 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         '';
     final branchName =
         leave['branchName']?.toString() ?? leave['branch']?.toString() ?? '';
+
+    // Extract attachments from leave data
+    List<Map<String, dynamic>> attachments = [];
+    try {
+      // Check if attachments are already a list
+      if (leave['attachments'] is List) {
+        final attList = leave['attachments'] as List;
+        attachments = attList.map((e) {
+          if (e is String) {
+            return {'publicUrl': e, 'url': e, 'firebaseUrl': e};
+          } else if (e is Map<String, dynamic>) {
+            return e;
+          }
+          return <String, dynamic>{};
+        }).where((e) => e.isNotEmpty).toList();
+      }
+      
+      // If no attachments found, try to extract from attachment object
+      if (attachments.isEmpty && leave['attachment'] != null) {
+        final attachment = leave['attachment'];
+        if (attachment is Map<String, dynamic>) {
+          // Check for files array
+          final files = attachment['files'];
+          if (files is List) {
+            attachments = files
+                .map((e) {
+                  if (e is Map<String, dynamic>) {
+                    return e;
+                  } else if (e is String) {
+                    return {'publicUrl': e, 'url': e, 'firebaseUrl': e};
+                  }
+                  return <String, dynamic>{};
+                })
+                .where((e) => e.isNotEmpty)
+                .toList();
+          }
+        } else if (attachment is String && attachment.isNotEmpty) {
+          // Single attachment URL
+          attachments = [{'publicUrl': attachment, 'url': attachment, 'firebaseUrl': attachment}];
+        }
+      }
+    } catch (e) {
+      debugPrint('Error extracting attachments from employee leave: $e');
+    }
+
+    final leaveId = leave['id']?.toString() ?? 
+                   leave['uid']?.toString() ?? 
+                   leave['leaveId']?.toString() ?? 
+                   leave['leaveRequestId']?.toString() ?? 
+                   '';
 
     Color statusColor;
     String statusText;
@@ -1162,7 +1304,52 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
       statusText = statusName.isNotEmpty ? statusName : 'Pending';
     }
 
-    return Container(
+    // Create a notification model from leave data for navigation
+    NotificationModel? notificationModel;
+    if (leaveId.isNotEmpty) {
+      try {
+        notificationModel = NotificationModel(
+          id: leaveId,
+          userId: leave['employeeId']?.toString() ?? '',
+          senderId: leave['employeeId']?.toString() ?? '',
+          title: 'Leave Request',
+          message: 'Leave request from $employeeName',
+          type: status.toLowerCase(),
+          data: leave,
+          isRead: true,
+          createdAt: leave['createdAt'] != null 
+              ? DateTime.parse(leave['createdAt'].toString())
+              : DateTime.now(),
+          updatedAt: leave['updatedAt'] != null
+              ? DateTime.parse(leave['updatedAt'].toString())
+              : DateTime.now(),
+        );
+      } catch (e) {
+        debugPrint('Error creating notification model: $e');
+      }
+    }
+
+    return GestureDetector(
+      onTap: () async {
+        if (leaveId.isNotEmpty && notificationModel != null) {
+          // Employee Leaves tab is read-only - don't show action buttons
+          final result = await context.push(
+            '/leave/detail/$leaveId?showActions=false',
+            extra: {'notification': notificationModel, 'showActions': false},
+          );
+          
+          // Refresh if result is true (approve/reject happened)
+          if (result == true && mounted) {
+            _loadAllLeaveRequests(forceRefresh: true, showLoading: false);
+            _loadEmployeeLeaves(showLoading: false);
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Leave ID not found')),
+          );
+        }
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1184,6 +1371,7 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [   
               Container(
                 width: 40,
@@ -1229,7 +1417,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
+              // Status badge - handle long text with constraints
               Container(
+                constraints: const BoxConstraints(maxWidth: 140),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
@@ -1238,10 +1429,13 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                 child: Text(
                   statusText,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: statusColor,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],
@@ -1273,7 +1467,9 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '$totalDays day${totalDays != '1' ? 's' : ''}',
+                      requestType == 'hourly'
+                          ? '$totalHours hour${totalHours != '1' ? 's' : ''}'
+                          : '$totalDays day${totalDays != '1' ? 's' : ''}',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppTheme.kNanoGold,
@@ -1289,7 +1485,11 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '${startDate.isNotEmpty ? startDate : 'N/A'} - ${endDate.isNotEmpty ? endDate : 'N/A'}',
+                        requestType == 'hourly'
+                            ? (startDate.isNotEmpty
+                                ? '${startDate}${startTime.isNotEmpty && endTime.isNotEmpty ? ' ($startTime - $endTime)' : ''}'
+                                : 'N/A')
+                            : '${startDate.isNotEmpty ? startDate : 'N/A'} - ${endDate.isNotEmpty ? endDate : 'N/A'}',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -1322,10 +1522,15 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                     ],
                   ),
                 ],
+                if (attachments.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildAttachmentsPreview(attachments),
+                ],
               ],
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -1793,6 +1998,10 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
           'fromDate': lr['fromDate'],
           'toDate': lr['toDate'],
           'totalDays': lr['totalDays'],
+          'totalHours': lr['totalHours'],
+          'date': lr['date'],
+          'startTime': lr['startTime'],
+          'endTime': lr['endTime'],
           'requestType': lr['requestType'],
           'reason': lr['reason'],
           'status': lr['status'] ?? lr['statusName'],
@@ -1860,6 +2069,20 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
         return;
     }
 
+    // Navigate to detail screen instead of showing modal
+    final result = await context.push(
+      '/leave/detail/$leaveId',
+      extra: notification,
+    );
+    
+    // If result is true, it means leave was approved/rejected, so refresh the list
+    if (result == true && mounted) {
+      _loadAllLeaveRequests(forceRefresh: true, showLoading: false);
+      _loadEmployeeLeaves(showLoading: false);
+    }
+    return;
+
+    // Old modal code (kept for reference but not executed)
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1946,9 +2169,17 @@ class _LeaveApprovalScreenState extends ConsumerState<LeaveApprovalScreen>
                 _buildApprovalSteps(d, statusLower),
                 const SizedBox(height: 16),
                 
-                _detailRow(LeaveTranslations.fromDate(ref).replaceAll(':', ''), d['fromDate']),
-                _detailRow(LeaveTranslations.toDate(ref).replaceAll(':', ''), d['toDate']),
-                _detailRow(LeaveTranslations.totalDaysLabel(ref).replaceAll(':', ''), d['totalDays']?.toString()),
+                // Show different fields based on request type
+                if (d['requestType']?.toString().toLowerCase() == 'hourly') ...[
+                  _detailRow('Date', d['date']),
+                  _detailRow('Start Time', d['startTime']),
+                  _detailRow('End Time', d['endTime']),
+                  _detailRow('Total Hours', d['totalHours']?.toString()),
+                ] else ...[
+                  _detailRow(LeaveTranslations.fromDate(ref).replaceAll(':', ''), d['fromDate']),
+                  _detailRow(LeaveTranslations.toDate(ref).replaceAll(':', ''), d['toDate']),
+                  _detailRow(LeaveTranslations.totalDaysLabel(ref).replaceAll(':', ''), d['totalDays']?.toString()),
+                ],
                 _detailRow(LeaveTranslations.requestType(ref), d['requestType']),
                 _detailRow(LeaveTranslations.reason(ref), d['reason']),
                 if (statusLower == 'rejected' && d['rejectReason'] != null && d['rejectReason'].toString().isNotEmpty)

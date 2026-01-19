@@ -7,6 +7,11 @@ import '../../../app/theme.dart';
 import '../../../core/services/auth_service.dart';
 import '../../employee/data/employee_model.dart';
 import '../../../core/utils/translation_helper.dart';
+import '../../../core/utils/company_translations.dart';
+import '../../../core/utils/position_translations.dart';
+import '../../../core/utils/branch_translations.dart';
+import '../../../core/utils/location_translations.dart';
+import '../../../core/utils/gender_translations.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -224,7 +229,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _buildProfilePhoto(employee),
           const SizedBox(height: 16),
           Text(
-            employee.fullName,
+            employee.nickname != null && employee.nickname!.isNotEmpty
+                ? '${employee.fullName} (${employee.nickname})'
+                : employee.fullName,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -233,7 +240,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            employee.positionName ?? 'Employee',
+            PositionTranslations.translatePositionName(ref, employee.positionName),
             style: TextStyle(
               fontSize: 16,
               color: AppTheme.kNanoWhite.withOpacity(0.8),
@@ -241,7 +248,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            employee.companyName ?? 'NANO-STORES',
+            CompanyTranslations.translateCompanyName(ref, employee.companyName),
             style: TextStyle(
               fontSize: 14,
               color: AppTheme.kNanoWhite.withOpacity(0.7),
@@ -326,21 +333,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Map<String, String> _getPersonalInfoMap(Employee employee) {
+    final fullName = '${employee.firstName} ${employee.lastName}';
+    final displayName = employee.nickname != null && employee.nickname!.isNotEmpty
+        ? '$fullName (${employee.nickname})'
+        : fullName;
+    
     return {
-      ref.t('ชื่อเต็ม', 'Full Name'):
-          '${employee.firstName} ${employee.lastName}',
+      ref.t('ชื่อเต็ม', 'Full Name'): displayName,
       ref.t('รหัสพนักงาน', 'Employee ID'): employee.uid ?? '',
       ref.t('อีเมล', 'Email'): employee.email,
       ref.t('โทรศัพท์', 'Phone'): employee.primaryNumber ?? '-',
-      ref.t('บริษัท', 'Company'): employee.companyName ?? '-',
-      ref.t('สถานที่', 'Location'): employee.locationName ?? '-',
-      ref.t('สาขา', 'Branch'): employee.branchName ?? '-',
+      ref.t('บริษัท', 'Company'): CompanyTranslations.translateCompanyName(ref, employee.companyName),
+      ref.t('สถานที่', 'Location'): LocationTranslations.translateLocationName(ref, employee.locationName),
+      ref.t('สาขา', 'Branch'): BranchTranslations.translateBranchName(ref, employee.branchName),
       ref.t('ตำแหน่ง', 'Position'):
-          employee.positionName ?? ref.t('พนักงาน', 'Employee'),
+          PositionTranslations.translatePositionName(ref, employee.positionName),
 
       ref.t('สถานะ', 'Status'): employee.status ?? ref.t('ใช้งาน', 'Active'),
       ref.t('วันเกิด', 'Date of Birth'): employee.dateOfBirth ?? '-',
-      ref.t('เพศ', 'Gender'): employee.gender ?? '-',
+      ref.t('เพศ', 'Gender'): GenderTranslations.translateGender(ref, employee.gender),
       ref.t('สถานะสมรส', 'Marital Status'): employee.maritalStatus ?? '-',
       ref.t('วันที่เข้าร่วม', 'Join Date'): employee.joinDate != null
           ? DateTime.parse(

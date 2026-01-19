@@ -232,6 +232,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
 
     try {
+      final loadStartTime = DateTime.now();
+      if (kDebugMode) {
+        debugPrint('⏱️ [Attendance] Starting data load');
+      }
+      
       setState(() {
         _isLoadingStatus = true;
       });
@@ -251,11 +256,27 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final dateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-      // Fetch today's attendance data first to get employee profile
-      final shiftDataResponse = await apiService.getShiftDataWithFilter(
-        employeeId: employeeId,
-        date: dateString,
-      );
+      final attendanceService = ref.read(attendanceServiceProvider);
+      
+      // OPTIMIZATION: Run API calls in parallel instead of sequential
+      // Fetch today's attendance data and status in parallel
+      final apiStartTime = DateTime.now();
+      final results = await Future.wait([
+        apiService.getShiftDataWithFilter(
+          employeeId: employeeId,
+          date: dateString,
+        ),
+        attendanceService.getTodayAttendanceStatus(
+          employeeId: employeeId,
+        ),
+      ]);
+      final apiDuration = DateTime.now().difference(apiStartTime);
+      if (kDebugMode) {
+        debugPrint('⏱️ [Attendance] Parallel API calls took: ${apiDuration.inMilliseconds}ms');
+      }
+
+      final shiftDataResponse = results[0] as Map<String, dynamic>;
+      final statusResponse = results[1] as Map<String, dynamic>;
 
       // Check if employee is Driver or Security from the shift data response
       bool shouldCheckYesterday = false;
@@ -280,12 +301,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           date: yesterdayDateString,
         );
       }
-
-      // Fetch API status response (includes canCheckIn, canCheckOut, status, etc.)
-      final attendanceService = ref.read(attendanceServiceProvider);
-      final statusResponse = await attendanceService.getTodayAttendanceStatus(
-        employeeId: employeeId,
-      );
 
       if (mounted) {
         setState(() {
@@ -342,6 +357,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           }
           _isLoadingStatus = false;
         });
+        
+        final totalLoadDuration = DateTime.now().difference(loadStartTime);
+        if (kDebugMode) {
+          debugPrint('⏱️ [Attendance] Total data load time: ${totalLoadDuration.inMilliseconds}ms');
+        }
       }
     } catch (e) {
       if (mounted) {

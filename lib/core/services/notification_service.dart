@@ -190,6 +190,27 @@ class NotificationService {
     required String employeeId,
   }) async {
     try {
+      // Try bulk endpoint first (more efficient)
+      try {
+        final response = await _dio.put(
+          '${ApiEndpoints.baseUrl}${ApiEndpoints.markNotificationRead}/$employeeId/read-all',
+        );
+
+        if (response.statusCode == 200) {
+          return {
+            'success': true,
+            'message': 'All notifications marked as read',
+            'data': response.data,
+          };
+        }
+      } catch (bulkError) {
+        // If bulk endpoint doesn't exist (404), fall back to individual marking
+        if (bulkError is DioException && bulkError.response?.statusCode != 404) {
+          rethrow;
+        }
+      }
+
+      // Fallback: Get all unread notifications and mark them individually
       final notificationsResponse = await getNotifications(
         employeeId: employeeId,
         unreadOnly: true,
@@ -200,22 +221,38 @@ class NotificationService {
       }
 
       final notifications = notificationsResponse['data'] as List<dynamic>;
+      
+      // If no unread notifications, return success
+      if (notifications.isEmpty) {
+        return {
+          'success': true,
+          'message': 'All notifications are already read',
+          'successCount': 0,
+          'failCount': 0,
+        };
+      }
+
       int successCount = 0;
       int failCount = 0;
 
-      for (final notification in notifications) {
-        final notificationId = notification['id'] as String;
-        final result = await markAsRead(
-          employeeId: employeeId,
-          notificationId: notificationId,
-        );
+      // Mark all notifications as read in parallel for better performance
+      final results = await Future.wait(
+        notifications.map((notification) async {
+          final notificationId = notification['id'] as String;
+          try {
+            final result = await markAsRead(
+              employeeId: employeeId,
+              notificationId: notificationId,
+            );
+            return result['success'] == true;
+          } catch (e) {
+            return false;
+          }
+        }),
+      );
 
-        if (result['success'] == true) {
-          successCount++;
-        } else {
-          failCount++;
-        }
-      }
+      successCount = results.where((r) => r == true).length;
+      failCount = results.where((r) => r == false).length;
 
       return {
         'success': true,

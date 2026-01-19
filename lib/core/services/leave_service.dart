@@ -385,9 +385,10 @@ Map<String, dynamic> data,
 
       final payload = {
         'leaveId': leaveId,
+        'status': status, // Backend expects 'status' field
         'userId': approverId,
         'userRole': userRole, 
-        'action': status == 'approved' ? 'approve' : 'reject',
+        'action': status == 'approved' ? 'approve' : 'reject', // Keep for backward compatibility
         if (note != null && note.isNotEmpty) 'note': note,
         // Try multiple field name variations for backend compatibility
         if (rejectReason != null && rejectReason.isNotEmpty) ...{

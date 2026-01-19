@@ -56,4 +56,7 @@ static const String baseUrl = 'https://nano-api-production.vercel.app';
   static const String registerDevice = '/notifications/devices/register';
   static const String unregisterDevice = '/notifications/devices';
   static const String unreadCount = '/notifications/unread-count';
+
+  // App version check endpoint
+  static const String appVersion = '/app/version';
 }

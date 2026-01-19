@@ -66,18 +66,34 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           options.extra['startTime'] = DateTime.now().millisecondsSinceEpoch;
-
+          if (kDebugMode) {
+            print('🚀 [API Request] ${options.method} ${options.uri}');
+          }
           handler.next(options);
         },
         onResponse: (response, handler) {
           final startTime = response.requestOptions.extra['startTime'] as int?;
           if (startTime != null) {
             final duration = DateTime.now().millisecondsSinceEpoch - startTime;
+            final method = response.requestOptions.method;
+            final uri = response.requestOptions.uri.toString();
+            if (kDebugMode) {
+              print('✅ [API Response] $method $uri - ${duration}ms (Status: ${response.statusCode})');
+            }
           }
           handler.next(response);
         },
         onError: (error, handler) {
-         
+          final startTime = error.requestOptions.extra['startTime'] as int?;
+          if (startTime != null) {
+            final duration = DateTime.now().millisecondsSinceEpoch - startTime;
+            final method = error.requestOptions.method;
+            final uri = error.requestOptions.uri.toString();
+            final statusCode = error.response?.statusCode ?? 'N/A';
+            if (kDebugMode) {
+              print('❌ [API Error] $method $uri - ${duration}ms (Status: $statusCode)');
+            }
+          }
           handler.next(error);
         },
       ),

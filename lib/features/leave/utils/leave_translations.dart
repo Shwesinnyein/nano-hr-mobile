@@ -194,6 +194,9 @@ class LeaveTranslations {
     'Search by employee, leave type, or reason...',
   );
 
+  static String employeeLeaves(WidgetRef ref) =>
+      ref.t('การลาของพนักงาน', 'Employee Leaves');
+
   static String noPendingRequests(WidgetRef ref) =>
       ref.t('ไม่มีคำขอที่รอดำเนินการ', 'No pending requests');
 
@@ -445,4 +448,13 @@ class LeaveTranslations {
 
   static String pendingStatus(WidgetRef ref) =>
       ref.t('รอดำเนินการ', 'Pending');
+
+  static String rejectedStatus(WidgetRef ref) =>
+      ref.t('ปฏิเสธ', 'Rejected');
+
+  static String leaveDetails(WidgetRef ref) =>
+      ref.t('รายละเอียดการลา', 'Leave Details');
+
+  static String employeeId(WidgetRef ref) =>
+      ref.t('รหัสพนักงาน', 'Employee ID');
 }

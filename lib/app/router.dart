@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/employee_login_screen.dart';
@@ -10,11 +11,13 @@ import '../features/leave/presentation/leave_request_screen.dart';
 import '../features/leave/presentation/leave_screen.dart';
 import '../features/leave/presentation/leave_list_screen.dart';
 import '../features/leave/presentation/leave_approval_screen.dart';
+import '../features/leave/presentation/leave_detail_screen.dart';
 import '../features/notifications/presentation/notification_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/settings/presentation/privacy_policy_screen.dart';
 import '../core/widgets/main_layout.dart';
+import '../core/models/notification_model.dart';
 import '../features/auth/data/auth_repository.dart' as auth_repo;
 import 'theme.dart';
 
@@ -84,6 +87,46 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/leave/approval',
         builder: (_, __) => const LeaveApprovalScreen(),
+      ),
+      GoRoute(
+        path: '/leave/detail/:leaveId',
+        builder: (context, state) {
+          final leaveId = state.pathParameters['leaveId'] ?? '';
+          
+          // Default to true (show actions) unless explicitly set to false
+          bool showActions = true;
+          
+          // Check query parameter first
+          final queryParam = state.uri.queryParameters['showActions'];
+          if (queryParam != null && queryParam.toLowerCase() == 'false') {
+            showActions = false;
+          }
+          
+          // Handle both NotificationModel and Map<String, dynamic> for extra
+          NotificationModel? notification;
+          bool? showActionsFromExtra;
+          
+          if (state.extra != null) {
+            if (state.extra is NotificationModel) {
+              notification = state.extra as NotificationModel;
+              // If only NotificationModel is passed (from approval screen), keep showActions = true
+            } else if (state.extra is Map<String, dynamic>) {
+              final extraMap = state.extra as Map<String, dynamic>;
+              notification = extraMap['notification'] as NotificationModel?;
+              showActionsFromExtra = extraMap['showActions'] as bool?;
+              // If showActions is explicitly set in extra, use that (overrides query param)
+              if (showActionsFromExtra != null) {
+                showActions = showActionsFromExtra!;
+              }
+            }
+          }
+          
+          return LeaveDetailScreen(
+            leaveId: leaveId,
+            notification: notification,
+            showActions: showActions,
+          );
+        },
       ),
       GoRoute(
         path: '/privacy-policy',
@@ -259,12 +302,18 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    // Minimum display time to ensure splash is visible (3.5 seconds)
-    await Future.delayed(const Duration(milliseconds: 3000));
+    final startTime = DateTime.now();
+    if (kDebugMode) {
+      debugPrint('⏱️ [Splash] Starting navigation check');
+    }
+    
+    // Minimum display time to ensure splash is visible (1.5 seconds - reduced for faster loading)
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     if (!mounted) return;
 
     // Wait for auth state to fully resolve (no loading state)
+    final authCheckStart = DateTime.now();
     var authState = ref.read(auth_repo.authStateProvider);
     int maxWaitAttempts = 10; // Maximum 5 seconds (10 * 500ms)
     int attempts = 0;
@@ -276,6 +325,11 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
       authState = ref.read(auth_repo.authStateProvider);
       attempts++;
     }
+    
+    final authCheckDuration = DateTime.now().difference(authCheckStart);
+    if (kDebugMode) {
+      debugPrint('⏱️ [Splash] Auth check took: ${authCheckDuration.inMilliseconds}ms');
+    }
 
     if (!mounted) return;
 
@@ -285,6 +339,11 @@ class _SplashScreenState extends ConsumerState<_SplashScreen>
       loading: () => '/login', // Fallback if still loading after max attempts
       error: (_, __) => '/login',
     );
+
+    final totalDuration = DateTime.now().difference(startTime);
+    if (kDebugMode) {
+      debugPrint('⏱️ [Splash] Total splash time: ${totalDuration.inMilliseconds}ms, navigating to: $targetRoute');
+    }
 
     if (mounted) {
       context.go(targetRoute);

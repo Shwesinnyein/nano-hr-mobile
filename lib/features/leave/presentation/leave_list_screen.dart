@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -11,6 +12,7 @@ import '../../../core/widgets/skeleton_loading.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/animated_fade_in.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/models/notification_model.dart';
 import '../data/leave_repository.dart';
 import '../data/leave_model.dart';
 import '../utils/leave_translations.dart';
@@ -209,7 +211,7 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
                 return AnimatedFadeIn(
                   delay: Duration(milliseconds: index * 50),
                   child: GestureDetector(
-                    onTap: () => _showLeaveDetailsDialog(context, request),
+                    onTap: () => _navigateToLeaveDetail(request),
                     child: _buildLeaveRequestCard(request),
                   ),
                 );
@@ -860,6 +862,94 @@ class _LeaveListScreenState extends ConsumerState<LeaveListScreen> {
       default:
         return Icons.calendar_today;
     }
+  }
+
+  void _navigateToLeaveDetail(LeaveRequest request) async {
+    final leaveId = request.id;
+    if (leaveId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Leave ID not found')),
+      );
+      return;
+    }
+
+    // Convert LeaveRequest to NotificationModel format for the detail screen
+    final notificationModel = NotificationModel(
+      id: leaveId,
+      userId: request.employeeId,
+      senderId: request.employeeId,
+      title: 'Leave Request',
+      message: 'Leave request details',
+      type: request.status,
+      data: {
+        'id': leaveId,
+        'leaveId': leaveId,
+        'leaveRequestId': leaveId,
+        'employeeId': request.employeeId,
+        'employeeName': request.employeeName,
+        'leaveTypeName': request.leaveType,
+        'startDate': request.startDate,
+        'endDate': request.endDate,
+        'date': request.date,
+        'startTime': request.startTime,
+        'endTime': request.endTime,
+        'totalDays': request.totalDays,
+        'totalHours': request.startTime != null && request.endTime != null 
+            ? _calculateHours(request.startTime!, request.endTime!)
+            : null,
+        'requestType': request.date != null && request.startTime != null ? 'hourly' : 'daily',
+        'reason': request.reason,
+        'status': request.status,
+        'rejectReason': request.rejectReason,
+        'attachments': request.attachments,
+        'attachment': request.attachments.isNotEmpty 
+            ? {'files': request.attachments}
+            : null,
+        'createdAt': request.createdAt,
+        'updatedAt': request.updatedAt,
+      },
+      isRead: true,
+      createdAt: DateTime.tryParse(request.createdAt) ?? DateTime.now(),
+      updatedAt: DateTime.tryParse(request.updatedAt) ?? DateTime.now(),
+    );
+
+    final result = await context.push(
+      '/leave/detail/$leaveId?showActions=false',
+      extra: {'notification': notificationModel, 'showActions': false},
+    );
+
+    // Refresh if result is true (approve/reject happened)
+    if (result == true && mounted) {
+      _refreshData();
+    }
+  }
+
+  double? _calculateHours(String startTime, String endTime) {
+    try {
+      final start = _parseTime(startTime);
+      final end = _parseTime(endTime);
+      if (start != null && end != null) {
+        final difference = end.difference(start);
+        return difference.inMinutes / 60.0;
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+    return null;
+  }
+
+  DateTime? _parseTime(String timeStr) {
+    try {
+      final parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        final hour = int.parse(parts[0]);
+        final minute = int.parse(parts[1]);
+        return DateTime(2000, 1, 1, hour, minute);
+      }
+    } catch (e) {
+      // Ignore parsing errors
+    }
+    return null;
   }
 
   void _showLeaveDetailsDialog(BuildContext context, LeaveRequest request) {

@@ -236,36 +236,50 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     if (_currentUserId == null) return;
 
     try {
+      // Show loading state
       setState(() {
-        for (var i = 0; i < _notifications.length; i++) {
-          final n = _notifications[i];
-          _notifications[i] = NotificationModel(
-            id: n.id,
-            userId: n.userId,
-            senderId: n.senderId,
-            title: n.title,
-            message: n.message,
-            titleTh: n.titleTh,
-            messageTh: n.messageTh,
-            type: n.type,
-            data: n.data,
-            isRead: true, 
-            createdAt: n.createdAt,
-            updatedAt: n.updatedAt,
-          );
-        }
+        _isLoading = true;
       });
 
-      ref.read(notificationProvider.notifier).markAllAsRead();
-      
-      final pushService = ref.read(pushNotificationServiceProvider);
-      await pushService.updateBadgeCount(0);
-
+      // Call API to mark all as read
       final response = await _notificationService.markAllAsRead(
         employeeId: _currentUserId!,
       );
 
       if (response['success'] == true) {
+        // Update local state immediately
+        setState(() {
+          for (var i = 0; i < _notifications.length; i++) {
+            final n = _notifications[i];
+            _notifications[i] = NotificationModel(
+              id: n.id,
+              userId: n.userId,
+              senderId: n.senderId,
+              title: n.title,
+              message: n.message,
+              titleTh: n.titleTh,
+              messageTh: n.messageTh,
+              type: n.type,
+              data: n.data,
+              isRead: true, 
+              createdAt: n.createdAt,
+              updatedAt: DateTime.now(),
+            );
+          }
+        });
+
+        // Update provider and badge count
+        ref.read(notificationProvider.notifier).markAllAsRead();
+        final pushService = ref.read(pushNotificationServiceProvider);
+        await pushService.updateBadgeCount(0);
+
+        // Clear cache and reload notifications to get fresh data from server
+        _notificationService.clearCache();
+        await _loadNotifications();
+        
+        // Refresh the unread count
+        ref.read(notificationProvider.notifier).refreshUnreadCount();
+
         _showSuccessSnackBar(
           ref.t('ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว', 'All notifications marked as read'),
         );
@@ -278,6 +292,10 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     } catch (e) {
       await _loadNotifications();
       _showErrorSnackBar(ref.t('เกิดข้อผิดพลาด', 'Error marking all as read: $e'));
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -290,32 +308,89 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     final isOwnRequest = currentEmployeeId != null && 
                         notification.senderId == currentEmployeeId;
     
-    switch (notification.type) {
-      case 'pending':
-      case 'approved_team_lead':
-      case 'approved_manager':
-      case 'approved_hr':
-      case 'approved_warehouse_manager':
-      case 'approved_by_warehouse_manager':
-        if (isOwnRequest) {
-          if (mounted) {
-            context.push('/leave/list');
-          }
-          return;
-        }
-        
-        if (mounted) {
-          context.push('/leave/approval');
-        }
-        
-      case 'approved':
-      case 'rejected':
+    // Check notification type and title/message to determine navigation
+    final type = notification.type.toLowerCase();
+    final title = notification.title.toLowerCase();
+    final message = notification.message.toLowerCase();
+    
+    // Check if it's a leave request notification (pending/approval)
+    final isLeaveRequestNotification = type == 'leave_request' || 
+                                       type == 'pending' ||
+                                       title.contains('leave request') ||
+                                       message.contains('submitted') ||
+                                       message.contains('leave request');
+    
+    // Check if it's a rejected notification
+    final isRejectedNotification = type == 'rejected' ||
+                                   title.contains('rejected') ||
+                                   message.contains('rejected');
+    
+    // Check if it's an approved notification
+    final isApprovedNotification = type == 'approved' ||
+                                   title.contains('approved') ||
+                                   (message.contains('approved') && !message.contains('rejected'));
+    
+    // Check if it's an approval workflow notification (needs approval)
+    final isApprovalWorkflow = type == 'approved_team_lead' ||
+                               type == 'approved_manager' ||
+                               type == 'approved_hr' ||
+                               type == 'approved_warehouse_manager' ||
+                               type == 'approved_by_warehouse_manager';
+    
+    if (isRejectedNotification) {
+      // Rejected notifications → go to leave list
+      if (mounted) {
+        context.push('/leave/list');
+      }
+    } else if (isApprovedNotification && isOwnRequest) {
+      // Approved notifications for own requests → go to leave list
+      if (mounted) {
+        context.push('/leave/list');
+      }
+    } else if (isLeaveRequestNotification || isApprovalWorkflow) {
+      // Leave request notifications or approval workflow → go to leave approval
+      if (isOwnRequest) {
+        // If it's own request, go to list
         if (mounted) {
           context.push('/leave/list');
         }
-        
-      default:
-        break;
+      } else {
+        // If it's someone else's request, go to approval page
+        if (mounted) {
+          context.push('/leave/approval');
+        }
+      }
+    } else {
+      // Default: try to navigate based on type
+      switch (notification.type) {
+        case 'pending':
+        case 'approved_team_lead':
+        case 'approved_manager':
+        case 'approved_hr':
+        case 'approved_warehouse_manager':
+        case 'approved_by_warehouse_manager':
+          if (isOwnRequest) {
+            if (mounted) {
+              context.push('/leave/list');
+            }
+            return;
+          }
+          
+          if (mounted) {
+            context.push('/leave/approval');
+          }
+          break;
+          
+        case 'approved':
+        case 'rejected':
+          if (mounted) {
+            context.push('/leave/list');
+          }
+          break;
+          
+        default:
+          break;
+      }
     }
   }
 

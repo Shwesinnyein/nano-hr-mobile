@@ -121,7 +121,7 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
     setState(() {
       _isLoading = true;
     });
-
+    print('performLogin: email=$email, password=***');
     try {
       final authController = ref.read(auth_repo.authStateProvider.notifier);
 
@@ -139,9 +139,10 @@ class _EmployeeLoginScreenState extends ConsumerState<EmployeeLoginScreen> {
         }
       }
     } catch (e) {
+      print(e);
       if (mounted) {
         final errorMessage = e.toString();
-        
+        print(errorMessage);
         if (errorMessage.contains('PASSWORD_INCORRECT')) {
           _showPasswordIncorrectAlert();
         }

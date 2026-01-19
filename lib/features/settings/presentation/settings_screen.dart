@@ -581,7 +581,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Nano HR Mobile v1.0.0',
+                      'Nano HR Mobile v1.1.1',
                       style: TextStyle(
                         fontSize: 14,
                         color: AppTheme.kOnSurface.withOpacity(0.7),
@@ -591,7 +591,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               Text(
-                'v1.0.0',
+                'v1.1.1',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
