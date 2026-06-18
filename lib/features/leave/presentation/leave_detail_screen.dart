@@ -1029,6 +1029,14 @@ class _LeaveDetailScreenState extends ConsumerState<LeaveDetailScreen> {
     
     if (_details == null) return false;
     
+    // Don't show Approve/Reject to the requester (employee who submitted the leave).
+    // Only approvers (HR, Manager, Team Lead, Approver, etc.) should see these buttons.
+    final requesterId = (_details!['employeeId'] ?? _details!['employee_id'] ?? '').toString().trim();
+    final currentUserId = ref.read(authServiceProvider).currentEmployeeId?.trim() ?? '';
+    if (requesterId.isNotEmpty && currentUserId.isNotEmpty && requesterId == currentUserId) {
+      return false; // Current user is the requester — view only
+    }
+    
     final status = (_details!['status'] ?? 'Pending').toString().trim();
     final statusLower = status.toLowerCase();
     

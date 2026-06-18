@@ -48,6 +48,39 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
   String fmt(DateTime dt) => DateFormat('HH:mm').format(dt.toLocal());
   
+  // Check if it's a holiday - hide check-in/out for ALL employees
+  bool _shouldHideCheckInOnHoliday() {
+    // Check if API marks it as holiday from root response
+    if (_shiftData != null) {
+      final isHoliday = _shiftData!['isHoliday'] == true;
+      if (isHoliday) {
+        // Hide check-in/out for ALL employees when it's a holiday
+        return true;
+      }
+      
+      // If isHoliday is false and there's shift data, allow check-in even on weekends
+      final hasShiftData = _shiftData!['shiftData'] != null && 
+                           (_shiftData!['shiftData'] as List).isNotEmpty;
+      if (hasShiftData) {
+        // If there's shift data and isHoliday is false, show button regardless of weekend
+        return false;
+      }
+    }
+    
+    // Check if today is weekend (Saturday = 6, Sunday = 7)
+    // Only apply weekend check if we don't have shift data or holiday info
+    final today = DateTime.now();
+    final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
+    
+    // Hide check-in if it's a weekend (but allow Driver and Security)
+    if (isWeekend) {
+      // Hide check-in for everyone EXCEPT Driver and Security on weekends
+      return !isNightShiftPosition();
+    }
+    
+    return false;
+  }
+  
   String fmtDate(DateTime dt) {
     final isThai = ref.watch(languageProvider);
     if (isThai) {
@@ -1363,6 +1396,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           final buttonState = _getButtonState(entries);
           final shouldEnforce = shouldEnforceLocationRestriction();
           
+          // Hide check-in/out button on holidays for ALL employees
+          // Check by icon (Icons.login = check-in, Icons.logout = check-out)
+          final buttonIcon = buttonState['icon'] as IconData;
+          final isCheckInOrOutButton = buttonIcon == Icons.login || buttonIcon == Icons.logout;
+          if (isCheckInOrOutButton && _shouldHideCheckInOnHoliday()) {
+            return const SizedBox.shrink();
+          }
+          
           // Always check if within branch radius (for display purposes)
           bool withinBranch = false;
           String? nearestBranchName;
@@ -1708,15 +1749,41 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (location != null) {
         final lat = location['latitude'] as double?;
         final lng = location['longitude'] as double?;
+        final address = location['address'] as String?;
+        
         if (lat != null && lng != null) {
+          // Try to get branch name first
           final nearestBranch = BranchLocationService.findNearestBranch(lat, lng);
           if (nearestBranch != null) {
             return nearestBranch.branchName;
           }
-          return location['address'] as String? ?? ref.t('ตำแหน่งปัจจุบัน', 'Current Location');
+          // If no branch, use address if available
+          if (address != null && address.isNotEmpty) {
+            return address;
+          }
+          // If no address yet, show loading message
+          return ref.t('กำลังระบุตำแหน่ง...', 'Getting location...');
         }
       }
       return ref.t('กำลังระบุตำแหน่ง...', 'Getting location...');
+    }
+    
+    // Check if location is ready (has both coordinates and address)
+    bool isLocationReady() {
+      if (location == null) return false;
+      final lat = location['latitude'] as double?;
+      final lng = location['longitude'] as double?;
+      final address = location['address'] as String?;
+      
+      // Location is ready if we have coordinates and (address or branch name)
+      if (lat != null && lng != null) {
+        // Check if we have a branch name
+        final nearestBranch = BranchLocationService.findNearestBranch(lat, lng);
+        if (nearestBranch != null) return true;
+        // Or if we have an address
+        if (address != null && address.isNotEmpty) return true;
+      }
+      return false;
     }
 
     return await showDialog<Map<String, dynamic>>(
@@ -1825,16 +1892,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _isModalLoading
+                            onPressed: (_isModalLoading || !isLocationReady())
                                 ? null
                                 : () {
+                                    final lat = location?['latitude'] as double?;
+                                    final lng = location?['longitude'] as double?;
+                                    String? address = location?['address'] as String?;
+                                    
+                                    // If no address, try to get branch name
+                                    if ((address == null || address.isEmpty) && lat != null && lng != null) {
+                                      final nearestBranch = BranchLocationService.findNearestBranch(lat, lng);
+                                      if (nearestBranch != null) {
+                                        address = nearestBranch.branchName;
+                                      }
+                                    }
+                                    
                                     Navigator.of(context).pop({
                                       'confirmed': true,
-                                      'latitude': location?['latitude'],
-                                      'longitude': location?['longitude'],
-                                      'address':
-                                          location?['address'] ??
-                                          'Location will be updated',
+                                      'latitude': lat,
+                                      'longitude': lng,
+                                      'address': address ?? '',
                                     });
                                   },
                             style: ElevatedButton.styleFrom(
@@ -1882,6 +1959,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   String _getWorkingHoursDisplay() {
+    // Check if it's a holiday from root response
+    if (_shiftData != null && _shiftData!['isHoliday'] == true) {
+      return ref.t('วันหยุด', 'Holiday');
+    }
+
     if (_shiftData != null && _shiftData!['shiftData'] != null) {
       final shiftDataList = _shiftData!['shiftData'] as List;
 
@@ -1890,12 +1972,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         final startTime = shift['startTime'];
         final endTime = shift['endTime'];
 
-        return '${ref.t('เวลาทำงาน', 'Working Hours')}: $startTime - $endTime';
-      } else {
+        // Show working hours if available
+        if (startTime != null && endTime != null) {
+          return '${ref.t('เวลาทำงาน', 'Working Hours')}: $startTime - $endTime';
+        }
       }
     }
 
-      return '${ref.t('เวลาทำงาน', 'Working Hours')}: ${ref.t('ไม่มีข้อมูล', 'Not Available')}'; 
+    return '${ref.t('เวลาทำงาน', 'Working Hours')}: ${ref.t('ไม่มีข้อมูล', 'Not Available')}'; 
   }
 
 

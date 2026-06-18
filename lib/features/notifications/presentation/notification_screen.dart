@@ -299,38 +299,51 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     }
   }
 
+  /// Leave notifications (request, approve, reject) always have a leave ID in data.
+  /// Backend may send it as leaveRequestId, leaveId, or leave_id.
+  String _getLeaveIdFromNotification(NotificationModel notification) {
+    final d = notification.data;
+    final value = d['leaveRequestId'] ?? d['leaveId'] ?? d['leave_id'] ?? '';
+    return value.toString().trim();
+  }
+
   void _handleNotificationTap(NotificationModel notification) async {   
     await _markAsRead(notification);
 
+    // Leave notifications (request, approve, reject) always include a leave ID in data
+    final leaveId = _getLeaveIdFromNotification(notification);
+    final hasLeaveId = leaveId.isNotEmpty;
+
+    if (hasLeaveId && mounted) {
+      context.push('/leave/detail/$leaveId', extra: notification);
+      return;
+    }
+
+    // Fallback: no leave ID in data — use list or approval by type
     final authService = ref.read(authServiceProvider);
     final currentEmployeeId = authService.currentEmployeeId;
 
     final isOwnRequest = currentEmployeeId != null && 
                         notification.senderId == currentEmployeeId;
     
-    // Check notification type and title/message to determine navigation
     final type = notification.type.toLowerCase();
     final title = notification.title.toLowerCase();
     final message = notification.message.toLowerCase();
     
-    // Check if it's a leave request notification (pending/approval)
     final isLeaveRequestNotification = type == 'leave_request' || 
                                        type == 'pending' ||
                                        title.contains('leave request') ||
                                        message.contains('submitted') ||
                                        message.contains('leave request');
     
-    // Check if it's a rejected notification
     final isRejectedNotification = type == 'rejected' ||
                                    title.contains('rejected') ||
                                    message.contains('rejected');
     
-    // Check if it's an approved notification
     final isApprovedNotification = type == 'approved' ||
                                    title.contains('approved') ||
                                    (message.contains('approved') && !message.contains('rejected'));
     
-    // Check if it's an approval workflow notification (needs approval)
     final isApprovalWorkflow = type == 'approved_team_lead' ||
                                type == 'approved_manager' ||
                                type == 'approved_hr' ||
@@ -338,30 +351,16 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                                type == 'approved_by_warehouse_manager';
     
     if (isRejectedNotification) {
-      // Rejected notifications → go to leave list
-      if (mounted) {
-        context.push('/leave/list');
-      }
+      if (mounted) context.push('/leave/list');
     } else if (isApprovedNotification && isOwnRequest) {
-      // Approved notifications for own requests → go to leave list
-      if (mounted) {
-        context.push('/leave/list');
-      }
+      if (mounted) context.push('/leave/list');
     } else if (isLeaveRequestNotification || isApprovalWorkflow) {
-      // Leave request notifications or approval workflow → go to leave approval
       if (isOwnRequest) {
-        // If it's own request, go to list
-        if (mounted) {
-          context.push('/leave/list');
-        }
+        if (mounted) context.push('/leave/list');
       } else {
-        // If it's someone else's request, go to approval page
-        if (mounted) {
-          context.push('/leave/approval');
-        }
+        if (mounted) context.push('/leave/approval');
       }
     } else {
-      // Default: try to navigate based on type
       switch (notification.type) {
         case 'pending':
         case 'approved_team_lead':
@@ -370,24 +369,15 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         case 'approved_warehouse_manager':
         case 'approved_by_warehouse_manager':
           if (isOwnRequest) {
-            if (mounted) {
-              context.push('/leave/list');
-            }
+            if (mounted) context.push('/leave/list');
             return;
           }
-          
-          if (mounted) {
-            context.push('/leave/approval');
-          }
+          if (mounted) context.push('/leave/approval');
           break;
-          
         case 'approved':
         case 'rejected':
-          if (mounted) {
-            context.push('/leave/list');
-          }
+          if (mounted) context.push('/leave/list');
           break;
-          
         default:
           break;
       }

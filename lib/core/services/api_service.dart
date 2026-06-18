@@ -694,6 +694,29 @@ class ApiService {
     required String employeeId,
     required String date,
   }) async {
+    // Try new endpoint first, fallback to old one
+    try {
+      final response = await _dio.get(
+        '${ApiEndpoints.baseUrl}/employee/shift-data/filter-updated',
+        queryParameters: {'employeeId': employeeId, 'date': date},
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+    } on DioException catch (e) {
+      // If new endpoint fails, try old endpoint
+      if (kDebugMode) {
+        print('⚠️ New endpoint failed, trying old endpoint: ${e.message}');
+      }
+    } catch (e) {
+      // If new endpoint fails, try old endpoint
+      if (kDebugMode) {
+        print('⚠️ New endpoint failed, trying old endpoint: ${e.toString()}');
+      }
+    }
+
+    // Fallback to old endpoint
     try {
       final response = await _dio.get(
         '${ApiEndpoints.baseUrl}/employee/shift-data/filter',
@@ -701,7 +724,6 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-       
         return response.data;
       } else {
         return {
@@ -720,7 +742,7 @@ class ApiService {
         return {'success': false, 'message': 'Network error: ${e.message}'};
       }
     } catch (e) {
-      return {'success': false, 'message': 'Unexpected error: $e'};
+      return {'success': false, 'message': 'Failed to get shift data: ${e.toString()}'};
     }
   }
 
